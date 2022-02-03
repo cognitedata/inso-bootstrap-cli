@@ -55,14 +55,14 @@ docker build -t incubator/bootstrap:v1.0 -t incubator/bootstrap:latest .
 docker run --volume ${PWD}/configs:/configs --volume ${PWD}/logs:/logs  --env-file=.env incubator/bootstrap deploy /configs/test-trading-bootstrap.yml
 ```
 
-Try to debug container
+Debug the Docker container
 - requires override of `ENTRYPOINT`
-  - `/bin/bash` not available but `sh`
-- no `ls` available :/
+- to get full functional `bash` a `Dockerfile.debug` is provided
 
 ```bash
-docker run -it --volume ${PWD}/configs:/configs --env-file=.env --entrypoint /bin/sh incubator/bootstrap
-```
+➟  docker build -t incubator/bootstrap:debug -f Dockerfile.debug .
+
+➟  docker run --volume ${PWD}/configs:/configs --volume ${PWD}/logs:/logs  --env-file=.env -it --entrypoint /bin/bash incubator/bootstrap:debug```
 
 ## run as github action
 

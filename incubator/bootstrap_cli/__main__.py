@@ -171,7 +171,7 @@ class BootstrapCore:
         self.all_scope_ctx: Dict[str, Any] = {}
 
         # TODO debug
-        print(f"self.config= {self.config}")
+        # print(f"self.config= {self.config}")
 
         self.config.logger.setup_logging()
 
@@ -496,7 +496,14 @@ class BootstrapCore:
         # simple check for name only
         # why make it more complicated checking different adfs_source or capabilities?
         # in any case just recreate it, will not happen frequently
-        return self.deployed["groups"].query("name == @group_payload['name']")["id"].tolist()
+
+        name_to_check = group_payload['name']
+        return self.deployed["groups"].query("name == @name_to_check")["id"].tolist()
+        
+        # return self.deployed["groups"].query("name == @group_payload['name']")["id"].tolist()
+        # TODO 220203 pa: bypassing a strange bug under Docker which throws a 
+        # pandas.core.computation.ops.UndefinedVariableError: name 'str_0_0x900xd80x90xec0x870x7f0x00x0' is not defined
+
 
     def process_group(self, action=None, group_type=None, group_prefix=None, root_account=None):
         # 1. check if not exists
@@ -536,7 +543,7 @@ class BootstrapCore:
             group_create_object.source_id = aad_source_id  # 'S-314159-1234'
             group_create_object.source = aad_source_name  # type: ignore # 'AD Group FooBar' # type: ignore
 
-        print(f"group_create_object:<{group_create_object}>")
+        # print(f"group_create_object:<{group_create_object}>")
         self.client.iam.groups.create(group_create_object)
 
         # now check if we need the prior existing group
