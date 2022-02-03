@@ -1,5 +1,5 @@
-name: 'Deploy Extraction Pipelines'
-description: 'Deploy a set of Extraction Pipelines from yaml manifests'
+name: 'Deploy Bootstrap Pipelines'
+description: 'Deploy a set of Bootstrap Pipelines from yaml manifests'
 inputs:
   api-key:
     description: 'API key for authenticating with CDF'
@@ -28,7 +28,7 @@ inputs:
     default: 'westeurope-1'
   config_file:
     description: >-
-      The path to a yaml file containing Extraction Pipeline configuration.
+      The path to a yaml file containing Bootstrap Pipeline configuration.
       This is relative to $GITHUB_WORKSPACE,
       which will be the root of the repository when using actions/checkout with default settings.
     required: true
@@ -36,13 +36,12 @@ runs:
   using: 'docker'
   image: 'Dockerfile'
   env:
-    EXTPIPES_API_KEY: ${{ inputs.api-key }}
-    EXTPIPES_TOKEN_URL: ${{ inputs.token-url }}
-    EXTPIPES_PROJECT: ${{ inputs.cdf-project-name }}
-    EXTPIPES_CLIENT_ID: ${{ inputs.client-id }}
-    EXTPIPES_CLIENT_SECRET: ${{ inputs.client-secret }}
-    EXTPIPES_SCOPES: ${{ inputs.scopes }}
-    EXTPIPES_AUDIENCE: ${{ inputs.audience }}
-    EXTPIPES_CLUSTER: "${{ inputs.cluster }}"
+    BOOTSTRAP_API_KEY: ${{ inputs.api-key }}
+    BOOTSTRAP_TOKEN_URL: ${{ inputs.token-url }}
+    BOOTSTRAP_PROJECT: ${{ inputs.cdf-project-name }}
+    BOOTSTRAP_CLIENT_ID: ${{ inputs.client-id }}
+    BOOTSTRAP_CLIENT_SECRET: ${{ inputs.client-secret }}
+    BOOTSTRAP_SCOPES: ${{ inputs.scopes }}
+    BOOTSTRAP_AUDIENCE: ${{ inputs.audience }}
+    BOOTSTRAP_CLUSTER: "${{ inputs.cluster }}"
   args: ["deploy", "${{ inputs.config_file }}" , "--debug"]
-  

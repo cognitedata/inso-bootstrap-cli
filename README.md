@@ -1,8 +1,8 @@
 # scope of work
 
 - the prefix `inso-` names this solution as provided by Cognite Industry Solution team, and is nit (yet? :)) an offical supported cli from Cognite
-- it provides a configuration driven deployment for Cognite Extraction Pipelines (named `extpipes` in short)
-  - support to run it 
+- it provides a configuration driven deployment for Cognite Bootstrap Pipelines (named `bootstrap` in short)
+  - support to run it
     - from `poetry run`
     - from `python -m`
     - from `docker run`
@@ -10,13 +10,14 @@
 
 - template used for implementation are
   - `cognitedata/transformation-cli`
-  - `cognitedata/python-extratcion-utils` 
+  - `cognitedata/python-extratcion-utils`
     - using `CogniteConfig` and `LoggingConfig`
     - and extended with custom config sections
   - the configuration structure and example expects a CDF Project configured with `cognitedata/inso-cdf-project-cli`
 
 ## to be done
 
+- [ ] `.pre-commit-config.yaml` hook support
 - [x] `.dockerignore` (pycache)
 - [x] logs folder handling (docker volume mount)
 - [ ] logger.info() or print() or click.echo(click.style(..))
@@ -32,7 +33,7 @@ poetry build
 poetry install
 poetry update
 
-poetry run extpipes-cli deploy --debug configs/test-dev-extpipes.yml
+poetry run bootstrap-cli deploy --debug configs/ test-trading-bootstrap.yml
 ```
 
 ## run local with Python
@@ -40,7 +41,7 @@ poetry run extpipes-cli deploy --debug configs/test-dev-extpipes.yml
 ```bash
 export PYTHONPATH=.
 
-python incubator/extpipes_cli/__main__.py deploy configs/test-dev-extpipes.yml 
+python incubator/bootstrap_cli/__main__.py deploy configs/ test-trading-bootstrap.yml
 ```
 
 ## run local with Docker and .env
@@ -48,27 +49,27 @@ python incubator/extpipes_cli/__main__.py deploy configs/test-dev-extpipes.yml
 - volumes for `configs` (to read) and `logs` folder (to write)
 
 ```bash
-docker build -t incubator/extpipes:v1.0 -t incubator/extpipes:latest .
+docker build -t incubator/bootstrap:v1.0 -t incubator/bootstrap:latest .
 
 # ${PWD} because only absolute paths can be mounted
-docker run -it --volume ${PWD}/configs:/configs --volume ${PWD}/logs:/logs  --env-file=.env incubator/extpipes deploy /configs/test-dev-extpipes.yml
+docker run --volume ${PWD}/configs:/configs --volume ${PWD}/logs:/logs  --env-file=.env incubator/bootstrap deploy /configs/test-trading-bootstrap.yml
 ```
 
-Try to debug container
+Debug the Docker container
 - requires override of `ENTRYPOINT`
-  - `/bin/bash` not available but `sh`
-- no `ls` available :/
+- to get full functional `bash` a `Dockerfile.debug` is provided
 
 ```bash
-docker run -it --volume ${PWD}/configs:/configs --env-file=.env --entrypoint /bin/sh incubator/extpipes
-```
+➟  docker build -t incubator/bootstrap:debug -f Dockerfile.debug .
+
+➟  docker run --volume ${PWD}/configs:/configs --volume ${PWD}/logs:/logs  --env-file=.env -it --entrypoint /bin/bash incubator/bootstrap:debug```
 
 ## run as github action
 
 ```yaml
-jobs:  
+jobs:
   deploy:
-    name: Deploy Extraction Pipelines
+    name: Deploy Bootstrap Pipelines
     environment: dev
     runs-on: ubuntu-latest
     # environment variables
@@ -77,16 +78,16 @@ jobs:
       CDF_CLUSTER: bluefield
       IDP_TENANT: abcde-12345
       CDF_HOST: https://bluefield.cognitedata.com/
-      - name: Deploy extpipes
+      - name: Deploy bootstrap
         uses: cognitedata/inso-expipes-cli@main
         env:
-            EXTPIPES_IDP_CLIENT_ID: ${{ secrets.CLIENT_ID }}
-            EXTPIPES_IDP_CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }} 
-            EXTPIPES_CDF_HOST: ${{ env.CDF_HOST }}
-            EXTPIPES_CDF_PROJECT: ${{ env.CDF_PROJECT }}
-            EXTPIPES_IDP_TOKEN_URL: https://login.microsoftonline.com/${{ env.IDP_TENANT }}/oauth2/v2.0/token
-            EXTPIPES_IDP_SCOPES: ${{ env.CDF_HOST }}.default
+            BOOTSTRAP_IDP_CLIENT_ID: ${{ secrets.CLIENT_ID }}
+            BOOTSTRAP_IDP_CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
+            BOOTSTRAP_CDF_HOST: ${{ env.CDF_HOST }}
+            BOOTSTRAP_CDF_PROJECT: ${{ env.CDF_PROJECT }}
+            BOOTSTRAP_IDP_TOKEN_URL: https://login.microsoftonline.com/${{ env.IDP_TENANT }}/oauth2/v2.0/token
+            BOOTSTRAP_IDP_SCOPES: ${{ env.CDF_HOST }}.default
         # additional parameters for running the action
         with:
-          config_file: ./configs/test-dev-extpipes.yml
+          config_file: ./configs/test-trading-bootstrap.yml
 ```
