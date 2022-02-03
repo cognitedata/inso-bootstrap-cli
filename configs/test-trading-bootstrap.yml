@@ -1,0 +1,154 @@
+# follows the same parameter structure as the DB extractor configuration
+cognite: # kwargs to pass to the CogniteClient, Environment variable format: ${ENVIRONMENT_VARIABLE}
+  host: ${BOOTSTRAP_CDF_HOST}
+  project: ${BOOTSTRAP_CDF_PROJECT}
+  #
+  # ADFS login credentials:
+  #
+  idp-authentication:
+    client-id: ${BOOTSTRAP_IDP_CLIENT_ID}
+    secret: ${BOOTSTRAP_IDP_CLIENT_SECRET}
+    scopes:
+      - ${BOOTSTRAP_IDP_SCOPES}
+    token_url: ${BOOTSTRAP_IDP_TOKEN_URL}
+
+logger:
+  file:
+    path: ./logs/create-bootstrap.log
+    level: INFO
+  console:
+    level: INFO
+
+#
+# IK config for CDF project "preprod"
+#
+# 210910 pa: first try for 
+# environment: dev
+# 210610: to support multiple environments in one CDF tenant, the external IDs need to be prefixed to be unique
+#   Should be set to 'false' when running on Aramco CDF tenants, as this will only need one environment
+# prefix_external_id: false
+
+# Sync with AD object-ids
+# 210330 pa: changed AD Group SIDs to new "s-groups > cdf groups" claims, which reflect the AD Group name 1:1
+# 210512 mh: separated adfs_links with ADFS Server-Applications and AD Groups, and added missing AD Groups
+aad_mappings:
+  # Explanation: Each entry in aad-mappings corresponds to an existing CDF Group. The first item in the list is the...
+  # ... AAD Group objectId. The second item in the list is the AAD Group name. Example:
+  # cdf:group:name:
+  #   - AAD Group ObjectId
+  #   - AAD Group name
+
+  # AD Groups
+  dev:bootstrap:
+    - 374dc9f6-f3a1-4b34-b897-564d709351a3
+    - CDF_ROOT
+  extractors:
+    - 22bdd91b-656c-4204-a1b0-022e0b6d15d2
+    - CDF_EXTRACTORS
+  transformations:
+    - 10f60034-5058-4f15-8fdd-78de056f7179
+    - CDF_TRANSFORMATIONS
+
+  cdf:root:
+    - 374dc9f6-f3a1-4b34-b897-564d709351a3
+    - CDF_ROOT
+  cdf:allprojects:owner:
+    - 44bc660b-5cbf-4641-adf4-199b7693529e
+    - CDF_ALLPROJECTS_OWNER
+  cdf:allprojects:read:
+    - acd2fe35-aa51-45a7-acef-0d54e2b6b6a8
+    - CDF_ALLPROJECTS_READ
+  
+
+bootstrap:
+  # 'bootstrap' is unpacked to 'self.group_types_dimensions'
+  # fac + uc + ca are unpacked to 'group_prefix' and 'group_config'
+  # Dataset limits [https://docs.cognite.com/api/v1/#operation/updateDataSets]
+  #   name string [ 1 .. 50 ] characters
+  #   description string [ 1 .. 500 ] characters
+  # Raw DB name limitation
+  #   name string [ 1 .. 32 ] characters
+  #
+
+
+  #  .d8888b   .d88b.  888  888 888d888  .d8888b  .d88b.  .d8888b  
+  #  88K      d88""88b 888  888 888P"   d88P"    d8P  Y8b 88K      
+  #  "Y8888b. 888  888 888  888 888     888      88888888 "Y8888b. 
+  #       X88 Y88..88P Y88b 888 888     Y88b.    Y8b.          X88 
+  #   88888P'  "Y88P"   "Y88888 888      "Y8888P  "Y8888   88888P' 
+  src:
+    src:001:exact:
+      description: Sources 001; from ExactEarth
+      external_id: src:001:exact
+    src:002:signal:
+      description: Sources 002; from Signal Ocean
+      external_id: src:002:signal
+    src:003:imos:
+      description: Sources 003; from IMOS
+      external_id: src:003:imos
+    src:004:eqn:
+      description: Sources 004; Equinor internal
+      external_id: src:004:eqn
+    src:005:public:
+      description: Sources 005; Open Intelligence, public available sources, like UN
+      external_id: src:005:public
+    src:006:gdm:
+      description: Sources 006; from Genic DataManager (GDM)
+      external_id: src:006:gdm
+    src:007:cargo:
+      description: Sources 007; from Cargo Tracker (Equinor internal application)
+      external_id: src:007:cargo
+    src:999:test:
+      description: Sources 999; test bootstrap delete
+      external_id: src:999:test
+
+  #                                     d8b                            888    
+  #                                     Y8P                            888    
+  #                                                                    888    
+  # 888  888 .d8888b   .d88b.  888d888  888 88888b.  88888b.  888  888 888888 .d8888b  
+  # 888  888 88K      d8P  Y8b 888P"    888 888 "88b 888 "88b 888  888 888    88K      
+  # 888  888 "Y8888b. 88888888 888      888 888  888 888  888 888  888 888    "Y8888b. 
+  # Y88b 888      X88 Y8b.     888      888 888  888 888 d88P Y88b 888 Y88b.       X88 
+  #  "Y88888  88888P'  "Y8888  888      888 888  888 88888P"   "Y88888  "Y888  88888P' 
+  #                                                  888                      
+  #                                                  888                      
+  #                                                  888                      
+  in:
+    in:001:tracker:
+      description: User Input 001; from Shipping Tracking Plotly Dash
+      external_id: in:001:tracker
+      
+
+  # 888  888 .d8888b   .d88b.      .d8888b  8888b.  .d8888b   .d88b.  .d8888b
+  # 888  888 88K      d8P  Y8b    d88P"        "88b 88K      d8P  Y8b 88K
+  # 888  888 "Y8888b. 88888888    888      .d888888 "Y8888b. 88888888 "Y8888b.
+  # Y88b 888      X88 Y8b.        Y88b.    888  888      X88 Y8b.          X88
+  #  "Y88888  88888P'  "Y8888      "Y8888P "Y888888  88888P'  "Y8888   88888P'
+  #
+  # UC create their own dataset, but group "owner"
+  # need shared_access access to 1 or more facilities to read from
+  uc:
+    uc:002:vessel:
+      description: Use Case 002; Vessel Supply Forecasting
+      external_id: uc:002:vessel
+      metadata:
+        # owner: shebang@cognite.com
+        created: 211013
+        generated: by CDF Bootstrap script
+      shared_read_access:
+        - src:001:exact
+        - src:002:signal
+        - src:003:imos
+        - src:004:eqn
+        - src:005:public
+        - in:001:tracker
+
+
+# Changelog:
+#
+# 211028 pa: added user-inputs with 'in:001:tracker'
+# 210910 pa: adopted for trading-playground
+#   * starter set of two src and two uc groups
+#   * not working w/o `adfs_links`
+# 211103 pa: added src:005:public (for UN Ports)
+

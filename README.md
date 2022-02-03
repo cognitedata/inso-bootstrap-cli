@@ -1,19 +1,18 @@
 # scope of work
 
-- the prefix `inso-` names this solution as provided by Cognite Industry Solution team, and is nit (yet? :)) an offical supported cli from Cognite
+- the prefix `inso-` names this solution as provided by Cognite Industry Solution team, and is not (yet) an offical supported cli / GitHub Action  from Cognite
 - it provides a configuration driven deployment for Cognite Bootstrap Pipelines (named `bootstrap` in short)
   - support to run it
     - from `poetry run`
     - from `python -m`
     - from `docker run`
-    - and as gh-action
+    - and as GitHub Action
 
-- template used for implementation are
+- templates used for implementation are
   - `cognitedata/transformation-cli`
   - `cognitedata/python-extratcion-utils`
     - using `CogniteConfig` and `LoggingConfig`
     - and extended with custom config sections
-  - the configuration structure and example expects a CDF Project configured with `cognitedata/inso-cdf-project-cli`
 
 ## to be done
 
@@ -23,7 +22,7 @@
 - [ ] logger.info() or print() or click.echo(click.style(..))
     - logger debug support
 - [ ] compile as EXE (when Python is not available on customer server)
-  - signed exe required for Windows
+  - code-signed exe required for Windows
 
 # how to run
 ## run local with poetry and .env
