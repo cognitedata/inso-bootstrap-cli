@@ -1,0 +1,48 @@
+name: 'Deploy Extraction Pipelines'
+description: 'Deploy a set of Extraction Pipelines from yaml manifests'
+inputs:
+  api-key:
+    description: 'API key for authenticating with CDF'
+    required: false
+  token-url:
+    description: 'Token url to use for fetching OAuth2 tokens'
+    required: false
+  cdf-project-name:
+    description: 'CDF project name (only required when using OAuth2 credentials)'
+    required: false
+  scopes:
+    description: 'List of OAuth2 scopes (space separated)'
+    required: false
+  audience:
+    description: 'OAuth2 audience'
+    required: false
+  client-id:
+    description: 'OAuth2 client ID'
+    required: false
+  client-secret:
+    description: 'OAuth2 client secret'
+    required: false
+  cluster:
+    description: 'CDF Cluster'
+    required: false
+    default: 'westeurope-1'
+  config_file:
+    description: >-
+      The path to a yaml file containing Extraction Pipeline configuration.
+      This is relative to $GITHUB_WORKSPACE,
+      which will be the root of the repository when using actions/checkout with default settings.
+    required: true
+runs:
+  using: 'docker'
+  image: 'Dockerfile'
+  env:
+    EXTPIPES_API_KEY: ${{ inputs.api-key }}
+    EXTPIPES_TOKEN_URL: ${{ inputs.token-url }}
+    EXTPIPES_PROJECT: ${{ inputs.cdf-project-name }}
+    EXTPIPES_CLIENT_ID: ${{ inputs.client-id }}
+    EXTPIPES_CLIENT_SECRET: ${{ inputs.client-secret }}
+    EXTPIPES_SCOPES: ${{ inputs.scopes }}
+    EXTPIPES_AUDIENCE: ${{ inputs.audience }}
+    EXTPIPES_CLUSTER: "${{ inputs.cluster }}"
+  args: ["deploy", "${{ inputs.config_file }}" , "--debug"]
+  

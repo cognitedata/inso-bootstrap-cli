@@ -1,0 +1,46 @@
+# follows the same parameter structure as the DB extractor configuration
+cognite: # kwargs to pass to the CogniteClient, Environment variable format: ${ENVIRONMENT_VARIABLE}
+  # host: https://${EXTPIPES_CDF_CLUSTER}.cognitedata.com/
+  host: ${EXTPIPES_CDF_HOST}
+  project: ${EXTPIPES_CDF_PROJECT}
+  #
+  # AAD IdP login credentials:
+  #
+  idp-authentication:
+    client-id: ${EXTPIPES_IDP_CLIENT_ID}
+    secret: ${EXTPIPES_IDP_CLIENT_SECRET}
+    scopes:
+      - ${EXTPIPES_IDP_SCOPES}
+    token_url: ${EXTPIPES_IDP_TOKEN_URL}
+    # only required for ADFS
+    # resource: ${CDF_IDP_RESOURCE}
+
+logger:
+  file:
+    path: ./logs/test-deploy.log
+    level: INFO
+  console:
+    level: INFO
+
+extpipes:
+  # <configuration-group> following the dataops:cdf-groups naming scheme (predefined RAW DB)
+  src:001:public:
+    # list of pipelines
+    pipelines:
+      # RAW table target
+      un_ports:
+        # extraction/integration type: adf, az-func, py, db-extractor
+        adf:
+          # schedule (Continuous | On trigger | <cron> | null)
+          schedule: Continuous
+      un_vessels:
+        az-func:
+          schedule: On Trigger
+  src:002:internal:
+    pipelines:
+      int_voyage:
+        az-func:
+          schedule: Continuous
+      int_events:
+        az-func:
+          schedule: Continuous
