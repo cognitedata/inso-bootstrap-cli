@@ -170,6 +170,23 @@ requests-oauthlib = ">=1.0.0,<2.0.0"
 shapely = ">=1.0.0,<2.0.0"
 
 [[package]]
+name = "cognite-sdk-core"
+version = "2.39.1"
+description = "Client library for Cognite Data Fusion (CDF)"
+category = "main"
+optional = false
+python-versions = ">=3.5"
+
+[package.dependencies]
+pandas = {version = "*", optional = true, markers = "extra == \"pandas\""}
+requests = ">=2.21.0,<3.0.0"
+requests-oauthlib = "1.3.0"
+
+[package.extras]
+geo = ["geopandas (>=0.10.0,<0.11.0)", "shapely (>=1.0.0,<2.0.0)"]
+pandas = ["pandas"]
+
+[[package]]
 name = "colorama"
 version = "0.4.4"
 description = "Cross-platform colored terminal text."
@@ -659,7 +676,7 @@ use_chardet_on_py3 = ["chardet (>=3.0.2,<5)"]
 
 [[package]]
 name = "requests-oauthlib"
-version = "1.3.1"
+version = "1.3.0"
 description = "OAuthlib authentication support for Requests."
 category = "main"
 optional = false
@@ -792,7 +809,7 @@ testing = ["pytest (>=6)", "pytest-checkdocs (>=2.4)", "pytest-flake8", "pytest-
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.7"
-content-hash = "67ec3677e74b38ecde1816d6204f44eee228482a143286d147a71bd07b0a807e"
+content-hash = "d7649695a6eaa3f05885170c45cb4670a6156ba9d2422b127c68302ac188e2c9"
 
 [metadata.files]
 arrow = [
@@ -845,6 +862,10 @@ cognite-extractor-utils = [
 cognite-sdk = [
     {file = "cognite-sdk-2.39.1.tar.gz", hash = "sha256:76f2b2cd5c1469001b4a00892111c7f17e9fc9817a37ebba6eeb3724da58faf3"},
     {file = "cognite_sdk-2.39.1-py3-none-any.whl", hash = "sha256:82addcf7d992a9e318052fe436528f347c55e4d825670be4a07391d0f879682e"},
+]
+cognite-sdk-core = [
+    {file = "cognite-sdk-core-2.39.1.tar.gz", hash = "sha256:5b927c4249e68f4999ddfa84d4ebfb904f8b9868a2f85bd24cbda4cde22cef0c"},
+    {file = "cognite_sdk_core-2.39.1-py3-none-any.whl", hash = "sha256:c0a38b45ed6965da8af75ca3b1e442480ead27b44c14f767860cab39bb87215d"},
 ]
 colorama = [
     {file = "colorama-0.4.4-py2.py3-none-any.whl", hash = "sha256:9f47eda37229f68eee03b24b9748937c7dc3868f906e8ba69fbcbdd3bc5dc3e2"},
@@ -1201,8 +1222,9 @@ requests = [
     {file = "requests-2.27.1.tar.gz", hash = "sha256:68d7c56fd5a8999887728ef304a6d12edc7be74f1cfa47714fc8b414525c9a61"},
 ]
 requests-oauthlib = [
-    {file = "requests-oauthlib-1.3.1.tar.gz", hash = "sha256:75beac4a47881eeb94d5ea5d6ad31ef88856affe2332b9aafb52c6452ccf0d7a"},
-    {file = "requests_oauthlib-1.3.1-py2.py3-none-any.whl", hash = "sha256:2577c501a2fb8d05a304c09d090d6e47c306fef15809d102b327cf8364bddab5"},
+    {file = "requests-oauthlib-1.3.0.tar.gz", hash = "sha256:b4261601a71fd721a8bd6d7aa1cc1d6a8a93b4a9f5e96626f8e4d91e8beeaa6a"},
+    {file = "requests_oauthlib-1.3.0-py2.py3-none-any.whl", hash = "sha256:7f71572defaecd16372f9006f33c2ec8c077c3cfa6f5911a9a90202beb513f3d"},
+    {file = "requests_oauthlib-1.3.0-py3.7.egg", hash = "sha256:fa6c47b933f01060936d87ae9327fead68768b69c6c9ea2109c48be30f2d4dbc"},
 ]
 retry = [
     {file = "retry-0.9.2-py2.py3-none-any.whl", hash = "sha256:ccddf89761fa2c726ab29391837d4327f819ea14d244c232a1d24c67a2f98606"},
