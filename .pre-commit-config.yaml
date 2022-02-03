@@ -1,0 +1,36 @@
+repos:
+  - repo: https://github.com/timothycrosley/isort
+    rev: 5.8.0
+    hooks:
+      - id: isort
+
+  - repo: local
+    hooks:
+      - id: black
+        name: black
+        entry: poetry run black --config pyproject.toml
+        types: [python]
+        language: system
+
+  - repo: https://github.com/kynan/nbstripout
+    rev: 0.5.0
+    hooks:
+      - id: nbstripout
+
+  - repo: https://gitlab.com/pycqa/flake8
+    rev: 3.9.0
+    hooks:
+      - id: flake8
+        args: ['--config=setup.cfg', "--ignore=E501,F401"]
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v3.4.0
+    hooks:
+      - id: debug-statements
+      - id: trailing-whitespace
+      - id: check-yaml
+      - id: check-builtin-literals
+      - id: end-of-file-fixer
+      - id: check-ast
+      - id: check-docstring-first
+      - id: requirements-txt-fixer
