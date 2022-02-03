@@ -1,7 +1,7 @@
 # scope of work
 
 - the prefix `inso-` names this solution as provided by Cognite Industry Solution team, and is nit (yet? :)) an offical supported cli from Cognite
-- it provides a configuration driven deployment for Cognite Bootstrap Pipelines (named `extpipes` in short)
+- it provides a configuration driven deployment for Cognite Bootstrap Pipelines (named `bootstrap` in short)
   - support to run it
     - from `poetry run`
     - from `python -m`
@@ -33,7 +33,7 @@ poetry build
 poetry install
 poetry update
 
-poetry run extpipes-cli deploy --debug configs/test-dev-extpipes.yml
+poetry run bootstrap-cli deploy --debug configs/ test-trading-bootstrap.yml
 ```
 
 ## run local with Python
@@ -41,7 +41,7 @@ poetry run extpipes-cli deploy --debug configs/test-dev-extpipes.yml
 ```bash
 export PYTHONPATH=.
 
-python incubator/bootstrap_cli/__main__.py deploy configs/test-dev-extpipes.yml
+python incubator/bootstrap_cli/__main__.py deploy configs/ test-trading-bootstrap.yml
 ```
 
 ## run local with Docker and .env
@@ -49,10 +49,10 @@ python incubator/bootstrap_cli/__main__.py deploy configs/test-dev-extpipes.yml
 - volumes for `configs` (to read) and `logs` folder (to write)
 
 ```bash
-docker build -t incubator/extpipes:v1.0 -t incubator/extpipes:latest .
+docker build -t incubator/bootstrap:v1.0 -t incubator/bootstrap:latest .
 
 # ${PWD} because only absolute paths can be mounted
-docker run --volume ${PWD}/configs:/configs --volume ${PWD}/logs:/logs  --env-file=.env incubator/extpipes deploy /configs/test-dev-extpipes.yml
+docker run --volume ${PWD}/configs:/configs --volume ${PWD}/logs:/logs  --env-file=.env incubator/bootstrap deploy /configs/test-trading-bootstrap.yml
 ```
 
 Try to debug container
@@ -61,7 +61,7 @@ Try to debug container
 - no `ls` available :/
 
 ```bash
-docker run -it --volume ${PWD}/configs:/configs --env-file=.env --entrypoint /bin/sh incubator/extpipes
+docker run -it --volume ${PWD}/configs:/configs --env-file=.env --entrypoint /bin/sh incubator/bootstrap
 ```
 
 ## run as github action
@@ -78,7 +78,7 @@ jobs:
       CDF_CLUSTER: bluefield
       IDP_TENANT: abcde-12345
       CDF_HOST: https://bluefield.cognitedata.com/
-      - name: Deploy extpipes
+      - name: Deploy bootstrap
         uses: cognitedata/inso-expipes-cli@main
         env:
             BOOTSTRAP_IDP_CLIENT_ID: ${{ secrets.CLIENT_ID }}
@@ -89,5 +89,5 @@ jobs:
             BOOTSTRAP_IDP_SCOPES: ${{ env.CDF_HOST }}.default
         # additional parameters for running the action
         with:
-          config_file: ./configs/test-dev-extpipes.yml
+          config_file: ./configs/test-trading-bootstrap.yml
 ```

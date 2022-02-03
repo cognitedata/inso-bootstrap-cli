@@ -7,7 +7,6 @@ changelog
 """
 
 """
-# dataops: external pipeline (`extpipes`) creation / deletion
 * this configuration driven approach builds on top of the "dataops:cdf-groups" approach
 * using the naming scheme of configuration-groups like `src:001:exact` which provides a list of predefined resources
     * like `src:001:exact:rawdb`
@@ -179,7 +178,7 @@ class BootstrapCore:
         _logger.info("Starting CDF Bootstrap configuration")
 
         self.client: CogniteClient = self.config.cognite.get_cognite_client(
-            client_name="inso-extpipes-cli", token_custom_args=self.config.token_custom_args
+            client_name="inso-bootstrap-cli", token_custom_args=self.config.token_custom_args
         )
 
         _logger.info("Successful connection to CDF client")
@@ -753,9 +752,6 @@ class BootstrapCore:
     ### create / delete
     * new in config
     * delete removed from config
-
-    Only extpipes get managed (and deleted) which were created with metadata containing `dataops_created`
-    Manually created extpipes are not affected by this approach
     """
 
     def deploy(self):
@@ -870,10 +866,10 @@ def bootstrap_cli(
     }
 
 
-@click.command(help="Deploy a set of extpipes from a config-file")
+@click.command(help="Deploy a set of bootstrap from a config-file")
 @click.argument(
     "config_file",
-    default="./config-extpipes.yml",
+    default="./config-bootstrap.yml",
 )
 @click.option(
     "--debug",
