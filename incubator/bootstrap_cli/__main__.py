@@ -35,6 +35,7 @@ import json
 import logging
 import os
 import time
+from pathlib import Path
 from dataclasses import dataclass, field
 from datetime import datetime
 from functools import lru_cache, partial
@@ -173,6 +174,12 @@ class BootstrapCore:
         # TODO debug
         # print(f"self.config= {self.config}")
 
+        # make sure the optional folders in logger.file.path exists
+        # to avoid: FileNotFoundError: [Errno 2] No such file or directory: '/github/workspace/logs/test-deploy.log'
+
+        if self.config.logger.file:
+            (Path.cwd() / self.config.logger.file.path).parent.mkdir(parents=True, exist_ok=True)
+    
         self.config.logger.setup_logging()
 
         _logger.info("Starting CDF Bootstrap configuration")
@@ -886,14 +893,14 @@ def bootstrap_cli(
 @click.pass_obj
 def deploy(obj: Dict, config_file: str, debug: bool = False) -> None:
 
-    click.echo(click.style("Deploying extraction pipelines...", fg="red"))
+    click.echo(click.style("Deploying CDF Project bootstrap...", fg="red"))
 
     if debug:
-        # not working yet :/
+        # TODO not working yet :/
         _logger.setLevel("DEBUG")  # INFO/DEBUG
 
     try:
-        # load env from file
+        # load .env from file if exists
         load_dotenv()
 
         # _logger.debug(f'os.environ = {os.environ}')
@@ -902,11 +909,11 @@ def deploy(obj: Dict, config_file: str, debug: bool = False) -> None:
         # run deployment
         (
             BootstrapCore(config_file)
-            # .validate_config()
+            # .validate_config() # TODO
             .deploy()
         )
 
-        click.echo(click.style("Bootstrap pipelines deployed", fg="blue"))
+        click.echo(click.style("CDF Project bootstrap deployed", fg="blue"))
 
     except BootstrapConfigError as e:
         exit(e.message)
