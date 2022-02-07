@@ -167,7 +167,6 @@ class BootstrapCore:
         self.config: BootstrapConfig = BootstrapConfig.from_yaml(configpath)
         self.group_types_dimensions: Dict[str, Any] = self.config.bootstrap
         self.aad_mapping_lookup: Dict[str, Any] = self.config.aad_mappings
-
         self.deployed: Dict[str, Any] = {}
         self.all_scope_ctx: Dict[str, Any] = {}
 
@@ -767,6 +766,27 @@ class BootstrapCore:
     * new in config
     * delete removed from config
     """
+    def prepare(self):
+        group_name = f"cdf:bootstrap"
+        # group_name = f"{create_config.environment}:bootstrap"
+
+        group_capabilities = [
+            {"datasetsAcl": {"actions": ["READ", "WRITE", "OWNER"], "scope": {"all": {}}}},
+            {"rawAcl": {"actions": ["READ", "WRITE", "LIST"], "scope": {"all": {}}}},
+            {"groupsAcl": {"actions": ["LIST", "READ", "CREATE", "UPDATE", "DELETE"], "scope": {"all": {}}}},
+            {"projectsAcl": {"actions": ["READ", "UPDATE"], "scope": {"all": {}}}}
+        ]
+
+        group_create_object = Group(name=group_name, capabilities=group_capabilities)
+        if self.config.cognite.idp_authentication:
+            # inject (both will be pushed through the API call!)
+            group_create_object.source_id = self.config.cognite.idp_authentication.client_id  # 'S-314159-1234'
+            group_create_object.source = f"AAD Server Application: {group_create_object.source_id}"  # type: ignore # 'AD Group FooBar' # type: ignore
+        self.client.iam.groups.create(group_create_object)
+
+        _logger.info(f"Created CDF Group {group_name}")
+
+        _logger.info("Finished CDF Project Bootstrapper in 'prepare' mode ")
 
     def deploy(self):
 
@@ -918,9 +938,46 @@ def deploy(obj: Dict, config_file: str, debug: bool = False) -> None:
     except BootstrapConfigError as e:
         exit(e.message)
 
+@click.command(help="Prepare your CDF Project with a CDF Group 'cdf:bootstrap', which allows to run the 'deploy' command next. The 'prepare' command is only required once per CDF Project.")
+@click.argument(
+    "config_file",
+    default="./config-bootstrap.yml",
+)
+@click.option(
+    "--debug",
+    is_flag=True,
+    help="Print debug information",
+)
+@click.pass_obj
+def prepare(obj: Dict, config_file: str, debug: bool = False) -> None:
+
+    click.echo(click.style("Prepare CDF Project ...", fg="red"))
+
+    if debug:
+        # TODO not working yet :/
+        _logger.setLevel("DEBUG")  # INFO/DEBUG
+
+    try:
+        # load .env from file if exists
+        load_dotenv()
+
+        # _logger.debug(f'os.environ = {os.environ}')
+        # print(f'os.environ= {os.environ}')
+
+
+        (
+            BootstrapCore(config_file)
+            # .validate_config() # TODO
+            .prepare()
+        )
+
+        click.echo(click.style("CDF Project bootstrap prepared for running 'deploy' command next.", fg="blue"))
+
+    except BootstrapConfigError as e:
+        exit(e.message)
 
 bootstrap_cli.add_command(deploy)
-
+bootstrap_cli.add_command(prepare)
 
 def main() -> None:
     # call click.pass_context

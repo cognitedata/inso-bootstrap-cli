@@ -34,6 +34,10 @@ poetry update
 
 poetry run bootstrap-cli deploy --debug configs/ test-trading-bootstrap.yml
 ```
+- Prepare mode:
+```
+poetry run bootstrap-cli prepare --debug configs/ test-trading-bootstrap.yml
+```
 
 ## run local with Python
 
