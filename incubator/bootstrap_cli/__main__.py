@@ -768,41 +768,72 @@ class BootstrapCore:
     * delete removed from config
     """
 
-    def deploy(self):
+    def deploy(self, prepare: bool = False):
+        if prepare:
+            group_name = f"cdf:bootstrap"
+            # group_name = f"{create_config.environment}:bootstrap"
 
-        # load deployed groups, datasets, raw_dbs with their ids and metadata
-        self.load_deployed_config_from_cdf()
-        _logger.debug(f"RAW_DBS in CDF:\n{self.deployed['raw_dbs']}")
-        _logger.debug(f"DATASETS in CDF:\n{self.deployed['datasets']}")
-        _logger.debug(f"GROUPS in CDF:\n{self.deployed['groups']}")
+            group_capabilities = [
+                {"datasetsAcl": {"actions": ["READ", "WRITE", "OWNER"], "scope": {"all": {}}}},
+                {"rawAcl": {"actions": ["READ", "WRITE", "LIST"], "scope": {"all": {}}}},
+                {"groupsAcl": {"actions": ["LIST", "READ", "CREATE", "UPDATE", "DELETE"], "scope": {"all": {}}}},
+                {"projectsAcl": {"actions": ["READ", "UPDATE"], "scope": {"all": {}}}},
+                {"labelsAcl": {"actions": ["READ", "WRITE"], "scope": {"all": {}}}},
+                # 211012 pa: additional ACLs
+                {"relationshipsAcl": {"actions": ["READ", "WRITE"], "scope": {"all": {}}}},
+                {"functionsAcl": {"actions": ["READ", "WRITE"], "scope": {"all": {}}}},
+                {"filesAcl": {"actions": ["READ", "WRITE"], "scope": {"all": {}}}},
+                # 211014 pa: additional ACLs
+                {"extractionPipelinesAcl": {"actions": ["READ", "WRITE"], "scope": {"all": {}}}},
+                {"extractionRunsAcl": {"actions": ["READ", "WRITE"], "scope": {"all": {}}}},
+                # 211108 pa: additional ACLs
+                {"entitymatchingAcl": {"actions": ["READ", "WRITE"], "scope": {"all": {}}}},
+            ]
 
-        # run generate steps (only print results atm)
-        target_raw_dbs, new_created_raw_dbs = self.generate_missing_raw_dbs()
-        _logger.info(f"All RAW_DBS from config:\n{target_raw_dbs}")
-        _logger.info(f"New RAW_DBS to CDF:\n{new_created_raw_dbs}")
-        target_datasets, new_created_datasets = self.generate_missing_datasets()
-        _logger.info(f"All DATASETS from config:\n{target_datasets}")
-        _logger.info(f"New DATASETS to CDF:\n{new_created_datasets}")
+            group_create_object = Group(name=group_name, capabilities=group_capabilities)
+            if self.config.cognite.idp_authentication:
+                # inject (both will be pushed through the API call!)
+                group_create_object.source_id = self.config.cognite.idp_authentication.client_id  # 'S-314159-1234'
+                group_create_object.source = f"AAD Server Application: {group_create_object.source_id}"  # type: ignore # 'AD Group FooBar' # type: ignore
+            self.client.iam.groups.create(group_create_object)
 
-        # store all raw_dbs and datasets in scope of this configuration
-        self.all_scope_ctx = {
-            "raw": target_raw_dbs,  # all raw_dbs
-            "datasets": target_datasets,  # all datasets
-        }
+            _logger.info(f"Created CDF Group {group_name}")
 
-        # reload deployed configs to be used as reference for group creation
-        time.sleep(5)  # wait for datasets and raw_dbs to be created!
-        self.load_deployed_config_from_cdf()
+            _logger.info("Finished CDF Project Bootstrapper in 'prepare' mode ")
+        else:
+            # load deployed groups, datasets, raw_dbs with their ids and metadata
+            self.load_deployed_config_from_cdf()
+            _logger.debug(f"RAW_DBS in CDF:\n{self.deployed['raw_dbs']}")
+            _logger.debug(f"DATASETS in CDF:\n{self.deployed['datasets']}")
+            _logger.debug(f"GROUPS in CDF:\n{self.deployed['groups']}")
 
-        self.generate_groups()
-        _logger.info("Created new CDF Groups")
+            # run generate steps (only print results atm)
+            target_raw_dbs, new_created_raw_dbs = self.generate_missing_raw_dbs()
+            _logger.info(f"All RAW_DBS from config:\n{target_raw_dbs}")
+            _logger.info(f"New RAW_DBS to CDF:\n{new_created_raw_dbs}")
+            target_datasets, new_created_datasets = self.generate_missing_datasets()
+            _logger.info(f"All DATASETS from config:\n{target_datasets}")
+            _logger.info(f"New DATASETS to CDF:\n{new_created_datasets}")
 
-        # and reload again now with latest group config too
-        # dump all configs to yaml, as cope/paste template for delete_or_deprecate step
-        self.dump_delete_template_to_yaml()
-        _logger.info("Finished creating CDF Groups, Datasets and RAW Databases")
+            # store all raw_dbs and datasets in scope of this configuration
+            self.all_scope_ctx = {
+                "raw": target_raw_dbs,  # all raw_dbs
+                "datasets": target_datasets,  # all datasets
+            }
 
-        # _logger.info(f'Bootstrap Pipelines: created: {len(created)}, deleted: {len(delete_ids)}')
+            # reload deployed configs to be used as reference for group creation
+            time.sleep(5)  # wait for datasets and raw_dbs to be created!
+            self.load_deployed_config_from_cdf()
+
+            self.generate_groups()
+            _logger.info("Created new CDF Groups")
+
+            # and reload again now with latest group config too
+            # dump all configs to yaml, as cope/paste template for delete_or_deprecate step
+            self.dump_delete_template_to_yaml()
+            _logger.info("Finished creating CDF Groups, Datasets and RAW Databases")
+
+            # _logger.info(f'Bootstrap Pipelines: created: {len(created)}, deleted: {len(delete_ids)}')
 
 
 @click.group(context_settings={"help_option_names": ["-h", "--help"]})
@@ -890,8 +921,13 @@ def bootstrap_cli(
     is_flag=True,
     help="Print debug information",
 )
+@click.option(
+    "--prepare",
+    is_flag=True,
+    help="Prepare",
+)
 @click.pass_obj
-def deploy(obj: Dict, config_file: str, debug: bool = False) -> None:
+def deploy(obj: Dict, config_file: str, debug: bool = False, prepare: bool = False) -> None:
 
     click.echo(click.style("Deploying CDF Project bootstrap...", fg="red"))
 
@@ -910,7 +946,7 @@ def deploy(obj: Dict, config_file: str, debug: bool = False) -> None:
         (
             BootstrapCore(config_file)
             # .validate_config() # TODO
-            .deploy()
+            .deploy(prepare=prepare)
         )
 
         click.echo(click.style("CDF Project bootstrap deployed", fg="blue"))
