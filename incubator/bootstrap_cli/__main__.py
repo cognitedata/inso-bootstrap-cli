@@ -167,7 +167,6 @@ class BootstrapCore:
         self.config: BootstrapConfig = BootstrapConfig.from_yaml(configpath)
         self.group_types_dimensions: Dict[str, Any] = self.config.bootstrap
         self.aad_mapping_lookup: Dict[str, Any] = self.config.aad_mappings
-        self.delete_or_deprecate: Dict[str, Any] = None
         self.deployed: Dict[str, Any] = {}
         self.all_scope_ctx: Dict[str, Any] = {}
 
