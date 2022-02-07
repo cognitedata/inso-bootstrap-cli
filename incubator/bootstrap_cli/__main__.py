@@ -938,7 +938,7 @@ def deploy(obj: Dict, config_file: str, debug: bool = False) -> None:
     except BootstrapConfigError as e:
         exit(e.message)
 
-@click.command(help="Deploy a set of bootstrap from a config-file for prepare method")
+@click.command(help="Prepare your CDF Project with a CDF Group 'cdf:bootstrap', which allows to run the 'deploy' command next. The 'prepare' command is only required once per CDF Project.")
 @click.argument(
     "config_file",
     default="./config-bootstrap.yml",
@@ -951,7 +951,7 @@ def deploy(obj: Dict, config_file: str, debug: bool = False) -> None:
 @click.pass_obj
 def prepare(obj: Dict, config_file: str, debug: bool = False) -> None:
 
-    click.echo(click.style("Deploying CDF Project bootstrap...", fg="red"))
+    click.echo(click.style("Prepare CDF Project ...", fg="red"))
 
     if debug:
         # TODO not working yet :/
@@ -971,7 +971,7 @@ def prepare(obj: Dict, config_file: str, debug: bool = False) -> None:
             .prepare()
         )
 
-        click.echo(click.style("CDF Project bootstrap deployed", fg="blue"))
+        click.echo(click.style("CDF Project bootstrap prepared for running 'deploy' command next.", fg="blue"))
 
     except BootstrapConfigError as e:
         exit(e.message)
