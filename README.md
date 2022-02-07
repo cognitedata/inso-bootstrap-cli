@@ -39,8 +39,6 @@ poetry run bootstrap-cli deploy --debug configs/ test-trading-bootstrap.yml
 poetry run bootstrap-cli prepare --debug configs/ test-trading-bootstrap.yml
 ```
 
-
-
 ## run local with Python
 
 ```bash
