@@ -140,34 +140,34 @@ aad_mappings:
     - CDF_DEV_ALLPROJECTS_OWNER
 ```
 
-TODO
-##### Bootstrap (TO BE DONE)
 
-The `bootstrap` section consists of three subsections: facilities `fac`, corporate applications `ca` and use cases `uc`.
+##### Bootstrap
+
+The `bootstrap` section consists of three subsections: facilities `src`, corporate applications `in` and use cases `uc`.
 
 A minimal configuration file of the `bootstrap` section:
 
 ```yaml
 bootstrap:
-  fac:
-    fac:001:name:
-      description: Description text for this facility
-      external_id: fac:001:name
-  ca:
-    ca:001:name:
-      description: Description text for this corporate application
-      external_id: cad:001:name
-      shared_owner_access:
-        - fac:001:name
+  src:
+    src:001:name:
+      description: Description about sources related to name
+      external_id: src:001:name
+  in:
+    in:001:name:
+      description: Description about user inputs related to name
+      external_id: in:001:name
   uc:
     uc:001:name:
-      description: Use Case 001; Description text
+      description: Description about use case
       external_id: uc:001:name
       metadata:
         created: 210325
-        generated: by CDF Bootstrap script
+        generated: by cdf-config-hub script
       shared_read_access:
-        - fac:001:name
+        - src:001:name
+      shared_owner_access:
+        - in:001:name
 ```
 
 For a full example of the create configuration file, see the `config-create-preprod.yml` file in the `artifacts` folder.
