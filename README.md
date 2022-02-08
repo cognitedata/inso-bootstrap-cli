@@ -4,38 +4,26 @@ Configuration driven bootstrap of CDF Groups, Datasets, RAW Databases with data 
 sources, use-case and user-input level. Allowing (configurable) shared-access between each other for the solutions (like server-applications) running transformations or use-cases.
 
 ## Table of Content
-<!-- @import "[TOC]" {cmd="toc" depthFrom=1 depthTo=6 orderedList=false} -->
-
-<!-- code_chunk_output -->
-
-- [Inso-Bootstrap-cli](#inso-bootstrap-cli)
+<!-- @import "[TOC]" {cmd- [Inso Bootstrap - [Inso Bootstrap Cli](#inso-bootstrap-cli)
   - [Table of Content](#table-of-content)
   - [Bootstrap Run Modes](#bootstrap-run-modes)
-    - [Prepare Mode](#prepare-mode)
-    - [Create Mode](#create-mode)
-    - [Delete Mode](#delete-mode)
+    - [Prerequisites (Prepare command)](#prerequisites-prepare-command)
+    - [Deploy command](#deploy-command)
+    - [Delete command](#delete-command)
   - [Configuration](#configuration)
-      - [Configuration for All Modes](#configuration-for-all-modes)
-      - [Configuration for Create Mode](#configuration-for-create-mode)
-        - [Environment](#environment)
-        - [Prefix External IDs](#prefix-external-ids)
-        - [Adfs-links](#adfs-links)
-        - [Bootstrap](#bootstrap)
-      - [Configuration for Delete Mode](#configuration-for-delete-mode)
-        - [Delete_or_deprecate](#delete_or_deprecate)
-  - [Development](#development)
-    - [How To Run](#how-to-run)
-  - [End-result after Bootstrapping the CDF Tenant](#end-result-after-bootstrapping-the-cdf-tenant)
-    - [Per Facility, Corporate Application and Use Case](#per-facility-corporate-application-and-use-case)
-    - [CDF Groups](#cdf-groups)
-    - [Raw DBs](#raw-dbs)
-    - [Datasets](#datasets)
-  - [High-level CDF Groups, RAW DBs and Datasets](#high-level-cdf-groups-raw-dbs-and-datasets)
-    - [For all Facilities](#for-all-facilities)
-    - [For all Corporate Applications](#for-all-corporate-applications)
-    - [For all Use Cases](#for-all-use-cases)
-    - [For all Three](#for-all-three)
-    - [Root User](#root-user)
+    - [Configuration for all commands](#configuration-for-all-commands)
+      - [Configuration for `deploy` command](#configuration-for-deploy-command)
+      - [`aad_mappings` section: AAD Group to CDF Group mapping](#aad_mappings-section-aad-group-to-cdf-group-mapping)
+        - [`bootstrap` section](#bootstrap-section)
+      - [Configuration for `delete` command](#configuration-for-delete-command)
+        - [`delete_or_deprecate` section](#delete_or_deprecate-section)
+- [Development](#development)
+  - [to be done](#to-be-done)
+- [how to run](#how-to-run)
+  - [run local with poetry and .env](#run-local-with-poetry-and-env)
+  - [run local with Python](#run-local-with-python)
+  - [run local with Docker and .env](#run-local-with-docker-and-env)Cli](#inso-bootstrap-cli)
+ -->
 
 ## Bootstrap Run Modes
 
@@ -69,7 +57,7 @@ Note that the CDF Groups and RAW Databases will be deleted, while Datasets will 
 
 A YAML configuration file must be passed as an argument when running the program. The same configuration file used for both delete, prepare and deploy
 
-#### Configuration for all commands
+### Configuration for all commands
 
 All commands require share a `cognite` section and a `logger` section in the YAML config files, which is common to our Cognite Database-Extractor configuration.
 The configuration file supports variable-expansion (`${BOOTSTRAP_**}`), which are provided either as 
@@ -102,27 +90,16 @@ logger:
     level: INFO
 ```
 
-#### Configuration for Deploy Mode
+#### Configuration for `deploy` command
 
 In addition to the sections described above, the configuration file for create mode should include three more sections:
 
-- `environment` - used to define the working environment
-- `prefix_external_id` - a flag used to enable prefixing of external IDs
-- `adfs-links` - used to sync groups with AD object-ids
-- `bootstrap` - used do define the facilities, use cases and cooperate application details
+- `aad_mappings` - used to sync CDF Groups with AAD Group object-ids
+- `bootstrap` - used do define the logical access-control groups
 
-##### Environment
+#### `aad_mappings` section: AAD Group to CDF Group mapping
 
-Used to define the working environment, and will be set as the prefix for naming. Example values: `dev`, `stage`, `preprod`, `prod`
-
-```yaml
-environment: preprod
-```
-
-
-##### AAD Group to CDF Group mapping
-
-Used to link CDF Groups with AAD Groups. 
+Used to link CDF Groups with AAD Groups.
 Defines the name of the CDF Group, with the AAD Group object-id, and for documentation the AAD Group name.
 
 Example:
@@ -137,10 +114,16 @@ aad_mappings:
     - CDF_DEV_ALLPROJECTS_OWNER
 ```
 
+##### `bootstrap` section
 
-##### Bootstrap
+The `bootstrap` section allows a two-level configuration of access-control groups:
 
-The `bootstrap` section consists of three subsections: facilities `src`, corporate applications `in` and use cases `uc`.
+Like for example:
+
+- `src` for sources,
+- `ca` for corporate applications,
+- `in` for user-input control,
+- and typically `uc` for use cases (which represent the solution and is  built on top of the others)
 
 A minimal configuration file of the `bootstrap` section:
 
@@ -169,14 +152,14 @@ bootstrap:
 
 For a full example of the create configuration file, see the `config-create-preprod.yml` file in the `artifacts` folder.
 
-#### Configuration for Delete Mode
+#### Configuration for `delete` command
 
 In addition to the `config` and `logger` sections described above, the configuration file for delete mode
 should include one more section:
 
 * `delete_or_deprecate` - used to define which CDF Datasets, CDF Groups and RAW databases (including tables) should to be deleted (CDF Datasets are in-fact only deprecated, as they cannot be deleted)
 
-##### Delete_or_deprecate
+##### `delete_or_deprecate` section
 
 This section defines what `datasets` that should be deprecated, and which `groups` and `raw_dbs` that should be deleted.
 
@@ -201,6 +184,7 @@ section. This can be used for copy-pasting in the item names you want to be adde
 For a full example of the delete configuration file, see the `config-delete.yml` file in the `artifacts` folder.
 
 # Development
+
 Clone the repository and `cd` to the project folder.  Then, initialize the
 project environment:
 
