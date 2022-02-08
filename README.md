@@ -8,7 +8,7 @@ sources, use-case and user-input level. Allowing (configurable) shared-access be
 
 <!-- code_chunk_output -->
 
-- [Bootstrap-cli](#bootstrap-cli)
+- [Inso-Bootstrap-cli](#inso-bootstrap-cli)
   - [Table of Content](#table-of-content)
   - [Bootstrap Run Modes](#bootstrap-run-modes)
     - [Prepare Mode](#prepare-mode)
