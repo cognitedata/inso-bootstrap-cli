@@ -39,29 +39,28 @@ sources, use-case and user-input level. Allowing (configurable) shared-access be
 
 ## Bootstrap Run Modes
 
-### Prepare Mode
+### Prerequisites (Prepare command)
 
-The very first time the Bootstrap code should be executed on a new CDF project, this code must run in `prepare` mode.
-The initial "admin" group that comes with a CDF project only covers these ACLs:
+The first time you want to run boostrap-cli for your new CDF project, the `prepare` command might be required.
 
-- `projects`
-- `groups`
+- A new CDF Project is only configured with one CDF Group (named like "OIDC admin") which covers these capabilities:
+  - `projects`
+  - `groups`
 
-For bootstrap we need these in addition:
+To run bootstrap-cli additional capabilties are required:
 
 - `datasets`
 - `raw`
-- `labels`
 
-The code in `prepare` mode will create a CDF Group with the necessary capabilities
-for running the `create` and `delete` modes.
+The `prepare` command will provide you with another CDF Group `cdf:bootstrap` with this minimal capabilities.
 
-### Create Mode
+### Deploy command
 
-In order to create the desired items in CDF, the Bootstrap code must run in `create` mode. It will create the necessary
-CDF Groups, Datasets and RAW Databases defined for the Aramco project.
+The bootstrap-cli `deploy` command will apply the configuration-file to your CDF Project. 
+It will create the necessary CDF Groups, Datasets and RAW Databases.
+This command supports GitHub-Action workflow too.
 
-### Delete Mode
+### Delete command
 
 If it is necessary to revert any changes, the `delete` mode can be used to delete CDF Groups, Datasets and RAW Databases.
 Note that the CDF Groups and RAW Databases will be deleted, while Datasets will be archived and deprecated, not deleted.
@@ -73,41 +72,38 @@ for create and delete mode (prepare mode uses the same config as create mode). T
 is the `artifacts` folder in this example. All files in the `artifacts` folder will be pushed to Private Git In Kingdom,
 available for Aramco to use. More details below.
 
-#### Configuration for All Modes
+#### Configuration for all commands
 
-All three modes (prepare, create and delete) require a `cognite` section and a `logger` section in the YAML config files.
+All commands require share a `cognite` section and a `logger` section in the YAML config files, which is common to our Cognite Database-Extractor configuration.
+The configuration file supports variable-expansion (`${BOOTSTRAP_**}`), which are provided either as 
+1. environment-variables, 
+2. from a `.env` file or 
+3. command-line parameters
 
 Here is an example:
 
 ```yaml
 # follows the same parameter structure as the DB extractor configuration
-cognite: # kwargs to pass to the CogniteClient, Environment variable format: ${ENVIRONMENT_VARIABLE}
-  host: ${CDF_HOST}
-  project: ${CDF_PROJECT}
-  # remove api_key when using ADFS authentication
-  # api_key: ${COGNITE_API_KEY}
+cognite:
+  host: ${BOOTSTRAP_CDF_HOST}
+  project: ${BOOTSTRAP_CDF_PROJECT}
   #
-  # ADFS login credentials:
+  # AAD IdP login:
   #
   idp-authentication:
-    client-id: ${CDF_IDP_CLIENT_ID}
-    secret: ${CDF_IDP_CLIENT_SECRET}
+    client-id: ${BOOTSTRAP_IDP_CLIENT_ID}
+    secret: ${BOOTSTRAP_IDP_CLIENT_SECRET}
     scopes:
-      - user_impersonation
-    token_url: ${CDF_IDP_TOKEN_URL}
-    resource: ${CDF_IDP_RESOURCE}
-
+      - ${BOOTSTRAP_IDP_SCOPES}
+    token_url: ${BOOTSTRAP_IDP_TOKEN_URL}
 
 logger:
   file:
-    path: .\logs\logs.log
+    path: ./logs/test-deploy.log
     level: INFO
   console:
     level: INFO
 ```
-
-The `cognite` section should contain all of the kwargs that should be used to instantiate the `CogniteClient`. It follows the same parameter structure as the Cognite Database Extractor.
-Any secrets that are configured as environment variables should use the format: ${ENVIRONMENT_VARIABLE}.
 
 #### Configuration for Create Mode
 
@@ -126,29 +122,26 @@ Used to define the working environment, and will be set as the prefix for naming
 environment: preprod
 ```
 
-##### Prefix External IDs
 
-A flag used to enable prefixing of the External IDs of Datasets. Should be set to `true` **only** if there will be multiple environments (for example both `preprod` and `prod`) on a single CDF tenant. The reason is to ensure that there will be no duplicated External IDs for the CDF Datasets.
+##### AAD Group to CDF Group mapping
 
-When there is only one environment per CDF tenant (which is the case for the Aramco project), we keep this flag value as `false`.
-
-##### Adfs-links
-
-Used to synchronize CDF Groups with AD Groups and ADFS Server-Applications. Defines the name of the CDF group, with the AD Group and ADFS Client Id as CDF group's Source ID, and a readable name as the CDF group's Source Name.
+Used to link CDF Groups with AAD Groups. 
+Defines the name of the CDF Group, with the AAD Group object-id, and for documentation the AAD Group name.
 
 Example:
 
 ```yaml
-adfs_links:
-  cdf-group-name:
-    - ad-group-or-adfs-client-id
-    - READABLE_NAME
-  preprod:root:client:
-    - c222e01f-3e09-4f21-9d12-dbd7010b87c1
-    - CDF_PREPROD_ROOT_CLIENT
+aad_mappings:
+  #cdf-group-name:
+  #  - aad-group-object-id
+  #  - READABLE_NAME
+  cdf:allprojects:owner:
+    - 123456-7890-abcd-1234-314159
+    - CDF_DEV_ALLPROJECTS_OWNER
 ```
 
-##### Bootstrap
+TODO
+##### Bootstrap (TO BE DONE)
 
 The `bootstrap` section consists of three subsections: facilities `fac`, corporate applications `ca` and use cases `uc`.
 
@@ -184,7 +177,7 @@ For a full example of the create configuration file, see the `config-create-prep
 In addition to the `config` and `logger` sections described above, the configuration file for delete mode
 should include one more section:
 
-* `delete_or_deprecate` - used to define what datasets, groups and RAW databases to be deleted (datasets are deprecated)
+* `delete_or_deprecate` - used to define which CDF Datasets, CDF Groups and RAW databases (including tables) should to be deleted (CDF Datasets are in-fact only deprecated, as they cannot be deleted)
 
 ##### Delete_or_deprecate
 
@@ -205,7 +198,7 @@ delete_or_deprecate:
 
 If nothing should be deleted, leave the subsections empty like this: `[]`.
 
-**Tip:** After running the bootstrap in create mode, the final part of the output logs will include a "Delete template"
+**Tip:** After running the bootstrap in `deploy` mode, the final part of the output logs will include a "Delete template"
 section. This can be used for copy-pasting in the item names you want to be added to the delete configuration file.
 
 For a full example of the delete configuration file, see the `config-delete.yml` file in the `artifacts` folder.
@@ -322,118 +315,3 @@ jobs:
         with:
           config_file: ./configs/test-trading-bootstrap.yml
 ```
-## End-result after Bootstrapping the CDF Tenant
-### Per Facility, Corporate Application and Use Case
-
-#### CDF Groups
-
-For each Facility fac, Corporate Application ca and Use Case uc, there will be one owner and one read group. Following the configuration example from the section Configuration for Create Mode > Base, we generate the following CDF Groups:
-
-- stage:fac:001:name:owner
-- stage:fac:001:name:read
-- stage:ca:001:name:owner
-- stage:ca:001:name:read
-- stage:uc:001:name:owner
-- stage:uc:001:name:read
-
-#### Raw DBs
-
-For each Facility fac, Corporate Application ca and Use Case uc, there will be one database for data and one database for state store. Following the configuration example from the section Configuration for Create Mode > Base, we generate the following Raw DBs:
-
-- stage:fac:001:name:rawdb
-- stage:fac:001:name:rawdb:store
-- stage:ca:001:name:rawdb
-- stage:ca:001:name:rawdb:store
-- stage:uc:001:name:rawdb
-- stage:uc:001:name:rawdb:store
-
-#### Datasets
-
-For each Facility fac, Corporate Application ca and Use Case uc, there will be one CDF Dataset. Following the configuration example from the section Configuration for Create Mode > Base, we generate the following Datasets:
-
-- stage:fac:001:name:dataset
-- stage:ca:001:name:dataset
-- stage:uc:001:name:dataset
-
-### High-level CDF Groups, RAW DBs and Datasets
-
-In addition to the above, we need higher-level access groups that have access to multiple entities. As an example, one facility group will only have access to the Raw DBs and Datasets for that facility. There are cases where we would need access to all facilities. Therefore, we have added additional high-level entities:
-
-#### For all Facilities
-
-Separate CDF Groups, RAW DBs and Datasets with aggregated access to all facilities:
-
-Groups:
-
-- stage:fac:allprojects:read
-- stage:fac:allprojects:write
-
-RAW DBs:
-
-- stage:fac:allprojects:rawdb
-- stage:fac:allprojects:rawdb:store
-
-Datasets:
-
-- stage:fac:allprojects:dataset
-
-#### For all Corporate Applications
-
-Separate CDF Groups, RAW DBs and Datasets with aggregated access to all corporate applications:
-
-Groups:
-- stage:ca:allprojects:read
-- stage:ca:allprojects:write
-
-RAW DBs:
-
-- stage:ca:allprojects:rawdb
-- stage:ca:allprojects:rawdb:store
-
-Datasets:
-
-- stage:ca:allprojects:dataset
-
-#### For all Use Cases
-
-Separate CDF Groups, RAW DBs and Datasets with aggregated access to all use cases:
-
-Groups:
-
-- stage:uc:allprojects:read
-- stage:uc:allprojects:write
-
-RAW DBs:
-- stage:uc:allprojects:rawdb
-- stage:uc:allprojects:rawdb:store
-
-Datasets:
-
-- stage:uc:allprojects:dataset
-
-#### For all Three
-
-Separate CDF Groups, RAW DBs and Datasets with aggregated access to all facilities, corporate applications and use cases:
-
-Groups:
-
-- stage:allprojects:read
-- stage:allprojects:write
-
-RAW DBs:
-
-- stage:allprojects:rawdb
-- stage:allprojects:rawdb:store
-
-Datasets:
-
-- stage:allprojects:dataset
-
-#### Root User
-
-In addition, we need to have a user that is not limited to the facilities, corporate applications and use cases. Therefore, we have a root user. It does not require separate RAW DBs and Datasets, so there are only two groups created for this:
-
-- stage:root:client
-- stage:root:user
-
-(Note: the client has the capabilities corresponding to an owner group, and the user has the capabilities corresponding to a read group).
