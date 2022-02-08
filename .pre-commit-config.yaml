@@ -1,8 +1,8 @@
 repos:
-  - repo: https://github.com/timothycrosley/isort
-    rev: 5.8.0
-    hooks:
-      - id: isort
+  # - repo: https://github.com/timothycrosley/isort
+  #   rev: 5.8.0
+  #   hooks:
+  #     - id: isort
 
   - repo: local
     hooks:
@@ -21,7 +21,7 @@ repos:
     rev: 3.9.0
     hooks:
       - id: flake8
-        args: ['--config=setup.cfg', "--ignore=E501,F401"]
+        args: ['--config=setup.cfg', "--ignore=E501,F401,E402"]
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v3.4.0

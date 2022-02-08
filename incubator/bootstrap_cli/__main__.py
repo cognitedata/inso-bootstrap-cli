@@ -1,27 +1,14 @@
 """
-changelog
-* 220203 pa: copied first version from incubator-dataops notebook
-
-# TODO
-* BootstrapConfig > bootstrap rename
-"""
-
-"""
 * this configuration driven approach builds on top of the "dataops:cdf-groups" approach
 * using the naming scheme of configuration-groups like `src:001:exact` which provides a list of predefined resources
     * like `src:001:exact:rawdb`
     * and a data set with external-id `src:001:exact` and name `src:001:exact:dataset`
-
 * This approach uses stable Python SDK `client.extraction_pipeline`
     * [SDK documentation](https://cognite-docs.readthedocs-hosted.com/projects/cognite-sdk-python/en/latest/cognite.html?highlight=experimental#extraction-pipelines}
     * [API documentation](https://docs.cognite.com/api/v1/#tag/Extraction-Pipelines)
-
 ## to be done
-* `CogniteClient` instance configuration using env-variables
-* cleanup of `imports`
 * cleanup of unused code(?)
 * validation of `schedule` values
-
 ## dependencies will be validated
 * Dataset must exist
 * RAW DBs must exist
@@ -29,30 +16,24 @@ changelog
 * `schedule` only supports: `On trigger | Continuous | <cron expression> | null`
 """
 
-import json
-
-# common
 import logging
-import os
 import time
-from pathlib import Path
 from dataclasses import dataclass, field
 from datetime import datetime
-from functools import lru_cache, partial
 from itertools import islice
+from pathlib import Path
 
 # type-hints
-from typing import Any, Dict, List, Optional, Tuple, Type, TypeVar, Union
+from typing import Any, Dict, List, Optional, Tuple
 
-# cli
 import click
 import pandas as pd
-import requests
+
+# cli
 import yaml
 from click import Context
 from cognite.client.data_classes import DataSet, Group
 from cognite.client.data_classes.data_sets import DataSetUpdate
-from cognite.client.exceptions import CogniteNotFoundError
 
 # from cognite.client import CogniteClient
 # use extractor-utils instead
@@ -62,12 +43,12 @@ from dotenv import load_dotenv
 from incubator.bootstrap_cli import __version__
 
 # import getpass
-
 _logger = logging.getLogger(__name__)
-
 #
 # LOAD configs
 #
+
+
 @dataclass
 class BootstrapConfig:
     """
@@ -79,6 +60,8 @@ class BootstrapConfig:
     # TODO rename
     bootstrap: Dict[str, Any]
     aad_mappings: Dict[str, Any]
+    delete_or_deprecate: Dict[str, Any] = None
+    latest_deployment: Optional[Dict[str, Any]] = None
     token_custom_args: Dict[str, Any] = field(default_factory=dict)
 
     @classmethod
@@ -178,12 +161,12 @@ class BootstrapCore:
 
         if self.config.logger.file:
             (Path.cwd() / self.config.logger.file.path).parent.mkdir(parents=True, exist_ok=True)
-    
+
         self.config.logger.setup_logging()
 
         _logger.info("Starting CDF Bootstrap configuration")
 
-        self.client: CogniteClient = self.config.cognite.get_cognite_client(
+        self.client: CogniteClient = self.config.cognite.get_cognite_client(  # noqa
             client_name="inso-bootstrap-cli", token_custom_args=self.config.token_custom_args
         )
 
@@ -216,6 +199,9 @@ class BootstrapCore:
     #         return f"{shared_global_config['env']}:{external_id}"
     #     else:
     #         return external_id
+    @staticmethod
+    def get_timestamp():
+        return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     def generate_default_action(self, action, acl_type):
         return action_dimensions[action].get(acl_type, ["READ", "WRITE"] if action == "owner" else ["READ"])
@@ -268,7 +254,7 @@ class BootstrapCore:
                     for raw_suffix in BootstrapCore.RAW_SUFFIXES
                 ]
                 # adding the {group_type}:allprojects rawdbs
-                + [
+                + [  # noqa
                     self.get_raw_dbs_name_template().format(
                         group_prefix=self.get_allprojects_name_template(group_type=group_type), raw_suffix=raw_suffix
                     )
@@ -334,7 +320,7 @@ class BootstrapCore:
                     for group_prefix, group_config in self.group_types_dimensions[group_type].items()
                 ]
                 # adding the {group_type}:allprojects dataset
-                + [
+                + [  # noqa
                     self.get_dataset_name_template().format(
                         group_prefix=self.get_allprojects_name_template(group_type=group_type)
                     )
@@ -503,13 +489,12 @@ class BootstrapCore:
         # why make it more complicated checking different adfs_source or capabilities?
         # in any case just recreate it, will not happen frequently
 
-        name_to_check = group_payload['name']
+        name_to_check = group_payload["name"]  # noqa
         return self.deployed["groups"].query("name == @name_to_check")["id"].tolist()
-        
-        # return self.deployed["groups"].query("name == @group_payload['name']")["id"].tolist()
-        # TODO 220203 pa: bypassing a strange bug under Docker which throws a 
-        # pandas.core.computation.ops.UndefinedVariableError: name 'str_0_0x900xd80x90xec0x870x7f0x00x0' is not defined
 
+        # return self.deployed["groups"].query("name == @group_payload['name']")["id"].tolist()
+        # TODO 220203 pa: bypassing a strange bug under Docker which throws a
+        # pandas.core.computation.ops.UndefinedVariableError: name 'str_0_0x900xd80x90xec0x870x7f0x00x0' is not defined
 
     def process_group(self, action=None, group_type=None, group_prefix=None, root_account=None):
         # 1. check if not exists
@@ -766,15 +751,16 @@ class BootstrapCore:
     * new in config
     * delete removed from config
     """
+
     def prepare(self):
-        group_name = f"cdf:bootstrap"
+        group_name = "cdf:bootstrap"
         # group_name = f"{create_config.environment}:bootstrap"
 
         group_capabilities = [
             {"datasetsAcl": {"actions": ["READ", "WRITE", "OWNER"], "scope": {"all": {}}}},
             {"rawAcl": {"actions": ["READ", "WRITE", "LIST"], "scope": {"all": {}}}},
             {"groupsAcl": {"actions": ["LIST", "READ", "CREATE", "UPDATE", "DELETE"], "scope": {"all": {}}}},
-            {"projectsAcl": {"actions": ["READ", "UPDATE"], "scope": {"all": {}}}}
+            {"projectsAcl": {"actions": ["READ", "UPDATE"], "scope": {"all": {}}}},
         ]
 
         group_create_object = Group(name=group_name, capabilities=group_capabilities)
@@ -787,6 +773,68 @@ class BootstrapCore:
         _logger.info(f"Created CDF Group {group_name}")
 
         _logger.info("Finished CDF Project Bootstrapper in 'prepare' mode ")
+
+    def delete(self):
+        # load deployed groups, datasets, raw_dbs with their ids and metadata
+        self.load_deployed_config_from_cdf()
+
+        # groups
+        group_names = self.config.delete_or_deprecate["groups"]
+        if group_names:
+            delete_group_ids = self.deployed["groups"].query("name in @group_names")["id"].tolist()
+            if delete_group_ids:
+                # only delete groups which exist
+                _logger.info(f"DELETE groups: {group_names}")
+                self.client.iam.groups.delete(delete_group_ids)
+            else:
+                _logger.info(f"Groups already deleted: {group_names}")
+        else:
+            _logger.info("No Groups to delete")
+
+        # raw_dbs
+        raw_db_names = self.config.delete_or_deprecate["raw_dbs"]
+        if raw_db_names:
+            delete_raw_db_names = list(set(raw_db_names).intersection(set(self.deployed["raw_dbs"]["name"])))
+            if delete_raw_db_names:
+                # only delete dbs which exist
+                # print("DELETE raw_dbs recursive with tables: ", raw_db_names)
+                _logger.info(f"DELETE raw_dbs recursive with tables: {raw_db_names}")
+                self.client.raw.databases.delete(delete_raw_db_names, recursive=True)
+            else:
+                # print(f"RAW DBs already deleted: {raw_db_names}")
+                _logger.info(f"RAW DBs already deleted: {raw_db_names}")
+        else:
+            _logger.info("No RAW Databases to delete")
+
+        # datasets cannot be deleted by design
+        #   * deprecate/archive them by prefix name with "_DEPR_", setting "archive=true" and a "description" with timestamp of deprecation
+        dataset_names = self.config.delete_or_deprecate["datasets"]
+        if dataset_names:
+            # get datasets which exists by name
+            delete_datasets_df = self.deployed["datasets"].query("name in @dataset_names")
+            if not delete_datasets_df.empty:
+                for i, row in delete_datasets_df.iterrows():
+                    _logger.info(f"DEPRECATE dataset: {row['name']}")
+                    update_dataset = self.client.data_sets.retrieve(id=row["id"])
+                    update_dataset.name = (
+                        f"_DEPR_{update_dataset.name}"
+                        if not update_dataset.name.startswith("_DEPR_")
+                        else f"{update_dataset.name}"
+                    )  # don't stack the DEPR prefixes
+                    update_dataset.description = "Deprecated {}".format(self.get_timestamp())
+                    update_dataset.metadata = dict(update_dataset.metadata, archived=True)  # or dict(a, **b)
+                    update_dataset.external_id = (
+                        # f"_DEPR_{add_prefix_external_id(update_dataset.external_id)}_[{get_timestamp()}]"
+                        f"_DEPR_{update_dataset.external_id}_[{self.get_timestamp()}]"
+                    )
+                    self.client.data_sets.update(update_dataset)
+        else:
+            _logger.info("No Datasets to archive (and mark as deprecated)")
+
+        # dump all configs to yaml, as cope/paste template for delete_or_deprecate step
+        self.dump_delete_template_to_yaml()
+        # TODO: write to file or standard output
+        _logger.info("Finished creating CDF Groups, Datasets and RAW Databases")
 
     def deploy(self):
 
@@ -938,7 +986,10 @@ def deploy(obj: Dict, config_file: str, debug: bool = False) -> None:
     except BootstrapConfigError as e:
         exit(e.message)
 
-@click.command(help="Prepare your CDF Project with a CDF Group 'cdf:bootstrap', which allows to run the 'deploy' command next. The 'prepare' command is only required once per CDF Project.")
+
+@click.command(
+    help="Prepare your CDF Project with a CDF Group 'cdf:bootstrap', which allows to run the 'deploy' command next. The 'prepare' command is only required once per CDF Project."
+)
 @click.argument(
     "config_file",
     default="./config-bootstrap.yml",
@@ -964,7 +1015,6 @@ def prepare(obj: Dict, config_file: str, debug: bool = False) -> None:
         # _logger.debug(f'os.environ = {os.environ}')
         # print(f'os.environ= {os.environ}')
 
-
         (
             BootstrapCore(config_file)
             # .validate_config() # TODO
@@ -976,8 +1026,56 @@ def prepare(obj: Dict, config_file: str, debug: bool = False) -> None:
     except BootstrapConfigError as e:
         exit(e.message)
 
+
+@click.command(
+    help="Delete mode used to delete CDF Groups, Datasets and Raw Databases. CDF Groups and RAW Databases will be deleted, while Datasets will be archived and deprecated, not deleted"
+)
+@click.argument(
+    "config_file",
+    default="./config-bootstrap.yml",
+)
+@click.option(
+    "--debug",
+    is_flag=True,
+    help="Print debug information",
+)
+@click.pass_obj
+def delete(obj: Dict, config_file: str, debug: bool = False) -> None:
+
+    click.echo(click.style("Delete CDF Project ...", fg="red"))
+
+    if debug:
+        # TODO not working yet :/
+        _logger.setLevel("DEBUG")  # INFO/DEBUG
+
+    try:
+        # load .env from file if exists
+        load_dotenv()
+
+        # _logger.debug(f'os.environ = {os.environ}')
+        # print(f'os.environ= {os.environ}')
+
+        (
+            BootstrapCore(config_file)
+            # .validate_config() # TODO
+            .delete()
+        )
+
+        click.echo(
+            click.style(
+                "CDF Project relevant groups and raw_dbs are deleted and/or datasets are archived and deprecated ",
+                fg="blue",
+            )
+        )
+
+    except BootstrapConfigError as e:
+        exit(e.message)
+
+
 bootstrap_cli.add_command(deploy)
 bootstrap_cli.add_command(prepare)
+bootstrap_cli.add_command(delete)
+
 
 def main() -> None:
     # call click.pass_context
