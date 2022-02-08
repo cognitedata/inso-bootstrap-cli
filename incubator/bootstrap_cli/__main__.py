@@ -44,7 +44,6 @@ from incubator.bootstrap_cli import __version__
 
 # import getpass
 _logger = logging.getLogger(__name__)
-
 #
 # LOAD configs
 #
