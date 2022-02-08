@@ -1,4 +1,4 @@
-# CDF Project Bootstrap
+# Inso Bootstrap Cli
 
 Configuration driven bootstrap of CDF Groups, Datasets, RAW Databases with data separation on
 sources, use-case and user-input level. Allowing (configurable) shared-access between each other for the solutions (like server-applications) running transformations or use-cases.
@@ -67,10 +67,7 @@ Note that the CDF Groups and RAW Databases will be deleted, while Datasets will 
 
 ## Configuration
 
-A YAML configuration file must be passed as an argument when running the program. There are separate configuration files
-for create and delete mode (prepare mode uses the same config as create mode). The configuration files file should be placed in the same directory as the program, which
-is the `artifacts` folder in this example. All files in the `artifacts` folder will be pushed to Private Git In Kingdom,
-available for Aramco to use. More details below.
+A YAML configuration file must be passed as an argument when running the program. The same configuration file used for both delete, prepare and deploy
 
 #### Configuration for all commands
 
@@ -105,7 +102,7 @@ logger:
     level: INFO
 ```
 
-#### Configuration for Create Mode
+#### Configuration for Deploy Mode
 
 In addition to the sections described above, the configuration file for create mode should include three more sections:
 
