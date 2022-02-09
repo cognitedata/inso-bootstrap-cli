@@ -15,12 +15,12 @@ sources, use-case and user-input level. Allowing (configurable) shared-access be
     + [Deploy command](#deploy-command)
     + [Delete command](#delete-command)
   * [Configuration](#configuration)
-      - [Configuration for all commands](#configuration-for-all-commands)
-      - [Configuration for Deploy Mode](#configuration-for-deploy-mode)
-        * [AAD Group to CDF Group mapping](#aad-group-to-cdf-group-mapping)
-        * [Bootstrap](#bootstrap)
-      - [Configuration for Delete Mode](#configuration-for-delete-mode)
-        * [Delete_or_deprecate](#delete-or-deprecate)
+    + [Configuration for all commands](#configuration-for-all-commands)
+      - [Configuration for `deploy` command](#configuration-for--deploy--command)
+      - [`aad_mappings` section: AAD Group to CDF Group mapping](#-aad-mappings--section--aad-group-to-cdf-group-mapping)
+        * [`bootstrap` section](#-bootstrap--section)
+      - [Configuration for `delete` command](#configuration-for--delete--command)
+        * [`delete_or_deprecate` section](#-delete-or-deprecate--section)
 - [Development](#development)
   * [to be done](#to-be-done)
 - [how to run](#how-to-run)
@@ -98,17 +98,10 @@ logger:
 
 In addition to the sections described above, the configuration file for deploy mode should include two more sections:
 
-<<<<<<< HEAD
-- `aad_mappings` - used to sync groups with AD object-ids
-- `bootstrap` - used do define the facilities, use cases and cooperate application details
-
-##### AAD Group to CDF Group mapping
-=======
 - `aad_mappings` - used to sync CDF Groups with AAD Group object-ids
 - `bootstrap` - used do define the logical access-control groups
 
 #### `aad_mappings` section: AAD Group to CDF Group mapping
->>>>>>> 9c10120142a3fd58876425c3966efe3ed7b5d86e
 
 Used to link CDF Groups with AAD Groups.
 Defines the name of the CDF Group, with the AAD Group object-id, and for documentation the AAD Group name.
