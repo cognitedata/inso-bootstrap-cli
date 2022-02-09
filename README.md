@@ -61,7 +61,7 @@ Note that the CDF Groups and RAW Databases will be deleted, while Datasets will 
 A YAML configuration file must be passed as an argument when running the program.
 Different configuration file used for delete and prepare/deploy
 
-#### Configuration for all commands
+### Configuration for all commands
 
 All commands require share a `cognite` section and a `logger` section in the YAML config files, which is common to our Cognite Database-Extractor configuration.
 The configuration file supports variable-expansion (`${BOOTSTRAP_**}`), which are provided either as
@@ -94,14 +94,21 @@ logger:
     level: INFO
 ```
 
-#### Configuration for Deploy Mode
+#### Configuration for `deploy` command
 
-In addition to the sections described above, the configuration file for deploy mode should include three more sections:
+In addition to the sections described above, the configuration file for deploy mode should include two more sections:
 
+<<<<<<< HEAD
 - `aad_mappings` - used to sync groups with AD object-ids
 - `bootstrap` - used do define the facilities, use cases and cooperate application details
 
 ##### AAD Group to CDF Group mapping
+=======
+- `aad_mappings` - used to sync CDF Groups with AAD Group object-ids
+- `bootstrap` - used do define the logical access-control groups
+
+#### `aad_mappings` section: AAD Group to CDF Group mapping
+>>>>>>> 9c10120142a3fd58876425c3966efe3ed7b5d86e
 
 Used to link CDF Groups with AAD Groups.
 Defines the name of the CDF Group, with the AAD Group object-id, and for documentation the AAD Group name.
@@ -118,10 +125,16 @@ aad_mappings:
     - CDF_DEV_ALLPROJECTS_OWNER
 ```
 
+##### `bootstrap` section
 
-##### Bootstrap
+The `bootstrap` section allows a two-level configuration of access-control groups:
 
-The `bootstrap` section consists of three subsections: facilities `src`, corporate applications `in` and use cases `uc`.
+Like for example:
+
+- `src` for sources,
+- `ca` for corporate applications,
+- `in` for user-input control,
+- and typically `uc` for use cases (which represent the solution and is  built on top of the others)
 
 A minimal configuration file of the `bootstrap` section:
 
@@ -150,14 +163,14 @@ bootstrap:
 
 For a full example of the deploy(create) configuration file, see the `configs/test-bootstrap-deploy-example.yml` file.
 
-#### Configuration for Delete Mode
+#### Configuration for `delete` command
 
 In addition to the `config` and `logger` sections described above, the configuration file for delete mode
 should include one more section:
 
 * `delete_or_deprecate` - used to define which CDF Datasets, CDF Groups and RAW databases (including tables) should to be deleted (CDF Datasets are in-fact only deprecated, as they cannot be deleted)
 
-##### Delete_or_deprecate
+##### `delete_or_deprecate` section
 
 This section defines what `datasets` that should be deprecated, and which `groups` and `raw_dbs` that should be deleted.
 
@@ -182,6 +195,7 @@ section. This can be used for copy-pasting in the item names you want to be adde
 For a full example of the delete configuration file, see the `configs/test-bootstrap-delete-example.yaml` file.
 
 # Development
+
 Clone the repository and `cd` to the project folder.  Then, initialize the
 project environment:
 
