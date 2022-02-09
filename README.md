@@ -8,34 +8,25 @@ sources, use-case and user-input level. Allowing (configurable) shared-access be
 
 <!-- code_chunk_output -->
 
-- [Inso-Bootstrap-cli](#inso-bootstrap-cli)
-  - [Table of Content](#table-of-content)
-  - [Bootstrap Run Modes](#bootstrap-run-modes)
-    - [Prepare Mode](#prepare-mode)
-    - [Create Mode](#create-mode)
-    - [Delete Mode](#delete-mode)
-  - [Configuration](#configuration)
-      - [Configuration for All Modes](#configuration-for-all-modes)
-      - [Configuration for Create Mode](#configuration-for-create-mode)
-        - [Environment](#environment)
-        - [Prefix External IDs](#prefix-external-ids)
-        - [Adfs-links](#adfs-links)
-        - [Bootstrap](#bootstrap)
+- [Inso Bootstrap Cli](#inso-bootstrap-cli)
+  * [Table of Content](#table-of-content)
+  * [Bootstrap Run Modes](#bootstrap-run-modes)
+    + [Prerequisites (Prepare command)](#prerequisites--prepare-command-)
+    + [Deploy command](#deploy-command)
+    + [Delete command](#delete-command)
+  * [Configuration](#configuration)
+      - [Configuration for all commands](#configuration-for-all-commands)
+      - [Configuration for Deploy Mode](#configuration-for-deploy-mode)
+        * [AAD Group to CDF Group mapping](#aad-group-to-cdf-group-mapping)
+        * [Bootstrap](#bootstrap)
       - [Configuration for Delete Mode](#configuration-for-delete-mode)
-        - [Delete_or_deprecate](#delete_or_deprecate)
-  - [Development](#development)
-    - [How To Run](#how-to-run)
-  - [End-result after Bootstrapping the CDF Tenant](#end-result-after-bootstrapping-the-cdf-tenant)
-    - [Per Facility, Corporate Application and Use Case](#per-facility-corporate-application-and-use-case)
-    - [CDF Groups](#cdf-groups)
-    - [Raw DBs](#raw-dbs)
-    - [Datasets](#datasets)
-  - [High-level CDF Groups, RAW DBs and Datasets](#high-level-cdf-groups-raw-dbs-and-datasets)
-    - [For all Facilities](#for-all-facilities)
-    - [For all Corporate Applications](#for-all-corporate-applications)
-    - [For all Use Cases](#for-all-use-cases)
-    - [For all Three](#for-all-three)
-    - [Root User](#root-user)
+        * [Delete_or_deprecate](#delete-or-deprecate)
+- [Development](#development)
+  * [to be done](#to-be-done)
+- [how to run](#how-to-run)
+  * [run local with poetry and .env](#run-local-with-poetry-and-env)
+  * [run local with Python](#run-local-with-python)
+  * [run local with Docker and .env](#run-local-with-docker-and-env)
 
 ## Bootstrap Run Modes
 
@@ -56,7 +47,7 @@ The `prepare` command will provide you with another CDF Group `cdf:bootstrap` wi
 
 ### Deploy command
 
-The bootstrap-cli `deploy` command will apply the configuration-file to your CDF Project. 
+The bootstrap-cli `deploy` command will apply the configuration-file to your CDF Project.
 It will create the necessary CDF Groups, Datasets and RAW Databases.
 This command supports GitHub-Action workflow too.
 
@@ -67,14 +58,15 @@ Note that the CDF Groups and RAW Databases will be deleted, while Datasets will 
 
 ## Configuration
 
-A YAML configuration file must be passed as an argument when running the program. The same configuration file used for both delete, prepare and deploy
+A YAML configuration file must be passed as an argument when running the program.
+Different configuration file used for delete and prepare/deploy
 
 #### Configuration for all commands
 
 All commands require share a `cognite` section and a `logger` section in the YAML config files, which is common to our Cognite Database-Extractor configuration.
-The configuration file supports variable-expansion (`${BOOTSTRAP_**}`), which are provided either as 
-1. environment-variables, 
-2. from a `.env` file or 
+The configuration file supports variable-expansion (`${BOOTSTRAP_**}`), which are provided either as
+1. environment-variables,
+2. from a `.env` file or
 3. command-line parameters
 
 Here is an example:
@@ -104,25 +96,14 @@ logger:
 
 #### Configuration for Deploy Mode
 
-In addition to the sections described above, the configuration file for create mode should include three more sections:
+In addition to the sections described above, the configuration file for deploy mode should include three more sections:
 
-- `environment` - used to define the working environment
-- `prefix_external_id` - a flag used to enable prefixing of external IDs
-- `adfs-links` - used to sync groups with AD object-ids
+- `aad_mappings` - used to sync groups with AD object-ids
 - `bootstrap` - used do define the facilities, use cases and cooperate application details
-
-##### Environment
-
-Used to define the working environment, and will be set as the prefix for naming. Example values: `dev`, `stage`, `preprod`, `prod`
-
-```yaml
-environment: preprod
-```
-
 
 ##### AAD Group to CDF Group mapping
 
-Used to link CDF Groups with AAD Groups. 
+Used to link CDF Groups with AAD Groups.
 Defines the name of the CDF Group, with the AAD Group object-id, and for documentation the AAD Group name.
 
 Example:
@@ -167,7 +148,7 @@ bootstrap:
         - in:001:name
 ```
 
-For a full example of the create configuration file, see the `config-create-preprod.yml` file in the `artifacts` folder.
+For a full example of the deploy(create) configuration file, see the `configs/test-bootstrap-deploy-example.yml` file.
 
 #### Configuration for Delete Mode
 
@@ -198,7 +179,7 @@ If nothing should be deleted, leave the subsections empty like this: `[]`.
 **Tip:** After running the bootstrap in `deploy` mode, the final part of the output logs will include a "Delete template"
 section. This can be used for copy-pasting in the item names you want to be added to the delete configuration file.
 
-For a full example of the delete configuration file, see the `config-delete.yml` file in the `artifacts` folder.
+For a full example of the delete configuration file, see the `configs/test-bootstrap-delete-example.yaml` file.
 
 # Development
 Clone the repository and `cd` to the project folder.  Then, initialize the
@@ -246,15 +227,15 @@ poetry build
 poetry install
 poetry update
 
-poetry run bootstrap-cli deploy --debug configs/ test-trading-bootstrap.yml
+poetry run bootstrap-cli deploy --debug configs/ test-bootstrap-deploy-example.yml
 ```
 - Prepare mode:
 ```
-poetry run bootstrap-cli prepare --debug configs/ test-trading-bootstrap.yml
+poetry run bootstrap-cli prepare --debug configs/ test-bootstrap-deploy-example.yml
 ```
 - Delete mode:
 ```
-poetry run bootstrap-cli delete --debug configs/ test-trading-bootstrap.yml
+poetry run bootstrap-cli delete --debug configs/ test-bootstrap-delete-example.yml
 ```
 
 ## run local with Python
@@ -262,7 +243,7 @@ poetry run bootstrap-cli delete --debug configs/ test-trading-bootstrap.yml
 ```bash
 export PYTHONPATH=.
 
-python incubator/bootstrap_cli/__main__.py deploy configs/ test-trading-bootstrap.yml
+python incubator/bootstrap_cli/__main__.py deploy configs/ test-bootstrap-deploy-example.yml
 ```
 
 ## run local with Docker and .env
@@ -273,7 +254,7 @@ python incubator/bootstrap_cli/__main__.py deploy configs/ test-trading-bootstra
 docker build -t incubator/bootstrap:v1.0 -t incubator/bootstrap:latest .
 
 # ${PWD} because only absolute paths can be mounted
-docker run --volume ${PWD}/configs:/configs --volume ${PWD}/logs:/logs  --env-file=.env incubator/bootstrap deploy /configs/test-trading-bootstrap.yml
+docker run --volume ${PWD}/configs:/configs --volume ${PWD}/logs:/logs  --env-file=.env incubator/bootstrap deploy /configs/test-bootstrap-deploy-example.yml
 ```
 
 Debug the Docker container
@@ -310,5 +291,5 @@ jobs:
             BOOTSTRAP_IDP_SCOPES: ${{ env.CDF_HOST }}.default
         # additional parameters for running the action
         with:
-          config_file: ./configs/test-trading-bootstrap.yml
+          config_file: ./configs/test-bootstrap-deploy-example.yml
 ```

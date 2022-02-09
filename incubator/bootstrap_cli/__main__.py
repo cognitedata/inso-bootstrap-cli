@@ -50,18 +50,36 @@ _logger = logging.getLogger(__name__)
 
 
 @dataclass
-class BootstrapConfig:
+class BootstrapDeployConfig:
     """
-    Configuration parameters for CDF Project Bootstrap, create mode
+    Configuration parameters for CDF Project Bootstrap, deploy(create) & prepare mode
     """
 
     logger: LoggingConfig
     cognite: CogniteConfig
-    # TODO rename
     bootstrap: Dict[str, Any]
     aad_mappings: Dict[str, Any]
-    delete_or_deprecate: Dict[str, Any] = None
-    latest_deployment: Optional[Dict[str, Any]] = None
+    token_custom_args: Dict[str, Any] = field(default_factory=dict)
+
+    @classmethod
+    def from_yaml(cls, filepath):
+        try:
+            with open(filepath) as file:
+                return load_yaml(file, cls)
+        except FileNotFoundError as exc:
+            print("Incorrect file path, error message: ", exc)
+            raise
+
+
+@dataclass
+class BootstrapDeleteConfig:
+    """
+    Configuration parameters for CDF Project Bootstrap, delete mode
+    """
+
+    logger: LoggingConfig
+    cognite: CogniteConfig
+    delete_or_deprecate: Dict[str, Any]
     token_custom_args: Dict[str, Any] = field(default_factory=dict)
 
     @classmethod
@@ -146,8 +164,12 @@ class BootstrapCore:
     # that all CDF Group names are looking homogenuous and aut-generated
     GROUP_NAME_PREFIX = "cdf:"
 
-    def __init__(self, configpath: str):
-        self.config: BootstrapConfig = BootstrapConfig.from_yaml(configpath)
+    def __init__(self, configpath: str, delete: bool = False):
+        if delete:
+            self.config: BootstrapDeleteConfig = BootstrapDeleteConfig.from_yaml(configpath)
+        else:
+            self.config: BootstrapDeployConfig = BootstrapDeployConfig.from_yaml(configpath)
+
         self.group_types_dimensions: Dict[str, Any] = self.config.bootstrap
         self.aad_mapping_lookup: Dict[str, Any] = self.config.aad_mappings
         self.deployed: Dict[str, Any] = {}
@@ -1056,7 +1078,7 @@ def delete(obj: Dict, config_file: str, debug: bool = False) -> None:
         # print(f'os.environ= {os.environ}')
 
         (
-            BootstrapCore(config_file)
+            BootstrapCore(config_file, delete=True)
             # .validate_config() # TODO
             .delete()
         )
