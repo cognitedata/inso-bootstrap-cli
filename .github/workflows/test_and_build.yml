@@ -1,0 +1,51 @@
+name: test_and_build
+
+on:
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        python-version: [3.7, 3.8, 3.9]
+    env:
+      CDF_PROJECT: yourcdfproject
+      CDF_CLUSTER: bluefield
+      IDP_TENANT: abcde-12345
+      CDF_HOST: https://bluefield.cognitedata.com/
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v1
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Install dependencies
+      run: |
+        python3 -m pip install --upgrade pip poetry
+        poetry config virtualenvs.create false
+        poetry install
+
+    - name: Check codestyle
+      run: |
+        pre-commit run --all
+
+    - name: Run deploy-delete tests
+      run: |
+        PYTHONPATH=python incubator/bootstrap_cli/__main__.py deploy configs/ test-bootstrap-deploy-example.yml
+        PYTHONPATH=python incubator/bootstrap_cli/__main__.py delete configs/ test-bootstrap-delete-example.yml
+      env:
+          BOOTSTRAP_IDP_CLIENT_ID: ${{ secrets.CLIENT_ID }}
+          BOOTSTRAP_IDP_CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
+          BOOTSTRAP_CDF_HOST: ${{ env.CDF_HOST }}
+          BOOTSTRAP_CDF_PROJECT: ${{ env.CDF_PROJECT }}
+          BOOTSTRAP_IDP_TOKEN_URL: https://login.microsoftonline.com/${{ env.IDP_TENANT }}/oauth2/v2.0/token
+          BOOTSTRAP_IDP_SCOPES: ${{ env.CDF_HOST }}.default
+
+    - name: Build package
+      run: poetry build
