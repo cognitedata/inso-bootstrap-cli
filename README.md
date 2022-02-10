@@ -225,6 +225,7 @@ poetry run pre-commit install
     - logger debug support
 - [ ] compile as EXE (when Python is not available on customer server)
   - code-signed exe required for Windows
+- [ ] Complete ag-action workflow in a test-project and add example groups to config.
 
 # how to run
 ## run local with poetry and .env

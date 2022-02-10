@@ -1,0 +1,30 @@
+name: Deploy Bootstrap
+
+on:
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  deploy-bootstrap:
+    runs-on: ubuntu-latest
+    name: Deploy Bootstrap Pipelines
+    env:
+      CDF_PROJECT: yourcdfproject
+      CDF_CLUSTER: bluefield
+      IDP_TENANT: abcde-12345
+      CDF_HOST: https://bluefield.cognitedata.com/
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Deploy bootstrap
+        uses: ./
+        env:
+            BOOTSTRAP_IDP_CLIENT_ID: ${{ secrets.CLIENT_ID }}
+            BOOTSTRAP_IDP_CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
+            BOOTSTRAP_CDF_HOST: ${{ env.CDF_HOST }}
+            BOOTSTRAP_CDF_PROJECT: ${{ env.CDF_PROJECT }}
+            BOOTSTRAP_IDP_TOKEN_URL: https://login.microsoftonline.com/${{ env.IDP_TENANT }}/oauth2/v2.0/token
+            BOOTSTRAP_IDP_SCOPES: ${{ env.CDF_HOST }}.default
+        # additional parameters for running the action
+        with:
+          config_file: ./configs/test-bootstrap-deploy-example.yml
