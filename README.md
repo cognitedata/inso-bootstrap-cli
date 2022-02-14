@@ -229,8 +229,8 @@ poetry run pre-commit install
 
 Follow the initial setup first
 1. Fill out relevant configurations from `configs`
-1.1. Fill out `aad_mappings` and `bootstrap` from `test-bootstrap-deploy-example.yml`
-1.2. Fill out `delete_or_deprecate` from test-bootstrap-delete-example.yml
+  - 1.1 Fill out `aad_mappings` and `bootstrap` from `test-bootstrap-deploy-example.yml`
+  - 1.2 Fill out `delete_or_deprecate` from `test-bootstrap-delete-example.yml`
 2. Change `.env_example` to `.env`
 3. Fill out `.env`
 ## run local with poetry
