@@ -9,25 +9,24 @@ sources, use-case and user-input level. Allowing (configurable) shared-access be
 <!-- code_chunk_output -->
 
 - [Inso Bootstrap Cli](#inso-bootstrap-cli)
-  * [Table of Content](#table-of-content)
-  * [Bootstrap Run Modes](#bootstrap-run-modes)
-    + [Prerequisites (Prepare command)](#prerequisites--prepare-command-)
-    + [Deploy command](#deploy-command)
-    + [Delete command](#delete-command)
-  * [Configuration](#configuration)
-    + [Configuration for all commands](#configuration-for-all-commands)
-      - [Configuration for `deploy` command](#configuration-for--deploy--command)
-      - [`aad_mappings` section: AAD Group to CDF Group mapping](#-aad-mappings--section--aad-group-to-cdf-group-mapping)
-        * [`bootstrap` section](#-bootstrap--section)
-      - [Configuration for `delete` command](#configuration-for--delete--command)
-        * [`delete_or_deprecate` section](#-delete-or-deprecate--section)
+  - [Table of Content](#table-of-content)
+  - [Bootstrap Run Modes](#bootstrap-run-modes)
+    - [Prerequisites (Prepare command)](#prerequisites-prepare-command)
+    - [Deploy command](#deploy-command)
+    - [Delete command](#delete-command)
+  - [Configuration](#configuration)
+    - [Configuration for all commands](#configuration-for-all-commands)
+      - [Configuration for deploy command](#configuration-for-deploy-command)
+      - [`aad_mappings` section: AAD Group to CDF Group mapping](#aad_mappings-section-aad-group-to-cdf-group-mapping)
+        - [`bootstrap` section](#bootstrap-section)
+      - [Configuration for delete command](#configuration-for-delete-command)
+        - [`delete_or_deprecate` section](#delete_or_deprecate-section)
 - [Development](#development)
-  * [to be done](#to-be-done)
+  - [to be done](#to-be-done)
 - [how to run](#how-to-run)
-  * [run local with poetry and .env](#run-local-with-poetry-and-env)
-  * [run local with Python](#run-local-with-python)
-  * [run local with Docker and .env](#run-local-with-docker-and-env)
-
+  - [run local with poetry](#run-local-with-poetry)
+  - [run local with Python](#run-local-with-python)
+  - [run local with Docker](#run-local-with-docker)
 ## Bootstrap Run Modes
 
 ### Prerequisites (Prepare command)
@@ -94,7 +93,7 @@ logger:
     level: INFO
 ```
 
-#### Configuration for `deploy` command
+#### Configuration for deploy command
 
 In addition to the sections described above, the configuration file for deploy mode should include two more sections:
 
@@ -156,7 +155,7 @@ bootstrap:
 
 For a full example of the deploy(create) configuration file, see the `configs/test-bootstrap-deploy-example.yml` file.
 
-#### Configuration for `delete` command
+#### Configuration for delete command
 
 In addition to the `config` and `logger` sections described above, the configuration file for delete mode
 should include one more section:
@@ -227,22 +226,31 @@ poetry run pre-commit install
   - code-signed exe required for Windows
 
 # how to run
-## run local with poetry and .env
+
+Follow the initial setup first
+1. Fill out relevant configurations from `configs`
+1.1. Fill out `aad_mappings` and `bootstrap` from `test-bootstrap-deploy-example.yml`
+1.2. Fill out `delete_or_deprecate` from test-bootstrap-delete-example.yml
+2. Change `.env_example` to `.env`
+3. Fill out `.env`
+## run local with poetry
 
 ```bash
-poetry build
-poetry install
-poetry update
-
-poetry run bootstrap-cli deploy --debug configs/ test-bootstrap-deploy-example.yml
+  poetry build
+  poetry install
+  poetry update
+```
+- Deploy mode:
+```
+  poetry run bootstrap-cli deploy --debug configs/ test-bootstrap-deploy-example.yml
 ```
 - Prepare mode:
 ```
-poetry run bootstrap-cli prepare --debug configs/ test-bootstrap-deploy-example.yml
+  poetry run bootstrap-cli prepare --debug configs/ test-bootstrap-deploy-example.yml
 ```
 - Delete mode:
 ```
-poetry run bootstrap-cli delete --debug configs/ test-bootstrap-delete-example.yml
+  poetry run bootstrap-cli delete --debug configs/ test-bootstrap-delete-example.yml
 ```
 
 ## run local with Python
@@ -253,7 +261,7 @@ export PYTHONPATH=.
 python incubator/bootstrap_cli/__main__.py deploy configs/ test-bootstrap-deploy-example.yml
 ```
 
-## run local with Docker and .env
+## run local with Docker
 - `.dockerignore` file
 - volumes for `configs` (to read) and `logs` folder (to write)
 
