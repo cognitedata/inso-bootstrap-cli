@@ -4,8 +4,10 @@
     * like `src:001:exact:rawdb`
     * and a data set with external-id `src:001:exact` and name `src:001:exact:dataset`
 * This approach uses stable Python SDK `client.extraction_pipeline`
-    * [SDK documentation](https://cognite-docs.readthedocs-hosted.com/projects/cognite-sdk-python/en/latest/cognite.html?highlight=experimental#extraction-pipelines}
-    * [API documentation](https://docs.cognite.com/api/v1/#tag/Extraction-Pipelines)
+    * [SDK documentation]
+    (https://cognite-docs.readthedocs-hosted.com/projects/cognite-sdk-python/en/latest/cognite.html?highlight=experimental#extraction-pipelines}
+    * [API documentation]
+    (https://docs.cognite.com/api/v1/#tag/Extraction-Pipelines)
 ## to be done
 * cleanup of unused code(?)
 * validation of `schedule` values
@@ -532,7 +534,8 @@ class BootstrapCore:
         )
         # AD scope-id and name might not be available yet
         aad_source_id, aad_source_name = self.aad_mapping_lookup.get(group_name, [None, None])
-        # print(f"=====  group_name<{group_name}> | aad_source_id<{aad_source_id}> | aad_source_name<{aad_source_name}> ===")
+        # print(f"=====  group_name<{group_name}> | aad_source_id<{aad_source_id}>
+        # | aad_source_name<{aad_source_name}> ===")
 
         group_payload = {
             "name": group_name,
@@ -708,7 +711,8 @@ class BootstrapCore:
                 for group_prefix, group_config in group_configs.items():
                     # group for each dedicated group-type id
                     self.process_group(action, group_type, group_prefix)
-                # 'allprojects' groups on group-type level (access to all datasets/ raw-dbs which belong to this group-type)
+                # 'allprojects' groups on group-type level
+                # (access to all datasets/ raw-dbs which belong to this group-type)
                 self.process_group(action, group_type)
             # 'allprojects' groups on action level (no limits to datasets or raw-dbs)
             self.process_group(action)
@@ -789,8 +793,10 @@ class BootstrapCore:
         group_create_object = Group(name=group_name, capabilities=group_capabilities)
         if self.config.cognite.idp_authentication:
             # inject (both will be pushed through the API call!)
-            group_create_object.source_id = self.config.cognite.idp_authentication.client_id  # 'S-314159-1234'
-            group_create_object.source = f"AAD Server Application: {group_create_object.source_id}"  # type: ignore # 'AD Group FooBar' # type: ignore
+            # 'S-314159-1234'
+            group_create_object.source_id = self.config.cognite.idp_authentication.client_id
+            # type: ignore # 'AD Group FooBar' # type: ignore
+            group_create_object.source = f"AAD Server Application: {group_create_object.source_id}"
         self.client.iam.groups.create(group_create_object)
 
         _logger.info(f"Created CDF Group {group_name}")
@@ -830,7 +836,8 @@ class BootstrapCore:
             _logger.info("No RAW Databases to delete")
 
         # datasets cannot be deleted by design
-        #   * deprecate/archive them by prefix name with "_DEPR_", setting "archive=true" and a "description" with timestamp of deprecation
+        # deprecate/archive them by prefix name with "_DEPR_", setting
+        # "archive=true" and a "description" with timestamp of deprecation
         dataset_names = self.delete_or_deprecate["datasets"]
         if dataset_names:
             # get datasets which exists by name
@@ -900,49 +907,58 @@ class BootstrapCore:
 @click.version_option(prog_name="bootstrap_cli", version=__version__)
 @click.option(
     "--cdf-project-name",
-    help="Project to interact with transformations API, 'BOOTSTRAP_CDF_PROJECT' environment variable can be used instead. Required for OAuth2 and optional for api-keys.",
+    help="Project to interact with transformations API, 'BOOTSTRAP_CDF_PROJECT',"
+    "environment variable can be used instead. Required for OAuth2 and optional for api-keys.",
     envvar="BOOTSTRAP_CDF_PROJECT",
 )
 @click.option(
     "--cluster",
     default="westeurope-1",
-    help="The CDF cluster where Transformations is hosted (e.g. greenfield, europe-west1-1). Provide this or make sure to set 'BOOTSTRAP_CDF_CLUSTER' environment variable.",
+    help="The CDF cluster where Transformations is hosted (e.g. greenfield, europe-west1-1),"
+    "Provide this or make sure to set 'BOOTSTRAP_CDF_CLUSTER' environment variable.",
     envvar="BOOTSTRAP_CDF_CLUSTER",
 )
 @click.option(
     "--host",
     default="bluefield",
-    help="The CDF cluster where Bootstrap-Pipelines are hosted (e.g. https://bluefield.cognitedata.com). Provide this or make sure to set 'BOOTSTRAP_CDF_HOST' environment variable.",
+    help="The CDF cluster where Bootstrap-Pipelines are hosted (e.g. https://bluefield.cognitedata.com),"
+    "Provide this or make sure to set 'BOOTSTRAP_CDF_HOST' environment variable.",
     envvar="BOOTSTRAP_CDF_HOST",
 )
 @click.option(
     "--api-key",
-    help="API key to interact with transformations API. Provide this or make sure to set 'BOOTSTRAP_CDF_API_KEY' environment variable if you want to authenticate with API keys.",
+    help="API key to interact with transformations API. Provide this or make sure to set 'BOOTSTRAP_CDF_API_KEY',"
+    "environment variable if you want to authenticate with API keys.",
     envvar="BOOTSTRAP_CDF_API_KEY",
 )
 @click.option(
     "--client-id",
-    help="Client ID to interact with transformations API. Provide this or make sure to set 'BOOTSTRAP_IDP_CLIENT_ID' environment variable if you want to authenticate with OAuth2.",
+    help="Client ID to interact with transformations API. Provide this or make sure to set,"
+    "'BOOTSTRAP_IDP_CLIENT_ID' environment variable if you want to authenticate with OAuth2.",
     envvar="BOOTSTRAP_IDP_CLIENT_ID",
 )
 @click.option(
     "--client-secret",
-    help="Client secret to interact with transformations API. Provide this or make sure to set 'BOOTSTRAP_IDP_CLIENT_SECRET' environment variable if you want to authenticate with OAuth2.",
+    help="Client secret to interact with transformations API. Provide this or make sure to set,"
+    "'BOOTSTRAP_IDP_CLIENT_SECRET' environment variable if you want to authenticate with OAuth2.",
     envvar="BOOTSTRAP_IDP_CLIENT_SECRET",
 )
 @click.option(
     "--token-url",
-    help="Token URL to interact with transformations API. Provide this or make sure to set 'BOOTSTRAP_IDP_TOKEN_URL' environment variable if you want to authenticate with OAuth2.",
+    help="Token URL to interact with transformations API. Provide this or make sure to set,"
+    "'BOOTSTRAP_IDP_TOKEN_URL' environment variable if you want to authenticate with OAuth2.",
     envvar="BOOTSTRAP_IDP_TOKEN_URL",
 )
 @click.option(
     "--scopes",
-    help="Scopes to interact with transformations API, relevant for OAuth2 authentication method. 'BOOTSTRAP_IDP_SCOPES' environment variable can be used instead.",
+    help="Scopes to interact with transformations API, relevant for OAuth2 authentication method,"
+    "'BOOTSTRAP_IDP_SCOPES' environment variable can be used instead.",
     envvar="BOOTSTRAP_IDP_SCOPES",
 )
 @click.option(
     "--audience",
-    help="Audience to interact with transformations API, relevant for OAuth2 authentication method. 'BOOTSTRAP_IDP_AUDIENCE' environment variable can be used instead.",
+    help="Audience to interact with transformations API, relevant for OAuth2 authentication method,"
+    "'BOOTSTRAP_IDP_AUDIENCE' environment variable can be used instead.",
     envvar="BOOTSTRAP_IDP_AUDIENCE",
 )
 @click.pass_context
@@ -1011,7 +1027,8 @@ def deploy(obj: Dict, config_file: str, debug: bool = False) -> None:
 
 
 @click.command(
-    help="Prepare your CDF Project with a CDF Group 'cdf:bootstrap', which allows to run the 'deploy' command next. The 'prepare' command is only required once per CDF Project."
+    help="Prepare your CDF Project with a CDF Group 'cdf:bootstrap', which allows to run the 'deploy' command next,"
+    "The 'prepare' command is only required once per CDF Project."
 )
 @click.argument(
     "config_file",
@@ -1051,7 +1068,8 @@ def prepare(obj: Dict, config_file: str, debug: bool = False) -> None:
 
 
 @click.command(
-    help="Delete mode used to delete CDF Groups, Datasets and Raw Databases. CDF Groups and RAW Databases will be deleted, while Datasets will be archived and deprecated, not deleted"
+    help="Delete mode used to delete CDF Groups, Datasets and Raw Databases,"
+    "CDF Groups and RAW Databases will be deleted, while Datasets will be archived and deprecated, not deleted"
 )
 @click.argument(
     "config_file",

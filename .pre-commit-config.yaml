@@ -21,7 +21,7 @@ repos:
     rev: 3.9.0
     hooks:
       - id: flake8
-        args: ['--config=setup.cfg', "--ignore=E501,F401,E402"]
+        args: ['--config=setup.cfg', --max-line-length=120]
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v3.4.0
