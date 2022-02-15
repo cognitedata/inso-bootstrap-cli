@@ -19,5 +19,9 @@ logger:
   console:
     level: INFO
 
-bootstrap:
+delete_or_deprecate:
+  datasets: []
+  groups: []
+  raw_dbs: []
+
 ...
