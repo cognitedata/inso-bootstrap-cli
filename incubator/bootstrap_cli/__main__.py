@@ -167,6 +167,7 @@ class BootstrapCore:
     def __init__(self, configpath: str, delete: bool = False):
         if delete:
             self.config: BootstrapDeleteConfig = BootstrapDeleteConfig.from_yaml(configpath)
+            self.delete_or_deprecate: Dict[str, Any] = self.config.delete_or_deprecate
         else:
             self.config: BootstrapDeployConfig = BootstrapDeployConfig.from_yaml(configpath)
             self.group_types_dimensions: Dict[str, Any] = self.config.bootstrap
@@ -801,7 +802,7 @@ class BootstrapCore:
         self.load_deployed_config_from_cdf()
 
         # groups
-        group_names = self.config.delete_or_deprecate["groups"]
+        group_names = self.delete_or_deprecate["groups"]
         if group_names:
             delete_group_ids = self.deployed["groups"].query("name in @group_names")["id"].tolist()
             if delete_group_ids:
@@ -814,7 +815,7 @@ class BootstrapCore:
             _logger.info("No Groups to delete")
 
         # raw_dbs
-        raw_db_names = self.config.delete_or_deprecate["raw_dbs"]
+        raw_db_names = self.delete_or_deprecate["raw_dbs"]
         if raw_db_names:
             delete_raw_db_names = list(set(raw_db_names).intersection(set(self.deployed["raw_dbs"]["name"])))
             if delete_raw_db_names:
@@ -830,7 +831,7 @@ class BootstrapCore:
 
         # datasets cannot be deleted by design
         #   * deprecate/archive them by prefix name with "_DEPR_", setting "archive=true" and a "description" with timestamp of deprecation
-        dataset_names = self.config.delete_or_deprecate["datasets"]
+        dataset_names = self.delete_or_deprecate["datasets"]
         if dataset_names:
             # get datasets which exists by name
             delete_datasets_df = self.deployed["datasets"].query("name in @dataset_names")
