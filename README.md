@@ -1,19 +1,29 @@
-# Inso Bootstrap Cli
+# InSo Bootstrap CLI
 
-Configuration driven bootstrap of CDF Groups, Datasets, RAW Databases with data separation on
-sources, use-case and user-input level. 
+## Scope of Work
 
-- Allowing (configurable) shared-access between each other for the solutions (like server-applications) running transformations or use-cases.
+Disclaimer:
+> The repository name is prefixed with `inso-`, marking this solution as provided by Cognite Industry Solution (InSo) team, but is not an offical supported CLI / GitHub Action from Cognite with product-grade SLOs.
+
+Purpose:
+
+- Providing a configuration driven bootstrap of CDF Groups, Datasets, RAW Databases with data-separation on sources, use-case and user-input level. 
+- Aiming for **DAY1** operations:
+  - first configuration of your new CDF Project
+- Support for **DAY2** operations:
+  - maintaining and scaling you CDF Project
+
 
 ## Table of Content
 <!-- @import "[TOC]" {cmd="toc" depthFrom=1 depthTo=6 orderedList=false} -->
 
 <!-- code_chunk_output -->
 
-- [Inso Bootstrap Cli](#inso-bootstrap-cli)
+- [InSo Bootstrap CLI](#inso-bootstrap-cli)
+  - [Scope of Work](#scope-of-work)
   - [Table of Content](#table-of-content)
   - [Bootstrap CLI commands](#bootstrap-cli-commands)
-    - [Prerequisites (`Prepare` command)](#prerequisites-prepare-command)
+    - [`Prepare` command](#prepare-command)
     - [`Deploy` command](#deploy-command)
     - [`Delete` command](#delete-command)
   - [Configuration](#configuration)
@@ -34,20 +44,72 @@ sources, use-case and user-input level.
 <!-- /code_chunk_output -->
 
 ## Bootstrap CLI commands
-### Prerequisites (`Prepare` command)
 
-The first time you want to run boostrap-cli for your new CDF project, the `prepare` command might be required.
+Common parameters for all commands, which most are typically provided through environment variables (prefixed with `BOOTSTRAP_`):
 
-- A new CDF Project is only configured with one CDF Group (named like "OIDC admin") which covers these capabilities:
-  - `projects`
-  - `groups`
+```text
+Usage: bootstrap-cli [OPTIONS] COMMAND [ARGS]...
 
-To run bootstrap-cli additional capabilties are required:
+Options:
+  --version                Show the version and exit.
+  --cdf-project-name TEXT  Project to interact with transformations API,
+                           'BOOTSTRAP_CDF_PROJECT',environment variable can be
+                           used instead. Required for OAuth2 and optional for
+                           api-keys.
+  --cluster TEXT           The CDF cluster where Transformations is hosted
+                           (e.g. greenfield, europe-west1-1),Provide this or
+                           make sure to set 'BOOTSTRAP_CDF_CLUSTER'
+                           environment variable.
+  --host TEXT              The CDF cluster where Bootstrap-Pipelines are
+                           hosted (e.g.
+                           https://bluefield.cognitedata.com),Provide this or
+                           make sure to set 'BOOTSTRAP_CDF_HOST' environment
+                           variable.
+  --api-key TEXT           API key to interact with transformations API.
+                           Provide this or make sure to set
+                           'BOOTSTRAP_CDF_API_KEY',environment variable if you
+                           want to authenticate with API keys.
+  --client-id TEXT         Client ID to interact with transformations API.
+                           Provide this or make sure to
+                           set,'BOOTSTRAP_IDP_CLIENT_ID' environment variable
+                           if you want to authenticate with OAuth2.
+  --client-secret TEXT     Client secret to interact with transformations API.
+                           Provide this or make sure to
+                           set,'BOOTSTRAP_IDP_CLIENT_SECRET' environment
+                           variable if you want to authenticate with OAuth2.
+  --token-url TEXT         Token URL to interact with transformations API.
+                           Provide this or make sure to
+                           set,'BOOTSTRAP_IDP_TOKEN_URL' environment variable
+                           if you want to authenticate with OAuth2.
+  --scopes TEXT            Scopes to interact with transformations API,
+                           relevant for OAuth2 authentication
+                           method,'BOOTSTRAP_IDP_SCOPES' environment variable
+                           can be used instead.
+  --audience TEXT          Audience to interact with transformations API,
+                           relevant for OAuth2 authentication
+                           method,'BOOTSTRAP_IDP_AUDIENCE' environment
+                           variable can be used instead.
+  -h, --help               Show this message and exit.
 
-- `datasets`
-- `raw`
+Commands:
+  delete   Delete mode used to delete CDF Groups, Datasets and Raw...
+  deploy   Deploy a set of bootstrap from a config-file
+  prepare  Prepare your CDF Project with a CDF Group 'cdf:bootstrap',...
+```
+### `Prepare` command
 
-The `prepare` command will provide you with another CDF Group `cdf:bootstrap` with this minimal capabilities.
+The first time you plan to run `bootstrap-cli` for your new CDF project, the `prepare` command might be required, to create a CDF Group with capabilities which allow to run the other commands.
+
+A new CDF Project is typically only configured with one CDF Group (named `oidc-admin-group`) which grants these capabilities:
+  - `projects:[read,list,update]`
+  - `groups:[create,delete,update,list,read]`
+
+To run bootstrap-cli additional capabilties (with actions) are required:
+
+- `datasets:[read,write,owner]`
+- `raw:[read,write,list]`
+
+The `prepare` command creates a new CDF Group named `cdf:bootstrap` with this minimal capabilities.
 
 ```text
 Usage: bootstrap-cli prepare [OPTIONS] [CONFIG_FILE]
@@ -103,10 +165,11 @@ Different configuration file used for delete and prepare/deploy
 
 ### Configuration for all commands
 
-All commands require share a `cognite` section and a `logger` section in the YAML config files, which is common to our Cognite Database-Extractor configuration.
+All commands share a `cognite` and a `logger` section in the YAML manifest, which is common to our Cognite Database-Extractor configuration.
+
 The configuration file supports variable-expansion (`${BOOTSTRAP_**}`), which are provided either as
 1. environment-variables,
-2. from a `.env` file or
+2. through an `.env` file or
 3. command-line parameters
 
 Here is an example:
@@ -164,10 +227,9 @@ The `bootstrap` section allows a two-level configuration of access-control group
 
 Like for example:
 
-- `src` for sources,
-- `ca` for corporate applications,
+- `src` for sources or `ca` for corporate applications,
 - `in` for user-input control,
-- and typically `uc` for use cases (which represent the solution and is  built on top of the others)
+- `uc` typically for use-cases (providing the data-product and built on top of the other data-sources)
 
 A minimal configuration file of the `bootstrap` section:
 
@@ -194,7 +256,7 @@ bootstrap:
         - in:001:name
 ```
 
-For a full example of the deploy(create) configuration file, see the `configs/test-bootstrap-deploy-example.yml` file.
+For a complete example of the `deploy` configuration, see `configs/test-bootstrap-deploy-example.yml`.
 
 #### Configuration for `delete` command
 
@@ -223,29 +285,28 @@ delete_or_deprecate:
     - test:fac:001:name:rawdb
 ```
 
-If nothing should be deleted, leave the subsections empty like this: `[]`.
+If nothing to delete, provide an empty list like this: `[]`.
 
-**Tip:** After running the bootstrap in `deploy` mode, the final part of the output logs will include a "Delete template"
-section. This can be used for copy-pasting in the item names you want to be added to the delete configuration file.
+**Tip:** After running the bootstrap in `deploy` mode, the final part of the output logs will include a "Delete template" section. This can be used for copy-paste the item names to the `delete` configuration.
 
-For a full example of the delete configuration file, see the `configs/test-bootstrap-delete-example.yaml` file.
+For a complete example of the delete configuration, see the `configs/test-bootstrap-delete-example.yml`.
 
 # Development
 
-Clone the repository and `cd` to the project folder.  Then, initialize the
-project environment:
+1. Clone the repository and `cd` to the project folder.  Then, 
+2. initialize the project environment:
 
-```sh
-poetry install
-```
+    ```sh
+    poetry install
+    ```
 
-Install the pre-commit hook:
+3. Install the pre-commit hook:
 
-```sh
-poetry run pre-commit install
-```
+    ```sh
+    poetry run pre-commit install
+    ```
 
-- the prefix `inso-` names this solution as provided by Cognite Industry Solution team, and is not (yet) an offical supported cli / GitHub Action  from Cognite
+
 - it provides a configuration driven deployment for Cognite Bootstrap Pipelines (named `bootstrap` in short)
   - support to run it
     - from `poetry run`
