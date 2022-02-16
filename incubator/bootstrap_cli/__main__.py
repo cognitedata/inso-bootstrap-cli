@@ -1,47 +1,66 @@
 """
-* this configuration driven approach builds on top of the "dataops:cdf-groups" approach
-* using the naming scheme of configuration-groups like `src:001:exact` which provides a list of predefined resources
-    * like `src:001:exact:rawdb`
-    * and a data set with external-id `src:001:exact` and name `src:001:exact:dataset`
-* This approach uses stable Python SDK `client.extraction_pipeline`
-    * [SDK documentation]
-    (https://cognite-docs.readthedocs-hosted.com/projects/cognite-sdk-python/en/latest/cognite.html?highlight=experimental#extraction-pipelines}
-    * [API documentation]
-    (https://docs.cognite.com/api/v1/#tag/Extraction-Pipelines)
-## to be done
-* cleanup of unused code(?)
-* validation of `schedule` values
-## dependencies will be validated
-* Dataset must exist
-* RAW DBs must exist
-* Missing RAW Tables will be created
-* `schedule` only supports: `On trigger | Continuous | <cron expression> | null`
+Changelog:
+210504 mh:
+ * Adding support for minimum groups and project capabilities for read and owner Groups
+ * Exception handling for root-groups to avoid duplicate groups and projects capabilities
+210610 mh:
+ * Adding RAW DBs and Datasets for Groups {env}:allprojects:{owner/read} and {env}:{group}:allprojects:{owner/read}
+ * Adding functionality for updating dataset details (external id, description, etc) based on the config.yml
+210910 pa:
+ * extended acl_default_types by labels, relationships, functions
+ * removed labels from acl_admin_types 
+ * functions don't have dataset scope
+211013 pa: 
+ * renamed "adfs" to "aad" terminology => aad_mappings
+ * for AAD 'root:client' and 'root:user' can be merged into 'root'
+211014 pa:
+ * adding new capabilities
+      extractionpipelinesAcl
+      extractionrunsAcl
+211108 pa: 
+ * adding new capabilities
+      entitymatchingAcl
+ * refactor list of acl types which only support "all" scope
+      acl_all_scope_only_types
+ * support "labels" for non admin groups
+211110 pa:
+ * adding new capabilities
+      sessionsAcl
+220202 pa:
+ * adding new capabilities
+      typesAcl
+220216 pa:
+ * adding 'generate_special_groups()' to handle 
+   'extractors' and 'transformations' and their 'aad_mappings'
+ * adding new capabilities
+      transformationsAcl (replacing the need for magic "transformations" CDF Group)
 """
-
+# std-lib
 import logging
 import time
+import yaml
 from dataclasses import dataclass, field
 from datetime import datetime
 from itertools import islice
 from pathlib import Path
-
 # type-hints
+from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple
 
-import click
+# 3rd party libs
 import pandas as pd
-
 # cli
-import yaml
+import click
 from click import Context
+
+# Cognite Python SDK and Utils support
+# using extractor-utils instead of native CogniteClient
 from cognite.client.data_classes import DataSet, Group
 from cognite.client.data_classes.data_sets import DataSetUpdate
-
-# from cognite.client import CogniteClient
-# use extractor-utils instead
 from cognite.extractorutils.configtools import CogniteConfig, LoggingConfig, load_yaml
 from dotenv import load_dotenv
 
+# cli internal
 from incubator.bootstrap_cli import __version__
 
 # import getpass
@@ -51,47 +70,47 @@ _logger = logging.getLogger(__name__)
 #
 
 
+# mixin 'str' to 'Enum' to support comparison to string-values
+# https://docs.python.org/3/library/enum.html#others
+# https://stackoverflow.com/a/63028809/1104502
+class YesNoType(str, Enum):
+    yes = "yes"
+    no = "no"
+
 @dataclass
-class BootstrapDeployConfig:
+class BootstrapBaseConfig:
+    logger: LoggingConfig
+    cognite: CogniteConfig
+    # token_custom_args: Dict[str, Any]
+    # TODO: ading default_factory value, will break the code 
+    # or you have to apply for all *following* fields, default values too
+    # see https://stackoverflow.com/q/51575931/1104502
+    # https://medium.com/@aniscampos/python-dataclass-inheritance-finally-686eaf60fbb5
+    token_custom_args: Dict[str, Any] = field(default_factory=dict)
+
+    @classmethod
+    def from_yaml(cls, filepath):
+        try:
+            with open(filepath) as file:
+                return load_yaml(source=file, config_type=cls)
+        except FileNotFoundError as exc:
+            print("Incorrect file path, error message: ", exc)
+            raise
+
+@dataclass
+class BootstrapDeployConfig(BootstrapBaseConfig):
     """
     Configuration parameters for CDF Project Bootstrap, deploy(create) & prepare mode
     """
-
-    logger: LoggingConfig
-    cognite: CogniteConfig
-    bootstrap: Dict[str, Any]
-    aad_mappings: Dict[str, Any]
-    token_custom_args: Dict[str, Any] = field(default_factory=dict)
-
-    @classmethod
-    def from_yaml(cls, filepath):
-        try:
-            with open(filepath) as file:
-                return load_yaml(file, cls)
-        except FileNotFoundError as exc:
-            print("Incorrect file path, error message: ", exc)
-            raise
-
+    bootstrap: Dict[str, Any] = field(default_factory=dict)
+    aad_mappings: Dict[str, Any] = field(default_factory=dict)
 
 @dataclass
-class BootstrapDeleteConfig:
+class BootstrapDeleteConfig(BootstrapBaseConfig):
     """
     Configuration parameters for CDF Project Bootstrap, delete mode
     """
-
-    logger: LoggingConfig
-    cognite: CogniteConfig
-    delete_or_deprecate: Dict[str, Any]
-    token_custom_args: Dict[str, Any] = field(default_factory=dict)
-
-    @classmethod
-    def from_yaml(cls, filepath):
-        try:
-            with open(filepath) as file:
-                return load_yaml(file, cls)
-        except FileNotFoundError as exc:
-            print("Incorrect file path, error message: ", exc)
-            raise
+    delete_or_deprecate: Dict[str, Any] = field(default_factory=dict)
 
 
 class BootstrapConfigError(Exception):
@@ -126,6 +145,7 @@ acl_default_types = [
     "sequences",
     "sessions",
     "timeSeries",
+    "transformations",
     "types",
 ]
 
@@ -135,7 +155,7 @@ acl_admin_types = [
 ]
 
 # this acls only support "all": {} scope
-acl_all_scope_only_types = set(["projects", "sessions", "functions", "entitymatching", "types"])
+acl_all_scope_only_types = set(["projects", "sessions", "functions", "entitymatching", "transformations", "types"])
 
 action_dimensions = {
     # owner datasets might only need READ and OWNER
@@ -156,14 +176,10 @@ action_dimensions = {
 
 class BootstrapCore:
 
-    # client: CogniteClient
-    # config: BootstrapConfig
-    # self.group_types_dimensions: Dict[str, Any]
-
     # 210330 pa: all rawdbs come in two variants `:rawdb` and `:rawdb:state`
     RAW_SUFFIXES = ["", ":state"]
 
-    # that all CDF Group names are looking homogenuous and aut-generated
+    # Mark all auto-generated CDF Group names
     GROUP_NAME_PREFIX = "cdf:"
 
     def __init__(self, configpath: str, delete: bool = False):
@@ -398,7 +414,7 @@ class BootstrapCore:
             return {"all": {}}
         elif acl_type == "groups":
             return {"currentuserscope": {}}
-        else:  # 'assets', 'events', 'files', 'sequences', 'timeSeries'
+        else:  # like 'assets', 'events', 'files', 'sequences', 'timeSeries', ..
             # { "datasetScope": { "ids": [ 2695894113527579, 4254268848874387 ] } }
             return {"datasetScope": {"ids": self.dataset_names_to_ids(scope_ctx["datasets"])}}
 
@@ -521,17 +537,7 @@ class BootstrapCore:
         # TODO 220203 pa: bypassing a strange bug under Docker which throws a
         # pandas.core.computation.ops.UndefinedVariableError: name 'str_0_0x900xd80x90xec0x870x7f0x00x0' is not defined
 
-    def process_group(self, action=None, group_type=None, group_prefix=None, root_account=None):
-        # 1. check if not exists
-        # 2. check if capabilities or scope-id is different (or simply create new/delete old)
-        # 3. else nothing to do
-
-        # to be merged with existing code
-        # print(f"=== START: action<{action}> | group_type<{group_type}> | group_prefix<{group_prefix}> ===")
-
-        group_name, group_capabilities = self.generate_group_name_and_capabilities(
-            action, group_type, group_prefix, root_account
-        )
+    def create_group(self, group_name: str, group_capabilities: Dict[str, Any]=None) -> List[Dict[str, Any]]:
         # AD scope-id and name might not be available yet
         aad_source_id, aad_source_name = self.aad_mapping_lookup.get(group_name, [None, None])
         # print(f"=====  group_name<{group_name}> | aad_source_id<{aad_source_id}>
@@ -568,6 +574,18 @@ class BootstrapCore:
             self.client.iam.groups.delete(old_group_delete_id)
 
         return group_payload
+
+    def process_group(self, action=None, group_type=None, group_prefix=None, root_account=None):
+        # to avoid complex upsert logic, all groups will be recreated and then the old ones deleted
+
+        # to be merged with existing code
+        # print(f"=== START: action<{action}> | group_type<{group_type}> | group_prefix<{group_prefix}> ===")
+
+        group_name, group_capabilities = self.generate_group_name_and_capabilities(
+            action, group_type, group_prefix, root_account
+        )
+
+        return self.create_group(group_name, group_capabilities)
 
     def generate_missing_datasets(self) -> Tuple[List[str], List[str]]:
         # list of all targets: autogenerated dataset names
@@ -655,7 +673,7 @@ class BootstrapCore:
         if existing_datasets:
             # update datasets which are already deployed
             # https://docs.cognite.com/api/v1/#operation/createDataSets
-            # xxx TBD: description, metadata, externalId
+            # TODO: description, metadata, externalId
             for chunked_existing_datasets in chunks(existing_datasets, 10):
                 self.client.data_sets.update(
                     [
@@ -702,6 +720,22 @@ class BootstrapCore:
             self.client.raw.databases.create(list(missing_rawdbs))
 
         return target_raw_db_names, missing_rawdbs
+
+    """
+    "Special CDF Groups" are groups which don't have capabilities but have an effect by their name only.
+    1. 'transformations' group: grants access to "Fusion > Integrate > Transformations"
+    2. 'extractors' group: grants access to "Fusion > Integrate > Extract Data" which allows dowload of extractors
+
+    Both of them are about getting deprecated in the future.
+    - 'transformations' can already be replaced with proper 'transformationsAcl' capabilities
+    """
+    def generate_special_groups(self):
+
+        special_group_names = ['extractors', 'transformations']
+        _logger.info(f"Generating special groups:\n{special_group_names}")
+
+        for special_group_name in special_group_names:
+            self.create_group(group_name=special_group_name)
 
     # generate all groups
     def generate_groups(self):
@@ -793,7 +827,6 @@ class BootstrapCore:
         group_create_object = Group(name=group_name, capabilities=group_capabilities)
         if self.config.cognite.idp_authentication:
             # inject (both will be pushed through the API call!)
-            # 'S-314159-1234'
             group_create_object.source_id = self.config.cognite.idp_authentication.client_id
             # type: ignore # 'AD Group FooBar' # type: ignore
             group_create_object.source = f"AAD Server Application: {group_create_object.source_id}"
@@ -866,7 +899,7 @@ class BootstrapCore:
         # TODO: write to file or standard output
         _logger.info("Finished creating CDF Groups, Datasets and RAW Databases")
 
-    def deploy(self):
+    def deploy(self, with_special_groups:YesNoType = YesNoType.no):
 
         # load deployed groups, datasets, raw_dbs with their ids and metadata
         self.load_deployed_config_from_cdf()
@@ -892,6 +925,11 @@ class BootstrapCore:
         time.sleep(5)  # wait for datasets and raw_dbs to be created!
         self.load_deployed_config_from_cdf()
 
+        # Special CDF Groups and their aad_mappings
+        if with_special_groups == YesNoType.yes:
+            self.generate_special_groups()
+
+        # CDF Groups from configuration
         self.generate_groups()
         _logger.info("Created new CDF Groups")
 
@@ -963,16 +1001,19 @@ class BootstrapCore:
 )
 @click.pass_context
 def bootstrap_cli(
+    # click.core.Context
     context: Context,
+    # cdf
     cluster: str = "westeurope-1",
+    cdf_project_name: Optional[str] = None,
     host: str = None,
     api_key: Optional[str] = None,
+    # cdf idp
     client_id: Optional[str] = None,
     client_secret: Optional[str] = None,
-    token_url: Optional[str] = None,
     scopes: Optional[str] = None,
+    token_url: Optional[str] = None,
     audience: Optional[str] = None,
-    cdf_project_name: Optional[str] = None,
 ) -> None:
     context.obj = {
         "cluster": cluster,
@@ -997,10 +1038,22 @@ def bootstrap_cli(
     is_flag=True,
     help="Print debug information",
 )
+@click.option(
+    "--with-special-groups",
+    # having this as a flag is not working for gh-action 'actions.yml' manifest
+    # instead using explicit choice options
+    # is_flag=True,
+    default='no',
+    type=click.Choice(['yes', 'no'], case_sensitive=False),
+    help="Create special CDF Groups, which don't have capabilities (extractions, transformations)",
+)
 @click.pass_obj
-def deploy(obj: Dict, config_file: str, debug: bool = False) -> None:
+def deploy(obj: Dict, config_file: str, debug: bool = False, with_special_groups: YesNoType = YesNoType.no) -> None:
 
     click.echo(click.style("Deploying CDF Project bootstrap...", fg="red"))
+
+    # debug new yes/no flag    
+    click.echo(click.style(f"with_special_groups={with_special_groups} / {with_special_groups == YesNoType.yes}"))
 
     if debug:
         # TODO not working yet :/
@@ -1017,7 +1070,7 @@ def deploy(obj: Dict, config_file: str, debug: bool = False) -> None:
         (
             BootstrapCore(config_file)
             # .validate_config() # TODO
-            .deploy()
+            .deploy(with_special_groups=with_special_groups)
         )
 
         click.echo(click.style("CDF Project bootstrap deployed", fg="blue"))
@@ -1121,9 +1174,6 @@ bootstrap_cli.add_command(delete)
 def main() -> None:
     # call click.pass_context
     bootstrap_cli()
-
-
-# bootstrap_cli.add_command(deploy)
 
 if __name__ == "__main__":
     main()

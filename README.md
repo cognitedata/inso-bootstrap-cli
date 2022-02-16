@@ -1,7 +1,9 @@
 # Inso Bootstrap Cli
 
 Configuration driven bootstrap of CDF Groups, Datasets, RAW Databases with data separation on
-sources, use-case and user-input level. Allowing (configurable) shared-access between each other for the solutions (like server-applications) running transformations or use-cases.
+sources, use-case and user-input level. 
+
+- Allowing (configurable) shared-access between each other for the solutions (like server-applications) running transformations or use-cases.
 
 ## Table of Content
 <!-- @import "[TOC]" {cmd="toc" depthFrom=1 depthTo=6 orderedList=false} -->
@@ -10,16 +12,16 @@ sources, use-case and user-input level. Allowing (configurable) shared-access be
 
 - [Inso Bootstrap Cli](#inso-bootstrap-cli)
   - [Table of Content](#table-of-content)
-  - [Bootstrap Run Modes](#bootstrap-run-modes)
-    - [Prerequisites (Prepare command)](#prerequisites-prepare-command)
-    - [Deploy command](#deploy-command)
-    - [Delete command](#delete-command)
+  - [Bootstrap CLI commands](#bootstrap-cli-commands)
+    - [Prerequisites (`Prepare` command)](#prerequisites-prepare-command)
+    - [`Deploy` command](#deploy-command)
+    - [`Delete` command](#delete-command)
   - [Configuration](#configuration)
     - [Configuration for all commands](#configuration-for-all-commands)
-      - [Configuration for deploy command](#configuration-for-deploy-command)
+      - [Configuration for `deploy` command](#configuration-for-deploy-command)
       - [`aad_mappings` section: AAD Group to CDF Group mapping](#aad_mappings-section-aad-group-to-cdf-group-mapping)
         - [`bootstrap` section](#bootstrap-section)
-      - [Configuration for delete command](#configuration-for-delete-command)
+      - [Configuration for `delete` command](#configuration-for-delete-command)
         - [`delete_or_deprecate` section](#delete_or_deprecate-section)
 - [Development](#development)
   - [to be done](#to-be-done)
@@ -27,9 +29,12 @@ sources, use-case and user-input level. Allowing (configurable) shared-access be
   - [run local with poetry](#run-local-with-poetry)
   - [run local with Python](#run-local-with-python)
   - [run local with Docker](#run-local-with-docker)
-## Bootstrap Run Modes
+  - [run as github action](#run-as-github-action)
 
-### Prerequisites (Prepare command)
+<!-- /code_chunk_output -->
+
+## Bootstrap CLI commands
+### Prerequisites (`Prepare` command)
 
 The first time you want to run boostrap-cli for your new CDF project, the `prepare` command might be required.
 
@@ -44,16 +49,52 @@ To run bootstrap-cli additional capabilties are required:
 
 The `prepare` command will provide you with another CDF Group `cdf:bootstrap` with this minimal capabilities.
 
-### Deploy command
+```text
+Usage: bootstrap-cli prepare [OPTIONS] [CONFIG_FILE]
+
+  Prepare your CDF Project with a CDF Group 'cdf:bootstrap', which allows to
+  run the 'deploy' command next,The 'prepare' command is only required once
+  per CDF Project.
+
+Options:
+  --debug     Print debug information
+  -h, --help  Show this message and exit.
+```
+
+### `Deploy` command
 
 The bootstrap-cli `deploy` command will apply the configuration-file to your CDF Project.
 It will create the necessary CDF Groups, Datasets and RAW Databases.
 This command supports GitHub-Action workflow too.
 
-### Delete command
+```text
+Usage: bootstrap-cli deploy [OPTIONS] [CONFIG_FILE]
+
+  Deploy a set of bootstrap from a config-file
+
+Options:
+  --debug                         Print debug information
+  --with-special-groups [yes|no]  Create special CDF Groups, which don't have
+                                  capabilities (extractions, transformations)
+  -h, --help                      Show this message and exit.
+```
+
+### `Delete` command
 
 If it is necessary to revert any changes, the `delete` mode can be used to delete CDF Groups, Datasets and RAW Databases.
 Note that the CDF Groups and RAW Databases will be deleted, while Datasets will be archived and deprecated, not deleted.
+
+```text
+Usage: bootstrap-cli delete [OPTIONS] [CONFIG_FILE]
+
+  Delete mode used to delete CDF Groups, Datasets and Raw Databases,CDF Groups
+  and RAW Databases will be deleted, while Datasets will be archived and
+  deprecated, not deleted
+
+Options:
+  --debug     Print debug information
+  -h, --help  Show this message and exit.
+```
 
 ## Configuration
 
@@ -93,12 +134,12 @@ logger:
     level: INFO
 ```
 
-#### Configuration for deploy command
+#### Configuration for `deploy` command
 
-In addition to the sections described above, the configuration file for deploy mode should include two more sections:
+In addition to the sections described above, the configuration file for `deploy` command requires two more sections:
 
-- `aad_mappings` - used to sync CDF Groups with AAD Group object-ids
-- `bootstrap` - used do define the logical access-control groups
+- `bootstrap` - declaration of the logical access-control group structure
+- `aad_mappings` - mapping AAD Group object-ids with CDF Groups
 
 #### `aad_mappings` section: AAD Group to CDF Group mapping
 
@@ -111,7 +152,7 @@ Example:
 aad_mappings:
   #cdf-group-name:
   #  - aad-group-object-id
-  #  - READABLE_NAME
+  #  - READABLE_NAME like the AAD Group name
   cdf:allprojects:owner:
     - 123456-7890-abcd-1234-314159
     - CDF_DEV_ALLPROJECTS_OWNER
@@ -155,7 +196,7 @@ bootstrap:
 
 For a full example of the deploy(create) configuration file, see the `configs/test-bootstrap-deploy-example.yml` file.
 
-#### Configuration for delete command
+#### Configuration for `delete` command
 
 In addition to the `config` and `logger` sections described above, the configuration file for delete mode
 should include one more section:
@@ -170,11 +211,14 @@ Example configuration:
 
 ```yml
 delete_or_deprecate:
+  # datasets: []
   datasets:
     - test:fac:001:name
+  # groups: []
   groups:
     - test:fac:001:name:owner
     - test:fac:001:name:read
+  # raw_dbs: []
   raw_dbs:
     - test:fac:001:name:rawdb
 ```
@@ -229,10 +273,10 @@ poetry run pre-commit install
 
 Follow the initial setup first
 1. Fill out relevant configurations from `configs`
-  - 1.1 Fill out `aad_mappings` and `bootstrap` from `test-bootstrap-deploy-example.yml`
-  - 1.2 Fill out `delete_or_deprecate` from `test-bootstrap-delete-example.yml`
-2. Change `.env_example` to `.env`
-3. Fill out `.env`
+  - Fill out `aad_mappings` and `bootstrap` from `test-bootstrap-deploy-example.yml`
+  - Fill out `delete_or_deprecate` from `test-bootstrap-delete-example.yml`
+2. For local testing, copy `.env_example` to `.env`
+   - complete CDF and IdP configuration in `.env`
 ## run local with poetry
 
 ```bash
@@ -241,16 +285,16 @@ Follow the initial setup first
   poetry update
 ```
 - Deploy mode:
-```
-  poetry run bootstrap-cli deploy --debug configs/ test-bootstrap-deploy-example.yml
+```bash
+  poetry run bootstrap-cli deploy --debug configs/test-bootstrap-deploy-example.yml
 ```
 - Prepare mode:
-```
-  poetry run bootstrap-cli prepare --debug configs/ test-bootstrap-deploy-example.yml
+```bash
+  poetry run bootstrap-cli prepare --debug configs/test-bootstrap-deploy-example.yml
 ```
 - Delete mode:
-```
-  poetry run bootstrap-cli delete --debug configs/ test-bootstrap-delete-example.yml
+```bash
+  poetry run bootstrap-cli delete --debug configs/test-bootstrap-delete-example.yml
 ```
 
 ## run local with Python
@@ -266,10 +310,10 @@ python incubator/bootstrap_cli/__main__.py deploy configs/ test-bootstrap-deploy
 - volumes for `configs` (to read) and `logs` folder (to write)
 
 ```bash
-docker build -t incubator/bootstrap:v1.0 -t incubator/bootstrap:latest .
+docker build -t incubator/bootstrap-cli:v1.0 -t incubator/bootstrap-cli:latest .
 
 # ${PWD} because only absolute paths can be mounted
-docker run --volume ${PWD}/configs:/configs --volume ${PWD}/logs:/logs  --env-file=.env incubator/bootstrap deploy /configs/test-bootstrap-deploy-example.yml
+docker run --volume ${PWD}/configs:/configs --volume ${PWD}/logs:/logs  --env-file=.env incubator/bootstrap-cli deploy /configs/test-bootstrap-deploy-example.yml
 ```
 
 Debug the Docker container
@@ -277,9 +321,10 @@ Debug the Docker container
 - to get full functional `bash` a `Dockerfile.debug` is provided
 
 ```bash
-➟  docker build -t incubator/bootstrap:debug -f Dockerfile.debug .
+➟  docker build -t incubator/bootstrap-cli:debug -f Dockerfile.debug .
 
-➟  docker run --volume ${PWD}/configs:/configs --volume ${PWD}/logs:/logs  --env-file=.env -it --entrypoint /bin/bash incubator/bootstrap:debug```
+➟  docker run --volume ${PWD}/configs:/configs --volume ${PWD}/logs:/logs  --env-file=.env -it --entrypoint /bin/bash incubator/bootstrap-cli:debug
+```
 
 ## run as github action
 
