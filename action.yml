@@ -1,37 +1,46 @@
-name: 'Deploy Bootstrap Pipelines'
-description: 'Deploy a set of Bootstrap Pipelines from yaml manifests'
+name: 'Deploy CDF Groups with Datasets, RAW DBs'
+description: 'Deploy (aka bootstrap) CDF Groups, Data-Sets and RAW DBs from a yaml manifest'
 inputs:
-  api-key:
-    description: 'API key for authenticating with CDF'
+  # cdf
+  cluster:
+    description: 'CDF Cluster'
     required: false
-  token-url:
-    description: 'Token url to use for fetching OAuth2 tokens'
-    required: false
+    default: 'westeurope-1'
   cdf-project-name:
     description: 'CDF project name (only required when using OAuth2 credentials)'
     required: false
-  scopes:
-    description: 'List of OAuth2 scopes (space separated)'
+  api-key:
+    description: 'API key for authenticating with CDF'
     required: false
-  audience:
-    description: 'OAuth2 audience'
-    required: false
+  # cdf idp
   client-id:
     description: 'OAuth2 client ID'
     required: false
   client-secret:
     description: 'OAuth2 client secret'
     required: false
-  cluster:
-    description: 'CDF Cluster'
+  scopes:
+    description: 'List of OAuth2 scopes (space separated)'
     required: false
-    default: 'westeurope-1'
+  token-url:
+    description: 'Token url to use for fetching OAuth2 tokens'
+    required: false
+  audience:
+    description: 'OAuth2 audience'
+    required: false
+  # 'deploy' command parameters
   config_file:
     description: >-
       The path to a yaml file containing Bootstrap Pipeline configuration.
       This is relative to $GITHUB_WORKSPACE,
       which will be the root of the repository when using actions/checkout with default settings.
     required: true
+  with_special_groups:
+    description: >-
+      yes/no string-flag, for creating special CDF Groups, which don't have capabilities (extractions, transformations)
+    required: false
+    default: 'no'
+
 runs:
   using: 'docker'
   image: 'Dockerfile'
@@ -44,4 +53,8 @@ runs:
     BOOTSTRAP_SCOPES: ${{ inputs.scopes }}
     BOOTSTRAP_AUDIENCE: ${{ inputs.audience }}
     BOOTSTRAP_CLUSTER: "${{ inputs.cluster }}"
-  args: ["deploy", "${{ inputs.config_file }}" , "--debug"]
+  args: 
+    - "deploy"
+    - "--with-special-groups=${{ inputs.with_special_groups }}" 
+    - "--debug"
+    - "${{ inputs.config_file }}" 
