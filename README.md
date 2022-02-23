@@ -401,8 +401,10 @@ jobs:
       CDF_CLUSTER: bluefield
       IDP_TENANT: abcde-12345
       CDF_HOST: https://bluefield.cognitedata.com/
-      - name: Deploy bootstrap
-        uses: cognitedata/inso-expipes-cli@main
+      # use a tagged release like @v1.2.1
+      # - uses: cognitedata/inso-bootstrap-cli@v1.2.1
+      # or use the latest release available using @main
+      - uses: cognitedata/inso-bootstrap-cli@main
         env:
             BOOTSTRAP_IDP_CLIENT_ID: ${{ secrets.CLIENT_ID }}
             BOOTSTRAP_IDP_CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
@@ -413,4 +415,7 @@ jobs:
         # additional parameters for running the action
         with:
           config_file: ./configs/test-bootstrap-deploy-example.yml
+          # "yes"|"no" deploy with special groups and aad_mappings
+          with_special_groups: "yes"
+          
 ```
