@@ -6,4 +6,4 @@
 # print(f'__version__: {__version__}')
 
 # keep manually in sync with pyproject.toml until the above approach is working in Docker too
-__version__ = '1.2.1'
+__version__ = "1.2.1"

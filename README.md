@@ -7,11 +7,11 @@ Disclaimer:
 
 Purpose:
 
-- Providing a configuration driven bootstrap of CDF Groups, Datasets, RAW Databases with data-separation on sources, use-case and user-input level. 
+- Providing a configuration driven bootstrap of CDF Groups, Datasets, RAW Databases with data-separation on sources, use-case and user-input level.
 - Aiming for **DAY1** operations:
   - first configuration of your new CDF Project
 - Support for **DAY2** operations:
-  - maintaining and scaling you CDF Project
+  - maintaining and scaling your CDF Project
 
 
 ## Table of Content
@@ -293,7 +293,7 @@ For a complete example of the delete configuration, see the `configs/test-bootst
 
 # Development
 
-1. Clone the repository and `cd` to the project folder.  Then, 
+1. Clone the repository and `cd` to the project folder.  Then,
 2. initialize the project environment:
 
     ```sh
@@ -417,5 +417,5 @@ jobs:
           config_file: ./configs/test-bootstrap-deploy-example.yml
           # "yes"|"no" deploy with special groups and aad_mappings
           with_special_groups: "yes"
-          
+
 ```
