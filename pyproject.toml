@@ -25,7 +25,7 @@ skip_glob = '^((?!py$).)*$'    # this makes sort all Python files
 known_third_party = ["click", "pytest"]
 
 [tool.poetry.dependencies]
-python = "^3.7"
+python = "^3.9"
 cognite-extractor-utils = "^1.6.2"
 python-dotenv = "^0.15.0"
 click = "^8.0.1"
