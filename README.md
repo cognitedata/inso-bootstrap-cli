@@ -89,12 +89,14 @@ Options:
                            relevant for OAuth2 authentication
                            method,'BOOTSTRAP_IDP_AUDIENCE' environment
                            variable can be used instead.
+  --dotenv-path TEXT       Provide a relative or absolute path to an .env file
+                           (for commandline usage only)
   -h, --help               Show this message and exit.
 
 Commands:
   delete   Delete mode used to delete CDF Groups, Datasets and Raw...
   deploy   Deploy a set of bootstrap from a config-file
-  prepare  Prepare your CDF Project with a CDF Group 'cdf:bootstrap',...
+  prepare  Prepare an elevated CDF Group 'cdf:bootstrap', using your...
 ```
 ### `Prepare` command
 
@@ -114,9 +116,10 @@ The `prepare` command creates a new CDF Group named `cdf:bootstrap` with this mi
 ```text
 Usage: bootstrap-cli prepare [OPTIONS] [CONFIG_FILE]
 
-  Prepare your CDF Project with a CDF Group 'cdf:bootstrap', which allows to
-  run the 'deploy' command next,The 'prepare' command is only required once
-  per CDF Project.
+  Prepare an elevated CDF Group 'cdf:bootstrap', using your initially provided
+  'oidc-admin-group'. With additional capabilities to to run the 'deploy' and
+  'delete' commands next. The 'prepare' command is only required once per CDF
+  Project.
 
 Options:
   --debug     Print debug information

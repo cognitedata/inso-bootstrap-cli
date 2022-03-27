@@ -1040,8 +1040,7 @@ class BootstrapCore:
 )
 @click.option(
     "--dotenv-path",
-    # type=click.Path,
-    help="Provide a relative or absolute path to a .env file.",
+    help="Provide a relative or absolute path to an .env file (for commandline usage only)",
 )
 @click.pass_context
 def bootstrap_cli(
@@ -1133,7 +1132,8 @@ def deploy(obj: Dict, config_file: str, debug: bool = False, with_special_groups
 
 
 @click.command(
-    help="Prepare your CDF Project with a CDF Group 'cdf:bootstrap', which allows to run the 'deploy' command next,"
+    help="Prepare an elevated CDF Group 'cdf:bootstrap', using your initially provided 'oidc-admin-group'. "
+    "With additional capabilities to to run the 'deploy' and 'delete' commands next. "
     "The 'prepare' command is only required once per CDF Project."
 )
 @click.argument(
