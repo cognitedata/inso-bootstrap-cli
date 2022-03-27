@@ -6,4 +6,5 @@
 # print(f'__version__: {__version__}')
 
 # keep manually in sync with pyproject.toml until the above approach is working in Docker too
-__version__ = "1.2.1"
+# TODO: 220327 pa: switching to gh-action supported semantic-versioning
+__version__ = "1.3.0"
