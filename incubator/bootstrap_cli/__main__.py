@@ -659,7 +659,7 @@ class BootstrapCore:
             }
         )
 
-        # TODO check chunking options from SDK
+        # TODO: SDK should do this fine, that was an older me still learning :)
         def chunks(data, SIZE=10000):
             it = iter(data)
             for i in range(0, len(data), SIZE):
@@ -675,7 +675,6 @@ class BootstrapCore:
         if missing_datasets:
             # create all datasets which are not already deployed
             # https://docs.cognite.com/api/v1/#operation/createDataSets
-            # xxx TBD: description, metadata, externalId
             for chunked_missing_datasets in chunks(missing_datasets, 10):
                 self.client.data_sets.create(
                     [
@@ -759,8 +758,8 @@ class BootstrapCore:
     1. 'transformations' group: grants access to "Fusion > Integrate > Transformations"
     2. 'extractors' group: grants access to "Fusion > Integrate > Extract Data" which allows dowload of extractors
 
-    Both of them are about getting deprecated in the future.
-    - 'transformations' can already be replaced with proper 'transformationsAcl' capabilities
+    Both of them are about getting deprecated in the near future (time of writing: Q4 '21).
+    - 'transformations' can already be replaced with dedicated 'transformationsAcl' capabilities
     """
 
     def generate_special_groups(self):
@@ -865,6 +864,10 @@ class BootstrapCore:
             # sourceName
             f"AAD Server Application: {source_id}",
         ]
+
+        # load deployed groups, datasets, raw_dbs with their ids and metadata
+        self.load_deployed_config_from_cdf()
+        _logger.debug(f"GROUPS in CDF:\n{self.deployed['groups']}")
 
         # allows idempotent creates, as it cleans up old groups with same names after creation
         self.create_group(group_name=group_name, group_capabilities=group_capabilities, aad_mapping=aad_mapping)
@@ -1035,6 +1038,11 @@ class BootstrapCore:
     "'BOOTSTRAP_IDP_AUDIENCE' environment variable can be used instead.",
     envvar="BOOTSTRAP_IDP_AUDIENCE",
 )
+@click.option(
+    "--dotenv-path",
+    # type=click.Path,
+    help="Provide a relative or absolute path to a .env file.",
+)
 @click.pass_context
 def bootstrap_cli(
     # click.core.Context
@@ -1050,17 +1058,28 @@ def bootstrap_cli(
     scopes: Optional[str] = None,
     token_url: Optional[str] = None,
     audience: Optional[str] = None,
+    # cli
+    # dotenv_path: Optional[click.Path] = None,
+    dotenv_path: Optional[str] = None,
 ) -> None:
+
+    # load .env from file if exists, use given dotenv_path if provided
+    load_dotenv(dotenv_path=dotenv_path)
+
     context.obj = {
+        # cdf
         "cluster": cluster,
+        "cdf_project_name": cdf_project_name,
         "host": host,
         "api_key": api_key,
+        # cdf idp
         "client_id": client_id,
         "client_secret": client_secret,
-        "token_url": token_url,
         "scopes": scopes,
+        "token_url": token_url,
         "audience": audience,
-        "cdf_project_name": cdf_project_name,
+        # cli
+        "dotenv_path": dotenv_path,
     }
 
 
@@ -1096,8 +1115,6 @@ def deploy(obj: Dict, config_file: str, debug: bool = False, with_special_groups
         _logger.setLevel("DEBUG")  # INFO/DEBUG
 
     try:
-        # load .env from file if exists
-        load_dotenv()
 
         # _logger.debug(f'os.environ = {os.environ}')
         # print(f'os.environ= {os.environ}')
