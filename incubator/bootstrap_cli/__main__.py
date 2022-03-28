@@ -846,7 +846,7 @@ class BootstrapCore:
     * delete removed from config
     """
 
-    def prepare(self):
+    def prepare(self, aad_source_id: str) -> None:
         group_name = "cdf:bootstrap"
         # group_name = f"{create_config.environment}:bootstrap"
 
@@ -860,9 +860,9 @@ class BootstrapCore:
         # TODO: replace with dataclass
         aad_mapping = [
             # sourceId
-            (source_id := self.config.cognite.idp_authentication.client_id),
+            aad_source_id,
             # sourceName
-            f"AAD Server Application: {source_id}",
+            f"AAD Server Application: {aad_source_id}",
         ]
 
         # load deployed groups, datasets, raw_dbs with their ids and metadata
@@ -1145,8 +1145,14 @@ def deploy(obj: Dict, config_file: str, debug: bool = False, with_special_groups
     is_flag=True,
     help="Print debug information",
 )
+@click.option(
+    "--aad-source-id",
+    required=True,
+    help="Provide the AAD Source ID to use for the 'cdf:bootstrap' Group. "
+    "Typically for a new project its the one configured for the CDF Group named 'oidc-admin-group'.",
+)
 @click.pass_obj
-def prepare(obj: Dict, config_file: str, debug: bool = False) -> None:
+def prepare(obj: Dict, config_file: str, aad_source_id: str, debug: bool = False) -> None:
 
     click.echo(click.style("Prepare CDF Project ...", fg="red"))
 
@@ -1155,16 +1161,11 @@ def prepare(obj: Dict, config_file: str, debug: bool = False) -> None:
         _logger.setLevel("DEBUG")  # INFO/DEBUG
 
     try:
-        # load .env from file if exists
-        load_dotenv()
-
-        # _logger.debug(f'os.environ = {os.environ}')
-        # print(f'os.environ= {os.environ}')
 
         (
             BootstrapCore(config_file)
             # .validate_config() # TODO
-            .prepare()
+            .prepare(aad_source_id=aad_source_id)
         )
 
         click.echo(click.style("CDF Project bootstrap prepared for running 'deploy' command next.", fg="blue"))
@@ -1196,12 +1197,6 @@ def delete(obj: Dict, config_file: str, debug: bool = False) -> None:
         _logger.setLevel("DEBUG")  # INFO/DEBUG
 
     try:
-        # load .env from file if exists
-        load_dotenv()
-
-        # _logger.debug(f'os.environ = {os.environ}')
-        # print(f'os.environ= {os.environ}')
-
         (
             BootstrapCore(config_file, delete=True)
             # .validate_config() # TODO
