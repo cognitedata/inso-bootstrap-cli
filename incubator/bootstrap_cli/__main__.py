@@ -1132,7 +1132,8 @@ def deploy(obj: Dict, config_file: str, debug: bool = False, with_special_groups
 
 
 @click.command(
-    help="Prepare an elevated CDF Group 'cdf:bootstrap', using your initially provided 'oidc-admin-group'. "
+    help="Prepare an elevated CDF Group 'cdf:bootstrap', using the same AAD Group link "
+    "as your initially provided 'oidc-admin-group'. "
     "With additional capabilities to to run the 'deploy' and 'delete' commands next. "
     "The 'prepare' command is only required once per CDF Project."
 )
