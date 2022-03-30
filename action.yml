@@ -53,8 +53,8 @@ runs:
     BOOTSTRAP_SCOPES: ${{ inputs.scopes }}
     BOOTSTRAP_AUDIENCE: ${{ inputs.audience }}
     BOOTSTRAP_CLUSTER: "${{ inputs.cluster }}"
-  args: 
+  args:
     - "deploy"
-    - "--with-special-groups=${{ inputs.with_special_groups }}" 
+    - "--with-special-groups=${{ inputs.with_special_groups }}"
     - "--debug"
-    - "${{ inputs.config_file }}" 
+    - "${{ inputs.config_file }}"

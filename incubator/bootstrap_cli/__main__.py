@@ -8,16 +8,16 @@ Changelog:
  * Adding functionality for updating dataset details (external id, description, etc) based on the config.yml
 210910 pa:
  * extended acl_default_types by labels, relationships, functions
- * removed labels from acl_admin_types 
+ * removed labels from acl_admin_types
  * functions don't have dataset scope
-211013 pa: 
+211013 pa:
  * renamed "adfs" to "aad" terminology => aad_mappings
  * for AAD 'root:client' and 'root:user' can be merged into 'root'
 211014 pa:
  * adding new capabilities
       extractionpipelinesAcl
       extractionrunsAcl
-211108 pa: 
+211108 pa:
  * adding new capabilities
       entitymatchingAcl
  * refactor list of acl types which only support "all" scope
@@ -30,12 +30,12 @@ Changelog:
  * adding new capabilities
       typesAcl
 220216 pa:
- * adding 'generate_special_groups()' to handle 
+ * adding 'generate_special_groups()' to handle
    'extractors' and 'transformations' and their 'aad_mappings'
    * configurable through `deploy --with-special-groups=[yes|no]` parameter
  * adding new capabilities:
       transformationsAcl (replacing the need for magic "transformations" CDF Group)
-      
+
 """
 # std-lib
 import logging
@@ -45,17 +45,21 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from itertools import islice
 from pathlib import Path
+
 # type-hints
 from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple
 
 # 3rd party libs
 import pandas as pd
+
 # cli
 import click
 from click import Context
 
 # Cognite Python SDK and Utils support
+from cognite.client import CogniteClient
+
 # using extractor-utils instead of native CogniteClient
 from cognite.client.data_classes import DataSet, Group
 from cognite.client.data_classes.data_sets import DataSetUpdate
@@ -79,12 +83,13 @@ class YesNoType(str, Enum):
     yes = "yes"
     no = "no"
 
+
 @dataclass
 class BootstrapBaseConfig:
     logger: LoggingConfig
     cognite: CogniteConfig
     # token_custom_args: Dict[str, Any]
-    # TODO: ading default_factory value, will break the code 
+    # TODO: ading default_factory value, will break the code
     # or you have to apply for all *following* fields, default values too
     # see https://stackoverflow.com/q/51575931/1104502
     # https://medium.com/@aniscampos/python-dataclass-inheritance-finally-686eaf60fbb5
@@ -99,19 +104,23 @@ class BootstrapBaseConfig:
             print("Incorrect file path, error message: ", exc)
             raise
 
+
 @dataclass
 class BootstrapDeployConfig(BootstrapBaseConfig):
     """
     Configuration parameters for CDF Project Bootstrap, deploy(create) & prepare mode
     """
+
     bootstrap: Dict[str, Any] = field(default_factory=dict)
     aad_mappings: Dict[str, Any] = field(default_factory=dict)
+
 
 @dataclass
 class BootstrapDeleteConfig(BootstrapBaseConfig):
     """
     Configuration parameters for CDF Project Bootstrap, delete mode
     """
+
     delete_or_deprecate: Dict[str, Any] = field(default_factory=dict)
 
 
@@ -527,55 +536,77 @@ class BootstrapCore:
             ]
         return group_name_full_qualified, capabilities
 
-    def check_group_delete_required(self, group_payload):
-        # simple check for name only
-        # why make it more complicated checking different adfs_source or capabilities?
-        # in any case just recreate it, will not happen frequently
+    def get_group_ids_by_name(self, group_name: str) -> List[int]:
+        """Lookup if CDF Group name exists (could be more than one!)
+        and return list of all CDF Group IDs
 
-        name_to_check = group_payload["name"]  # noqa
-        return self.deployed["groups"].query("name == @name_to_check")["id"].tolist()
+        Args:
+            group_name (str): CDF Group name to check
+
+        Returns:
+            List[int]: of CDF Group IDs
+        """
+
+        return self.deployed["groups"].query("name == @group_name")["id"].tolist()
 
         # return self.deployed["groups"].query("name == @group_payload['name']")["id"].tolist()
-        # TODO 220203 pa: bypassing a strange bug under Docker which throws a
-        # pandas.core.computation.ops.UndefinedVariableError: name 'str_0_0x900xd80x90xec0x870x7f0x00x0' is not defined
+        # TODO 220203 pa: explicit providing 'group_name'
+        #     to bypass a strange bug under Docker which throws a
+        #     pandas.core.computation.ops.UndefinedVariableError:
+        #       name 'str_0_0x900xd80x90xec0x870x7f0x00x0' is not defined
 
-    def create_group(self, group_name: str, group_capabilities: Dict[str, Any]=None) -> List[Dict[str, Any]]:
-        # AD scope-id and name might not be available yet
-        aad_source_id, aad_source_name = self.aad_mapping_lookup.get(group_name, [None, None])
+    def create_group(
+        self, group_name: str, group_capabilities: Dict[str, Any] = None, aad_mapping: Tuple[str] = None
+    ) -> Group:
+        """Creating a CDF Group
+        - with upsert support the same way Fusion updates CDF Groups
+          if a group with the same name exists:
+              1. a new group with the same name will be created
+              2. then the old group will be deleted (by its 'id')
+        - with support of explicit given aad-mapping or internal lookup from config
+
+        Args:
+            group_name (str): name of the CDF Group, always prefixed with GROUP_NAME_PREFIX
+            group_capabilities (Dict[str, Any], optional): Defining te CDF Group capabilities.
+            aad_mapping (Tuple(str), optional): one pair of (AAD SourceID, AAD SourceName),
+                to link the CDF Group to
+
+        Returns:
+            Group: the new created CDF Group
+        """
+
+        aad_source_id, aad_source_name = None, None
+        if aad_mapping:
+            # explicit given
+            # TODO: change from tuple to dataclass
+            assert len(aad_mapping) == 2
+            aad_source_id, aad_source_name = aad_mapping
+        else:
+            # check lookup from provided config
+            aad_source_id, aad_source_name = self.aad_mapping_lookup.get(group_name, [None, None])
+
         # print(f"=====  group_name<{group_name}> | aad_source_id<{aad_source_id}>
         # | aad_source_name<{aad_source_name}> ===")
 
-        group_payload = {
-            "name": group_name,
-            "capabilities": group_capabilities,
-        }
+        # check if group already exists, if yes it will be deleted after a new one is created
+        old_group_ids = self.get_group_ids_by_name(group_name)
 
-        if aad_source_id:
-            # add if exists
-            group_payload.update(
-                {
-                    "source": aad_source_name,
-                    "sourceId": aad_source_id,
-                }
-            )
-
-        # check if group already exists, if yes recreate it
-        old_group_delete_id = self.check_group_delete_required(group_payload)
-
-        group_create_object = Group(name=group_name, capabilities=group_capabilities)
+        new_group = Group(name=group_name, capabilities=group_capabilities)
         if aad_source_id:
             # inject (both will be pushed through the API call!)
-            group_create_object.source_id = aad_source_id  # 'S-314159-1234'
-            group_create_object.source = aad_source_name  # type: ignore # 'AD Group FooBar' # type: ignore
+            new_group.source_id = aad_source_id  # 'S-314159-1234'
+            new_group.source = aad_source_name  # type: ignore # 'AD Group FooBar' # type: ignore
 
         # print(f"group_create_object:<{group_create_object}>")
-        self.client.iam.groups.create(group_create_object)
+        # overwrite new_group as it now contains id too
+        new_group = self.client.iam.groups.create(new_group)
 
-        # now check if we need the prior existing group
-        if old_group_delete_id:
-            self.client.iam.groups.delete(old_group_delete_id)
+        # if the group name existed before, delete those groups now
+        # same upsert approach Fusion is using to update a CDF Group: create new with changes => then delete old one
+        if old_group_ids:
+            self.client.iam.groups.delete(old_group_ids)
 
-        return group_payload
+        return new_group
 
     def process_group(self, action=None, group_type=None, group_prefix=None, root_account=None):
         # to avoid complex upsert logic, all groups will be recreated and then the old ones deleted
@@ -628,7 +659,7 @@ class BootstrapCore:
             }
         )
 
-        # TODO check chunking options from SDK
+        # TODO: SDK should do this fine, that was an older me still learning :)
         def chunks(data, SIZE=10000):
             it = iter(data)
             for i in range(0, len(data), SIZE):
@@ -644,7 +675,6 @@ class BootstrapCore:
         if missing_datasets:
             # create all datasets which are not already deployed
             # https://docs.cognite.com/api/v1/#operation/createDataSets
-            # xxx TBD: description, metadata, externalId
             for chunked_missing_datasets in chunks(missing_datasets, 10):
                 self.client.data_sets.create(
                     [
@@ -728,12 +758,13 @@ class BootstrapCore:
     1. 'transformations' group: grants access to "Fusion > Integrate > Transformations"
     2. 'extractors' group: grants access to "Fusion > Integrate > Extract Data" which allows dowload of extractors
 
-    Both of them are about getting deprecated in the future.
-    - 'transformations' can already be replaced with proper 'transformationsAcl' capabilities
+    Both of them are about getting deprecated in the near future (time of writing: Q4 '21).
+    - 'transformations' can already be replaced with dedicated 'transformationsAcl' capabilities
     """
+
     def generate_special_groups(self):
 
-        special_group_names = ['extractors', 'transformations']
+        special_group_names = ["extractors", "transformations"]
         _logger.info(f"Generating special groups:\n{special_group_names}")
 
         for special_group_name in special_group_names:
@@ -815,7 +846,7 @@ class BootstrapCore:
     * delete removed from config
     """
 
-    def prepare(self):
+    def prepare(self, aad_source_id: str) -> None:
         group_name = "cdf:bootstrap"
         # group_name = f"{create_config.environment}:bootstrap"
 
@@ -826,16 +857,22 @@ class BootstrapCore:
             {"projectsAcl": {"actions": ["READ", "UPDATE"], "scope": {"all": {}}}},
         ]
 
-        group_create_object = Group(name=group_name, capabilities=group_capabilities)
-        if self.config.cognite.idp_authentication:
-            # inject (both will be pushed through the API call!)
-            group_create_object.source_id = self.config.cognite.idp_authentication.client_id
-            # type: ignore # 'AD Group FooBar' # type: ignore
-            group_create_object.source = f"AAD Server Application: {group_create_object.source_id}"
-        self.client.iam.groups.create(group_create_object)
+        # TODO: replace with dataclass
+        aad_mapping = [
+            # sourceId
+            aad_source_id,
+            # sourceName
+            f"AAD Server Application: {aad_source_id}",
+        ]
+
+        # load deployed groups, datasets, raw_dbs with their ids and metadata
+        self.load_deployed_config_from_cdf()
+        _logger.debug(f"GROUPS in CDF:\n{self.deployed['groups']}")
+
+        # allows idempotent creates, as it cleans up old groups with same names after creation
+        self.create_group(group_name=group_name, group_capabilities=group_capabilities, aad_mapping=aad_mapping)
 
         _logger.info(f"Created CDF Group {group_name}")
-
         _logger.info("Finished CDF Project Bootstrapper in 'prepare' mode ")
 
     def delete(self):
@@ -901,7 +938,7 @@ class BootstrapCore:
         # TODO: write to file or standard output
         _logger.info("Finished creating CDF Groups, Datasets and RAW Databases")
 
-    def deploy(self, with_special_groups:YesNoType = YesNoType.no):
+    def deploy(self, with_special_groups: YesNoType = YesNoType.no):
 
         # load deployed groups, datasets, raw_dbs with their ids and metadata
         self.load_deployed_config_from_cdf()
@@ -1001,6 +1038,10 @@ class BootstrapCore:
     "'BOOTSTRAP_IDP_AUDIENCE' environment variable can be used instead.",
     envvar="BOOTSTRAP_IDP_AUDIENCE",
 )
+@click.option(
+    "--dotenv-path",
+    help="Provide a relative or absolute path to an .env file (for commandline usage only)",
+)
 @click.pass_context
 def bootstrap_cli(
     # click.core.Context
@@ -1016,17 +1057,28 @@ def bootstrap_cli(
     scopes: Optional[str] = None,
     token_url: Optional[str] = None,
     audience: Optional[str] = None,
+    # cli
+    # dotenv_path: Optional[click.Path] = None,
+    dotenv_path: Optional[str] = None,
 ) -> None:
+
+    # load .env from file if exists, use given dotenv_path if provided
+    load_dotenv(dotenv_path=dotenv_path)
+
     context.obj = {
+        # cdf
         "cluster": cluster,
+        "cdf_project_name": cdf_project_name,
         "host": host,
         "api_key": api_key,
+        # cdf idp
         "client_id": client_id,
         "client_secret": client_secret,
-        "token_url": token_url,
         "scopes": scopes,
+        "token_url": token_url,
         "audience": audience,
-        "cdf_project_name": cdf_project_name,
+        # cli
+        "dotenv_path": dotenv_path,
     }
 
 
@@ -1045,8 +1097,8 @@ def bootstrap_cli(
     # having this as a flag is not working for gh-action 'actions.yml' manifest
     # instead using explicit choice options
     # is_flag=True,
-    default='no',
-    type=click.Choice(['yes', 'no'], case_sensitive=False),
+    default="no",
+    type=click.Choice(["yes", "no"], case_sensitive=False),
     help="Create special CDF Groups, which don't have capabilities (extractions, transformations)",
 )
 @click.pass_obj
@@ -1054,7 +1106,7 @@ def deploy(obj: Dict, config_file: str, debug: bool = False, with_special_groups
 
     click.echo(click.style("Deploying CDF Project bootstrap...", fg="red"))
 
-    # debug new yes/no flag    
+    # debug new yes/no flag
     click.echo(click.style(f"with_special_groups={with_special_groups} / {with_special_groups == YesNoType.yes}"))
 
     if debug:
@@ -1062,8 +1114,6 @@ def deploy(obj: Dict, config_file: str, debug: bool = False, with_special_groups
         _logger.setLevel("DEBUG")  # INFO/DEBUG
 
     try:
-        # load .env from file if exists
-        load_dotenv()
 
         # _logger.debug(f'os.environ = {os.environ}')
         # print(f'os.environ= {os.environ}')
@@ -1082,7 +1132,9 @@ def deploy(obj: Dict, config_file: str, debug: bool = False, with_special_groups
 
 
 @click.command(
-    help="Prepare your CDF Project with a CDF Group 'cdf:bootstrap', which allows to run the 'deploy' command next,"
+    help="Prepare an elevated CDF Group 'cdf:bootstrap', using the same AAD Group link "
+    "as your initially provided 'oidc-admin-group'. "
+    "With additional capabilities to to run the 'deploy' and 'delete' commands next. "
     "The 'prepare' command is only required once per CDF Project."
 )
 @click.argument(
@@ -1094,8 +1146,14 @@ def deploy(obj: Dict, config_file: str, debug: bool = False, with_special_groups
     is_flag=True,
     help="Print debug information",
 )
+@click.option(
+    "--aad-source-id",
+    required=True,
+    help="Provide the AAD Source ID to use for the 'cdf:bootstrap' Group. "
+    "Typically for a new project its the one configured for the CDF Group named 'oidc-admin-group'.",
+)
 @click.pass_obj
-def prepare(obj: Dict, config_file: str, debug: bool = False) -> None:
+def prepare(obj: Dict, config_file: str, aad_source_id: str, debug: bool = False) -> None:
 
     click.echo(click.style("Prepare CDF Project ...", fg="red"))
 
@@ -1104,16 +1162,11 @@ def prepare(obj: Dict, config_file: str, debug: bool = False) -> None:
         _logger.setLevel("DEBUG")  # INFO/DEBUG
 
     try:
-        # load .env from file if exists
-        load_dotenv()
-
-        # _logger.debug(f'os.environ = {os.environ}')
-        # print(f'os.environ= {os.environ}')
 
         (
             BootstrapCore(config_file)
             # .validate_config() # TODO
-            .prepare()
+            .prepare(aad_source_id=aad_source_id)
         )
 
         click.echo(click.style("CDF Project bootstrap prepared for running 'deploy' command next.", fg="blue"))
@@ -1145,12 +1198,6 @@ def delete(obj: Dict, config_file: str, debug: bool = False) -> None:
         _logger.setLevel("DEBUG")  # INFO/DEBUG
 
     try:
-        # load .env from file if exists
-        load_dotenv()
-
-        # _logger.debug(f'os.environ = {os.environ}')
-        # print(f'os.environ= {os.environ}')
-
         (
             BootstrapCore(config_file, delete=True)
             # .validate_config() # TODO
@@ -1176,6 +1223,7 @@ bootstrap_cli.add_command(delete)
 def main() -> None:
     # call click.pass_context
     bootstrap_cli()
+
 
 if __name__ == "__main__":
     main()

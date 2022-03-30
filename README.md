@@ -7,11 +7,11 @@ Disclaimer:
 
 Purpose:
 
-- Providing a configuration driven bootstrap of CDF Groups, Datasets, RAW Databases with data-separation on sources, use-case and user-input level. 
-- Aiming for **DAY1** operations:
-  - first configuration of your new CDF Project
-- Support for **DAY2** operations:
-  - maintaining and scaling you CDF Project
+- Providing a configuration driven bootstrap of CDF Groups, Datasets, RAW Databases with data-separation on sources, use-case and user-input level.
+- Aiming for **DAY1**:
+  - the initial-setup phase: your first configuration of a new CDF Project
+- Support for **DAY2**:
+  - the operational phase: running maintenance and change-management against your scaled (multiple) CDF Projects
 
 
 ## Table of Content
@@ -89,38 +89,53 @@ Options:
                            relevant for OAuth2 authentication
                            method,'BOOTSTRAP_IDP_AUDIENCE' environment
                            variable can be used instead.
+  --dotenv-path TEXT       Provide a relative or absolute path to an .env file
+                           (for commandline usage only)
   -h, --help               Show this message and exit.
 
 Commands:
   delete   Delete mode used to delete CDF Groups, Datasets and Raw...
   deploy   Deploy a set of bootstrap from a config-file
-  prepare  Prepare your CDF Project with a CDF Group 'cdf:bootstrap',...
+  prepare  Prepare an elevated CDF Group 'cdf:bootstrap', using your...
 ```
 ### `Prepare` command
 
-The first time you plan to run `bootstrap-cli` for your new CDF project, the `prepare` command might be required, to create a CDF Group with capabilities which allow to run the other commands.
+The first time you plan to run `bootstrap-cli` for your new CDF project, the `prepare` is required to create a CDF Group with capabilities which allow to run the other commands.
 
 A new CDF Project is typically only configured with one CDF Group (named `oidc-admin-group`) which grants these capabilities:
   - `projects:[read,list,update]`
   - `groups:[create,delete,update,list,read]`
 
-To run bootstrap-cli additional capabilties (with actions) are required:
+To run bootstrap-cli additional capabilities (and actions) are required:
 
 - `datasets:[read,write,owner]`
 - `raw:[read,write,list]`
 
-The `prepare` command creates a new CDF Group named `cdf:bootstrap` with this minimal capabilities.
+The `prepare` command creates a new CDF Group named `cdf:bootstrap` with this capabilities.
+The command requires an AAD Group ID to link to, which typically for a new project its the one configured
+for the CDF Group named `oidc-admin-group`. How to aquire it:
+
+1. Login to Fusion
+2. Navigate to Manage Access
+3. filter for `oidc-admin-group`
+4. Edit and copy the value from "Source ID"
+5. provide it as `--aad-source-id=<source-id>` parameter to the `prepare` command and your configuration file
 
 ```text
 Usage: bootstrap-cli prepare [OPTIONS] [CONFIG_FILE]
 
-  Prepare your CDF Project with a CDF Group 'cdf:bootstrap', which allows to
-  run the 'deploy' command next,The 'prepare' command is only required once
-  per CDF Project.
+  Prepare an elevated CDF Group 'cdf:bootstrap', using the same AAD Group link
+  as your initially provided 'oidc-admin-group'. With additional capabilities
+  to to run the 'deploy' and 'delete' commands next. The 'prepare' command is
+  only required once per CDF Project.
 
 Options:
-  --debug     Print debug information
-  -h, --help  Show this message and exit.
+  --debug               Print debug information
+  --aad-source-id TEXT  Provide the AAD Source ID to use for the
+                        'cdf:bootstrap' Group. Typically for a new project its
+                        the one configured for the CDF Group named 'oidc-
+                        admin-group'.  [required]
+  -h, --help            Show this message and exit.
 ```
 
 ### `Deploy` command
@@ -293,7 +308,7 @@ For a complete example of the delete configuration, see the `configs/test-bootst
 
 # Development
 
-1. Clone the repository and `cd` to the project folder.  Then, 
+1. Clone the repository and `cd` to the project folder.  Then,
 2. initialize the project environment:
 
     ```sh
@@ -417,5 +432,5 @@ jobs:
           config_file: ./configs/test-bootstrap-deploy-example.yml
           # "yes"|"no" deploy with special groups and aad_mappings
           with_special_groups: "yes"
-          
+
 ```
