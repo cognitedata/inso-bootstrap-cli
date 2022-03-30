@@ -8,10 +8,10 @@ Disclaimer:
 Purpose:
 
 - Providing a configuration driven bootstrap of CDF Groups, Datasets, RAW Databases with data-separation on sources, use-case and user-input level.
-- Aiming for **DAY1** operations:
-  - first configuration of your new CDF Project
-- Support for **DAY2** operations:
-  - maintaining and scaling your CDF Project
+- Aiming for **DAY1**:
+  - the initial-setup phase: your first configuration of a new CDF Project
+- Support for **DAY2**:
+  - the operational phase: running maintenance and change-management against your scaled (multiple) CDF Projects
 
 
 ## Table of Content
