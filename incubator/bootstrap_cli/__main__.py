@@ -222,7 +222,7 @@ class BootstrapCore:
             self.delete_or_deprecate: Dict[str, Any] = self.config.delete_or_deprecate
         else:
             self.config: BootstrapDeployConfig = BootstrapDeployConfig.from_yaml(configpath)
-            self.group_bootstrap_dimensions: Dict[str, Any] = self.config.bootstrap
+            self.group_bootstrap_hierarchy: Dict[str, Any] = self.config.bootstrap
             self.aad_mapping_lookup: Dict[str, Any] = self.config.aad_mappings
 
         self.deployed: Dict[str, Any] = {}
@@ -275,7 +275,7 @@ class BootstrapCore:
         return action_dimensions["admin"][acl_admin_type]
 
     def get_group_config_by_name(self, group_core):
-        for group_ns, group_ns_config in self.group_bootstrap_dimensions.items():
+        for group_ns, group_ns_config in self.group_bootstrap_hierarchy.items():
             if group_core in group_ns_config:
                 return group_ns_config[group_core]
 
@@ -315,7 +315,7 @@ class BootstrapCore:
             raw_db_names[action].extend(
                 [
                     self.get_raw_dbs_name_template().format(group_core=group_core, raw_suffix=raw_suffix)
-                    for group_core, group_config in self.group_bootstrap_dimensions[group_ns].items()
+                    for group_core, group_config in self.group_bootstrap_hierarchy[group_ns].items()
                     for raw_suffix in BootstrapCore.RAW_SUFFIXES
                 ]
                 # adding the {group_ns}:{BootstrapCore.AGGREGATED_GROUP_NAME} rawdbs
@@ -332,7 +332,7 @@ class BootstrapCore:
                     [
                         self.get_raw_dbs_name_template().format(group_core=shared_access, raw_suffix=raw_suffix)
                         # and check the "shared_access" groups list (else [])
-                        for _, group_config in self.group_bootstrap_dimensions[group_ns].items()
+                        for _, group_config in self.group_bootstrap_hierarchy[group_ns].items()
                         for shared_access in group_config.get("shared_owner_access", [])
                         for raw_suffix in BootstrapCore.RAW_SUFFIXES
                     ]
@@ -341,7 +341,7 @@ class BootstrapCore:
                     [
                         self.get_raw_dbs_name_template().format(group_core=shared_access, raw_suffix=raw_suffix)
                         # and check the "shared_access" groups list (else [])
-                        for _, group_config in self.group_bootstrap_dimensions[group_ns].items()
+                        for _, group_config in self.group_bootstrap_hierarchy[group_ns].items()
                         for shared_access in group_config.get("shared_read_access", [])
                         for raw_suffix in BootstrapCore.RAW_SUFFIXES
                     ]
@@ -382,7 +382,7 @@ class BootstrapCore:
             dataset_names[action].extend(
                 [
                     self.get_dataset_name_template().format(group_core=group_core)
-                    for group_core, group_config in self.group_bootstrap_dimensions[group_ns].items()
+                    for group_core, group_config in self.group_bootstrap_hierarchy[group_ns].items()
                 ]
                 # adding the {group_ns}:{BootstrapCore.AGGREGATED_GROUP_NAME} dataset
                 + [  # noqa
@@ -397,7 +397,7 @@ class BootstrapCore:
                     [
                         self.get_dataset_name_template().format(group_core=shared_access)
                         # and check the "shared_access" groups list (else [])
-                        for _, group_config in self.group_bootstrap_dimensions[group_ns].items()
+                        for _, group_config in self.group_bootstrap_hierarchy[group_ns].items()
                         for shared_access in group_config.get("shared_owner_access", [])
                     ]
                 )
@@ -405,7 +405,7 @@ class BootstrapCore:
                     [
                         self.get_dataset_name_template().format(group_core=shared_access)
                         # and check the "shared_access" groups list (else [])
-                        for _, group_config in self.group_bootstrap_dimensions[group_ns].items()
+                        for _, group_config in self.group_bootstrap_hierarchy[group_ns].items()
                         for shared_access in group_config.get("shared_read_access", [])
                     ]
                 )
@@ -688,7 +688,7 @@ class BootstrapCore:
                 # "external_id": add_prefix_external_id(group_config.get("external_id")),
                 "external_id": group_core_config.get("external_id"),
             }
-            for group_ns, group_ns_config in self.group_bootstrap_dimensions.items()
+            for group_ns, group_ns_config in self.group_bootstrap_hierarchy.items()
             for group_core, group_core_config in group_ns_config.items()
         }
 
@@ -706,7 +706,7 @@ class BootstrapCore:
                     "external_id": f"{group_ns}:{BootstrapCore.AGGREGATED_GROUP_NAME}" if group_ns else BootstrapCore.AGGREGATED_GROUP_NAME,
                 }
                 # creating 'all' at group type level + top-level
-                for group_ns in list(self.group_bootstrap_dimensions.keys()) + [""]
+                for group_ns in list(self.group_bootstrap_hierarchy.keys()) + [""]
             }
         )
 
@@ -779,7 +779,7 @@ class BootstrapCore:
         target_raw_db_names = set(
             [
                 self.get_raw_dbs_name_template().format(group_core=group_core, raw_suffix=raw_suffix)
-                for group_ns, group_ns_config in self.group_bootstrap_dimensions.items()
+                for group_ns, group_ns_config in self.group_bootstrap_hierarchy.items()
                 for group_core, group_core_config in group_ns_config.items()
                 for raw_suffix in BootstrapCore.RAW_SUFFIXES
             ]
@@ -793,7 +793,7 @@ class BootstrapCore:
                     else BootstrapCore.AGGREGATED_GROUP_NAME, raw_suffix=raw_suffix
                 )
                 # creating allprojects at group type level + top-level
-                for group_ns in list(self.group_bootstrap_dimensions.keys()) + [""]
+                for group_ns in list(self.group_bootstrap_hierarchy.keys()) + [""]
                 for raw_suffix in BootstrapCore.RAW_SUFFIXES
             ]
         )
@@ -834,7 +834,7 @@ class BootstrapCore:
     def generate_groups(self):
         # permutate the combinations
         for action in ["read", "owner"]:  # action_dimensions w/o 'admin'
-            for group_ns, group_configs in self.group_bootstrap_dimensions.items():
+            for group_ns, group_configs in self.group_bootstrap_hierarchy.items():
                 for group_core, group_config in group_configs.items():
                     # group for each dedicated group-type id
                     self.process_group(action, group_ns, group_core)
