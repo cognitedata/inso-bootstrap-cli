@@ -828,7 +828,7 @@ class BootstrapCore:
         _logger.info(f"Generating special groups:\n{special_group_names}")
 
         for special_group_name in special_group_names:
-            self.create_group(group_name=special_group_name, dry_run=dry_run)
+            self.create_group(group_name=special_group_name)
 
     # generate all groups
     def generate_groups(self):
@@ -908,7 +908,7 @@ class BootstrapCore:
 
     def dry_run(self, dry_run: YesNoType) -> T_BootstrapCore:
         self.is_dry_run = (dry_run == YesNoType.yes)
-        
+
         # return self for command chaining
         return self
 
@@ -937,7 +937,7 @@ class BootstrapCore:
 
         # allows idempotent creates, as it cleans up old groups with same names after creation
         self.create_group(
-            group_name=group_name, group_capabilities=group_capabilities, aad_mapping=aad_mapping, dry_run=dry_run
+            group_name=group_name, group_capabilities=group_capabilities, aad_mapping=aad_mapping
         )
 
         _logger.info(f"Created CDF Group {group_name}")
@@ -1019,10 +1019,10 @@ class BootstrapCore:
         _logger.debug(f"GROUPS in CDF:\n{self.deployed['groups']}")
 
         # run generate steps (only print results atm)
-        target_raw_dbs, new_created_raw_dbs = self.generate_missing_raw_dbs(dry_run=dry_run)
+        target_raw_dbs, new_created_raw_dbs = self.generate_missing_raw_dbs()
         _logger.info(f"All RAW_DBS from config:\n{target_raw_dbs}")
         _logger.info(f"New RAW_DBS to CDF:\n{new_created_raw_dbs}")
-        target_datasets, new_created_datasets = self.generate_missing_datasets(dry_run=dry_run)
+        target_datasets, new_created_datasets = self.generate_missing_datasets()
         _logger.info(f"All DATASETS from config:\n{target_datasets}")
         _logger.info(f"New DATASETS to CDF:\n{new_created_datasets}")
 
@@ -1038,7 +1038,7 @@ class BootstrapCore:
 
         # Special CDF Groups and their aad_mappings
         if with_special_groups == YesNoType.yes:
-            self.generate_special_groups(dry_run=dry_run)
+            self.generate_special_groups()
 
         # CDF Groups from configuration
         self.generate_groups()
