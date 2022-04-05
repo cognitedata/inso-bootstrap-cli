@@ -1,5 +1,6 @@
 # project specific
 logs/*.log
+logs/*.log.*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
