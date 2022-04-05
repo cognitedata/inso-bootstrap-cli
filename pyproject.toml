@@ -1,9 +1,9 @@
 [tool.poetry]
 name = "inso-bootstrap-cli"
 # keep manually in sync with __init__.py > __version__
-version = "1.4.0"
+version = "1.5.0"
 description = "A CLI to deploy a CDF Project to bootstrap CDF Groups scoped with Data Sets and RAW DBs"
-authors = ["Peter Arwanitis <peter.arwanitis@cognite.com>", "Tugce Ozgur Oztetik <tugce.oztetik@cognite.com>"]
+authors = ["Peter Arwanitis <peter.arwanitis@cognite.com>", "Tugce Ozgur Oztetik <tugce.oztetik@cognite.com>", "Sverre Dørheim <sverre.dorheim@cognite.com>"]
 license = "Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/cognitedata/inso-bootstrap-cli"
@@ -28,7 +28,7 @@ known_third_party = ["click", "pytest"]
 python = "^3.9"
 cognite-extractor-utils = "^1.6.2"
 python-dotenv = "^0.15.0"
-click = "^8.0.1"
+click = "8.0.*"
 types-retry = "^0.1.5"
 # cognite-sdk = "^2.38.1"
 cognite-sdk-core = {extras=["pandas"],version = "^2.39.1"}
