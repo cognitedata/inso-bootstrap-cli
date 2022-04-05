@@ -22,6 +22,7 @@ Purpose:
 - [InSo Bootstrap CLI](#inso-bootstrap-cli)
   - [Scope of Work](#scope-of-work)
   - [Table of Content](#table-of-content)
+  - [Bootstrap CLI concept](#bootstrap-cli-concept)
   - [Bootstrap CLI commands](#bootstrap-cli-commands)
     - [`Prepare` command](#prepare-command)
     - [`Deploy` command](#deploy-command)
@@ -42,7 +43,135 @@ Purpose:
   - [run as github action](#run-as-github-action)
 
 <!-- /code_chunk_output -->
+## Bootstrap CLI concept
 
+The Bootstrap CLI aims to tackle both DAY1 and DAY2 activities releated to Access Management. This include:
+- Groups
+- Scopes
+  - Data Sets
+  - Raw DBs
+
+
+DAY1 activities are initial setup and configurations before a system can be used.
+Followed by DAY2 activities which are the operational use of the system.
+
+Cognite provides support for a list of DAY1 activities, to enable governance best-practices from the start, such as:
+
+* **Secure access management** to control access for users, apps and services to the various types of resources (data sets, assets, files, events, time series, etc.) in CDF
+* **Data Sets** to document and track data lineage
+* **Data quality** like monitoring the data integration pipelines into CDF
+
+As all of this is connected to each other, and it is spanning customers Identity Provider (Azure AD) and CDF, this tool utilizes the CDF API for a configuration driven approach for the CDF part.
+
+### **Secure access management**
+
+**Secure access management** requires connection of Azure AD (AAD) Groups to CDF Groups. User or app Authentication is provided by customers AAD and Authorization by CDF Groups. CDF Groups are defined through capabilities and actions (like "Timeseries" capability with "Read/Write" actions).
+
+**Secure access management** related configuration targets:
+* CDF Groups and links to AAD Groups
+* AAD-owner responsibilities:
+  * AAD Group creation
+  * Service-principal (user and apps) creation and mapping to AAD Groups
+
+### **Data Sets**
+
+CDF **Data Sets** are used to scope CDF Groups capabilties to a set of CDF Resources. This allows fencing future usage, to stay within this scope. Creation of new Data Sets is a governace related action, and is executed by a defined process. An exception is CDF RAW data which is scoped through CDF RAW Databases.
+
+CDF **Scopes** related configuration targets:
+* CDF Data Sets
+* CDF RAW Databases
+
+### **Bootstrap CLI simplifications**
+
+The inso bootstrap cli offers a simplified way of controlling these elements. With a single two layered hierarchy it handles the creation of groups and scopes (datasets/raw DBs). The first layer is a namespace and the second one is individual projects within a namespace. An example of this could be having the following namespaces with explanation for why this could be a good idea:
+* src (Sources)
+  * Grouping sources together, usually only needing write access to its own Scope
+* uc (UseCase)
+  * Grouping Use Cases together, these often need read(write) access to other scopes as well as write access to its own scope
+* in (input)
+  * Grouping user input flows.
+
+This is just an example of how to group things, you are free to chose whatever grouping you like. Good style is to keep the namespaces and the specific scopes short.
+
+```mermaid
+  flowchart LR;
+      allprojects:owner     --> src:allprojects:owner;
+      src:allprojects:owner --> src:001:ifsdb:owner;
+      src:allprojects:owner --> src:002:sensors:owner;
+      allprojects:owner     --> uc:allprojects:owner;
+      uc:allprojects:owner  --> uc:001:timeseries:owner;
+      src:001:ifsdb:owner       --ReadWriteOwner--> src:001:ifsdb:dataset
+      src:001:ifsdb:owner       --ReadWrite     --> src:001:ifsdb:rawdb
+      src:001:ifsdb:owner       --ReadWrite     --> src:001:ifsdb:rawdb:state
+      src:002:sensors:owner     --ReadWriteOwner--> src:002:sensors:dataset
+      src:002:sensors:owner     --ReadWrite     --> src:002:sensors:rawdb
+      src:002:sensors:owner     --ReadWrite     --> src:002:sensors:rawdb:state
+      uc:001:timeseries:owner   --ReadWriteOwner--> uc:001:timeseries:dataset
+      uc:001:timeseries:owner   --ReadWrite     --> uc:001:timeseries:rawdb
+      uc:001:timeseries:owner   --ReadWrite     --> uc:001:timeseries:rawdb:state
+      uc:001:timeseries:owner   ==>|<font size=4>READ| src:002:sensors:dataset
+      uc:001:timeseries:owner   ==>|<font size=4>READ| src:002:sensors:rawdb
+      uc:001:timeseries:owner   ==>|<font size=4>READ| src:002:sensors:rawdb:state
+      linkStyle 14,15,16 stroke:cyan,color:cyan;
+    subgraph "Groups"
+      allprojects:owner
+      src:allprojects:owner
+      uc:allprojects:owner
+      src:001:ifsdb:owner
+      src:002:sensors:owner
+      uc:001:timeseries:owner
+    end
+    subgraph "Scopes (RawDBs/DataSets)"
+      src:001:ifsdb:dataset
+      src:001:ifsdb:rawdb
+      src:001:ifsdb:rawdb:state
+      src:002:sensors:dataset
+      src:002:sensors:rawdb
+      src:002:sensors:rawdb:state
+      uc:001:timeseries:dataset
+      uc:001:timeseries:rawdb
+      uc:001:timeseries:rawdb:state
+    end
+```
+```mermaid
+  flowchart LR;
+      allprojects:read     --> src:allprojects:read;
+      src:allprojects:read --> src:001:ifsdb:read;
+      src:allprojects:read --> src:002:sensors:read;
+      allprojects:read     --> uc:allprojects:read;
+      uc:allprojects:read  --> uc:001:timeseries:read;
+      src:001:ifsdb:read       --Read     --> src:001:ifsdb:dataset
+      src:001:ifsdb:read       --Read     --> src:001:ifsdb:rawdb
+      src:001:ifsdb:read       --Read     --> src:001:ifsdb:rawdb:state
+      src:002:sensors:read     --Read     --> src:002:sensors:dataset
+      src:002:sensors:read     --Read     --> src:002:sensors:rawdb
+      src:002:sensors:read     --Read     --> src:002:sensors:rawdb:state
+      uc:001:timeseries:read   --Read     --> uc:001:timeseries:dataset
+      uc:001:timeseries:read   --Read     --> uc:001:timeseries:rawdb
+      uc:001:timeseries:read   --Read     --> uc:001:timeseries:rawdb:state
+    subgraph "Groups"
+      allprojects:read
+      src:allprojects:read
+      uc:allprojects:read
+      src:001:ifsdb:read
+      src:002:sensors:read
+      uc:001:timeseries:read
+    end
+    subgraph "Scopes (RawDBs/DataSets)"
+      src:001:ifsdb:dataset
+      src:001:ifsdb:rawdb
+      src:001:ifsdb:rawdb:state
+      src:002:sensors:dataset
+      src:002:sensors:rawdb
+      src:002:sensors:rawdb:state
+      uc:001:timeseries:dataset
+      uc:001:timeseries:rawdb
+      uc:001:timeseries:rawdb:state
+    end
+```
+<!-- uc:001:timeseries-- READ - ->src:001:ifsdb;
+      uc:001:timeseries-- READ - ->src:002:sensors;
+      uc:001:timeseries-- READ - ->src:003:s_val; -->
 ## Bootstrap CLI commands
 
 Common parameters for all commands, which most are typically provided through environment variables (prefixed with `BOOTSTRAP_`):
