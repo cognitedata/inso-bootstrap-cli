@@ -35,6 +35,9 @@ Changelog:
    * configurable through `deploy --with-special-groups=[yes|no]` parameter
  * adding new capabilities:
       transformationsAcl (replacing the need for magic "transformations" CDF Group)
+220405 sd:
+ * added dry-run mode as global parameter for all commands
+
 
 """
 # std-lib
