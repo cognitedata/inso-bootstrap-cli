@@ -18,7 +18,7 @@ cognite: # kwargs to pass to the CogniteClient, Environment variable format: ${E
 
 logger:
   file:
-    path: .\logs\create-dev-logs.log
+    path: ./logs/create-dev-logs.log
     level: INFO
   console:
     level: INFO
