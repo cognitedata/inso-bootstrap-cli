@@ -46,7 +46,7 @@ Changelog:
  * removed 'transformation' acl from 'acl_all_scope_only_types'
     as it now supports dataset scopes too!
  * refactor variable names to match the new documentation
-    1. group_types_dimensions > group_bootstrap_dimensions
+    1. group_types_dimensions > group_bootstrap_hierarchy
     2. group_type > group_ns (namespace: src, ca, uc)
     3. group_prefix > group_core (src:001:sap)
 
