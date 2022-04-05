@@ -136,8 +136,33 @@ class BootstrapConfigError(Exception):
         super().__init__(self.message)
 
 
+# this acls only support "all": {} scope
+acl_all_scope_only_types = set(["projects", "sessions", "functions", "entitymatching", "transformations", "types"])
+
+action_dimensions = {
+    # owner datasets might only need READ and OWNER
+    "owner": {
+        "raw": ["READ", "WRITE", "LIST"],
+        "datasets": ["READ", "OWNER"],
+        "groups": ["LIST"],
+        "projects": ["LIST"],
+        "sessions": ["LIST", "CREATE"],
+    },  # else ["READ","WRITE"]
+    "read": {"raw": ["READ", "LIST"], "groups": ["LIST"], "projects": ["LIST"], "sessions": ["LIST"]},  # else ["READ"]
+    "admin": {
+        "raw": ["READ", "WRITE", "LIST"],
+        "datasets": ["READ", "WRITE", "OWNER"],
+        "groups": ["LIST", "READ", "CREATE", "UPDATE", "DELETE"],
+        "projects": ["READ", "UPDATE", "LIST"],
+    },
+}
+
 #
 # GENERIC configurations
+# extend when new capability is available
+# check if action_dimensions must be extended with non-default capabilities:
+#   which are owner: ["READ","WRITE"]
+#   and read: ["READ"])
 #
 acl_default_types = [
     "assets",
@@ -160,30 +185,8 @@ acl_default_types = [
     "types",
 ]
 
-acl_admin_types = [
-    "projects",
-    "groups",
-]
-
-# this acls only support "all": {} scope
-acl_all_scope_only_types = set(["projects", "sessions", "functions", "entitymatching", "transformations", "types"])
-
-action_dimensions = {
-    # owner datasets might only need READ and OWNER
-    "owner": {
-        "raw": ["READ", "WRITE", "LIST"],
-        "datasets": ["READ", "WRITE", "OWNER"],
-        "groups": ["LIST"],
-        "projects": ["LIST"],
-        "sessions": ["LIST", "CREATE"],
-    },  # else ["READ","WRITE"]
-    "read": {"raw": ["READ", "LIST"], "groups": ["LIST"], "projects": ["LIST"], "sessions": ["LIST"]},  # else ["READ"]
-    "admin": {
-        "groups": ["LIST", "READ", "CREATE", "UPDATE", "DELETE"],
-        "projects": ["READ", "UPDATE", "LIST"],
-    },
-}
-
+# give precedence when merging over acl_default_types
+acl_admin_types = list(action_dimensions['admin'].keys())
 
 class BootstrapCore:
 
@@ -429,7 +432,36 @@ class BootstrapCore:
             # { "datasetScope": { "ids": [ 2695894113527579, 4254268848874387 ] } }
             return {"datasetScope": {"ids": self.dataset_names_to_ids(scope_ctx["datasets"])}}
 
-    def generate_group_name_and_capabilities(self, action=None, group_type=None, group_prefix=None, root_account=None):
+    def generate_group_name_and_capabilities(self,
+        action: str=None,
+        group_type: str=None,
+        group_prefix: str=None,
+        root_account: str=None) -> Tuple[str, List[Dict[str, Any]]]:
+        """Create the group-name and its capabilities.
+        The function supports following levels expressed by parameter combinations:
+        - core: {action} + {group_type} + {group_prefix}
+        - namespace: {action} + {group_type}
+        - top-level: {action}
+        - root: {root_account}
+
+        Args:
+            action (str, optional):
+                One of the action_dimensions ["read", "owner"].
+                Defaults to None.
+            group_type (str, optional):
+                Core group like "src:001:sap" or "uc:003:demand".
+                Defaults to None.
+            group_prefix (str, optional):
+                Namespace like "src" or "uc".
+                Defaults to None.
+            root_account (str, optional):
+                Name of the root-account.
+                Defaults to None.
+
+        Returns:
+            Tuple[str, List[Dict[str, Any]]]: group-name and list of capabilities
+        """
+
         capabilities = []
 
         # detail level like cdf:src:001:public:read
@@ -484,7 +516,6 @@ class BootstrapCore:
         # top level like cdf:allprojects:read
         elif action:
             # 'allprojects' groups on action level (no limits to datasets or raw-dbs)
-            # group_name_full_qualified = f"{shared_global_config['env']}:allprojects:{action}"
             group_name_full_qualified = f"{BootstrapCore.GROUP_NAME_PREFIX}allprojects:{action}"
 
             [
@@ -505,7 +536,6 @@ class BootstrapCore:
         # root level like cdf:root
         elif root_account:  # no parameters
             # all (no limits)
-            # group_name_full_qualified = f"{shared_global_config['env']}:{root_account}"
             group_name_full_qualified = f"{BootstrapCore.GROUP_NAME_PREFIX}{root_account}"
             # all default ACLs
             [
@@ -556,6 +586,7 @@ class BootstrapCore:
         #       name 'str_0_0x900xd80x90xec0x870x7f0x00x0' is not defined
 
     def create_group(
+
         self,
         group_name: str,
         group_capabilities: Dict[str, Any] = None,
@@ -570,9 +601,10 @@ class BootstrapCore:
         - with support of explicit given aad-mapping or internal lookup from config
 
         Args:
-            group_name (str): name of the CDF Group, always prefixed with GROUP_NAME_PREFIX
-            group_capabilities (Dict[str, Any], optional): Defining te CDF Group capabilities.
-            aad_mapping (Tuple(str), optional): one pair of (AAD SourceID, AAD SourceName),
+            group_name (str): name of the CDF Group (always prefixed with GROUP_NAME_PREFIX)
+            group_capabilities (List[Dict[str, Any]], optional): Defining the CDF Group capabilities.
+            aad_mapping (Tuple[str, str], optional):
+                Tuple of ({AAD SourceID}, {AAD SourceName})
                 to link the CDF Group to
 
         Returns:
@@ -618,7 +650,12 @@ class BootstrapCore:
 
         return new_group
 
-    def process_group(self, action=None, group_type=None, group_prefix=None, root_account=None):
+    def process_group(self,
+        action: str=None,
+        group_type: str=None,
+        group_prefix: str=None,
+        root_account:str =None
+        ) -> Group:
         # to avoid complex upsert logic, all groups will be recreated and then the old ones deleted
 
         # to be merged with existing code
@@ -628,7 +665,8 @@ class BootstrapCore:
             action, group_type, group_prefix, root_account
         )
 
-        return self.create_group(group_name, group_capabilities)
+        group: Group = self.create_group(group_name, group_capabilities)
+        return group
 
     def generate_missing_datasets(self, dry_run: YesNoType = YesNoType.no) -> Tuple[List[str], List[str]]:
         # list of all targets: autogenerated dataset names
