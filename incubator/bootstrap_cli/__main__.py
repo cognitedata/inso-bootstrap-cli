@@ -42,6 +42,7 @@ Changelog:
 220405 sd:
  * v1.5.0 added dry-run mode as global parameter for all commands
 220405 pa:
+ * v1.6.0
  * removed 'transformation' acl from 'acl_all_scope_only_types'
     as it now supports dataset scopes too!
  * refactor variable names to match the new documentation
