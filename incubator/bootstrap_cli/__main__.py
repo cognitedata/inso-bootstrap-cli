@@ -213,8 +213,8 @@ class BootstrapCore:
 
     # Mark all auto-generated CDF Group names
     GROUP_NAME_PREFIX = "cdf:"
-    # TODO: configurable and switch to 'all'
-    AGGREGATED_GROUP_NAME = "allprojects" 
+    # TODO: make configurable and switch to 'all' as default
+    AGGREGATED_GROUP_NAME = "allprojects"
 
     def __init__(self, configpath: str, delete: bool = False):
         if delete:
