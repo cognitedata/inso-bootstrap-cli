@@ -258,23 +258,12 @@ class BootstrapCore:
 
     @staticmethod
     def get_dataset_name_template():
-        # 211013 pa: remove env prefixes
-        # return f"{shared_global_config['env']}:" + "{group_core}:dataset"
         return "{group_core}:dataset"
 
     @staticmethod
     def get_raw_dbs_name_template():
-        # 211013 pa: remove env prefixes
-        # return f"{shared_global_config['env']}:" + "{group_core}:rawdb{raw_suffix}"
         return "{group_core}:rawdb{raw_suffix}"
 
-    # 211013 pa: remove env prefixes
-    # def add_prefix_external_id(external_id):
-    #     # only prefix dataset external id with environment if 'prefix_external_id flag' is set to true in the config
-    #     if prefix_external_id:
-    #         return f"{shared_global_config['env']}:{external_id}"
-    #     else:
-    #         return external_id
     @staticmethod
     def get_timestamp():
         return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -487,8 +476,7 @@ class BootstrapCore:
 
         # detail level like cdf:src:001:public:read
         if action and group_ns and group_core:
-            # group for each dedicated group-type id
-            # group_name_full_qualified = f"{shared_global_config['env']}:{group_core}:{action}"
+            # group for each dedicated group-core id
             group_name_full_qualified = f"{BootstrapCore.GROUP_NAME_PREFIX}{group_core}:{action}"
 
             [
