@@ -36,11 +36,13 @@ Changelog:
  * adding new capabilities:
       transformationsAcl (replacing the need for magic "transformations" CDF Group)
 220404 pa:
- * limited datasets for 'owner' that they cannot edit or create datasets
+ * v1.4.0 limited datasets for 'owner' that they cannot edit or create datasets
     * removed `datasets:write` capability
     * moved that capability to action_dimensions['admin']
+220405 sd:
+ * v1.5.0 added dry-run mode as global parameter for all commands
 220405 pa:
- * removed 'transformation' acl from 'acl_all_scope_only_types' 
+ * removed 'transformation' acl from 'acl_all_scope_only_types'
     as it now supports dataset scopes too!
  * refactor variable names to match the new documentation
     1. group_types_dimensions > group_bootstrap_dimensions
@@ -60,7 +62,7 @@ from pathlib import Path
 
 # type-hints
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, TypeVar
 
 # 3rd party libs
 import pandas as pd
@@ -199,6 +201,10 @@ acl_default_types = [
 # give precedence when merging over acl_default_types
 acl_admin_types = list(action_dimensions['admin'].keys())
 
+# type-hint for ExtpipesCore instance response
+T_BootstrapCore = TypeVar("T_BootstrapCore", bound="BootstrapCore")
+
+
 class BootstrapCore:
 
     # 210330 pa: all rawdbs come in two variants `:rawdb` and `:rawdb:state`
@@ -220,6 +226,7 @@ class BootstrapCore:
 
         self.deployed: Dict[str, Any] = {}
         self.all_scope_ctx: Dict[str, Any] = {}
+        self.is_dry_run: bool = False
 
         # TODO debug
         # print(f"self.config= {self.config}")
@@ -598,7 +605,10 @@ class BootstrapCore:
         #       name 'str_0_0x900xd80x90xec0x870x7f0x00x0' is not defined
 
     def create_group(
-        self, group_name: str, group_capabilities: List[Dict[str, Any]] = None, aad_mapping: Tuple[str, str] = None
+        self,
+        group_name: str,
+        group_capabilities: Dict[str, Any] = None,
+        aad_mapping: Tuple[str] = None,
     ) -> Group:
         """Creating a CDF Group
         - with upsert support the same way Fusion updates CDF Groups
@@ -642,12 +652,18 @@ class BootstrapCore:
 
         # print(f"group_create_object:<{group_create_object}>")
         # overwrite new_group as it now contains id too
-        new_group = self.client.iam.groups.create(new_group)
+        if self.is_dry_run:
+            _logger.info(f"Dry run - Creating <{new_group}>")
+        else:
+            new_group = self.client.iam.groups.create(new_group)
 
         # if the group name existed before, delete those groups now
         # same upsert approach Fusion is using to update a CDF Group: create new with changes => then delete old one
         if old_group_ids:
-            self.client.iam.groups.delete(old_group_ids)
+            if self.is_dry_run:
+                _logger.info(f"Dry run - Deleting groups with ids: <{old_group_ids}>")
+            else:
+                self.client.iam.groups.delete(old_group_ids)
 
         return new_group
 
@@ -722,19 +738,21 @@ class BootstrapCore:
             # create all datasets which are not already deployed
             # https://docs.cognite.com/api/v1/#operation/createDataSets
             for chunked_missing_datasets in chunks(missing_datasets, 10):
-                self.client.data_sets.create(
-                    [
-                        DataSet(
-                            name=name,
-                            description=payload.get("description"),
-                            # external_id=add_prefix_external_id(payload.get("external_id")),
-                            external_id=payload.get("external_id"),
-                            metadata=payload.get("metadata"),
-                            write_protected=True,
-                        )
-                        for name, payload in chunked_missing_datasets.items()
-                    ]
-                )
+                datsets_to_be_created = [
+                    DataSet(
+                        name=name,
+                        description=payload.get("description"),
+                        # external_id=add_prefix_external_id(payload.get("external_id")),
+                        external_id=payload.get("external_id"),
+                        metadata=payload.get("metadata"),
+                        write_protected=True,
+                    )
+                    for name, payload in chunked_missing_datasets.items()
+                ]
+                if self.is_dry_run:
+                    _logger.info(f"Dry run - Creating datasets: <{datsets_to_be_created}>")
+                else:
+                    self.client.data_sets.create(datsets_to_be_created)
 
         # which targets are already deployed?
         existing_datasets = {
@@ -753,16 +771,18 @@ class BootstrapCore:
             # https://docs.cognite.com/api/v1/#operation/createDataSets
             # TODO: description, metadata, externalId
             for chunked_existing_datasets in chunks(existing_datasets, 10):
-                self.client.data_sets.update(
-                    [
-                        DataSetUpdate(id=dataset["id"])
-                        .name.set(name)
-                        .description.set(dataset.get("description"))
-                        .external_id.set(dataset.get("external_id"))
-                        .metadata.set(dataset.get("metadata"))
-                        for name, dataset in chunked_existing_datasets.items()
-                    ]
-                )
+                datasets_to_be_updated = [
+                    DataSetUpdate(id=dataset["id"])
+                    .name.set(name)
+                    .description.set(dataset.get("description"))
+                    .external_id.set(dataset.get("external_id"))
+                    .metadata.set(dataset.get("metadata"))
+                    for name, dataset in chunked_existing_datasets.items()
+                ]
+                if self.is_dry_run:
+                    _logger.info(f"Dry run - Updating datasets: <{datasets_to_be_updated}>")
+                else:
+                    self.client.data_sets.update(datasets_to_be_updated)
         return list(target_datasets.keys()), list(missing_datasets.keys())
 
     def generate_missing_raw_dbs(self) -> Tuple[List[str], List[str]]:
@@ -797,7 +817,10 @@ class BootstrapCore:
 
         if missing_rawdbs:
             # create all raw_dbs which are not already deployed
-            self.client.raw.databases.create(list(missing_rawdbs))
+            if self.is_dry_run:
+                _logger.info(f"Dry run - Creating these rawdbs: <{list(missing_rawdbs)}>")
+            else:
+                self.client.raw.databases.create(list(missing_rawdbs))
 
         return target_raw_db_names, missing_rawdbs
 
@@ -894,6 +917,12 @@ class BootstrapCore:
     * delete removed from config
     """
 
+    def dry_run(self, dry_run: YesNoType) -> T_BootstrapCore:
+        self.is_dry_run = (dry_run == YesNoType.yes)
+
+        # return self for command chaining
+        return self
+
     def prepare(self, aad_source_id: str) -> None:
         group_name = "cdf:bootstrap"
         # group_name = f"{create_config.environment}:bootstrap"
@@ -918,7 +947,9 @@ class BootstrapCore:
         _logger.debug(f"GROUPS in CDF:\n{self.deployed['groups']}")
 
         # allows idempotent creates, as it cleans up old groups with same names after creation
-        self.create_group(group_name=group_name, group_capabilities=group_capabilities, aad_mapping=aad_mapping)
+        self.create_group(
+            group_name=group_name, group_capabilities=group_capabilities, aad_mapping=aad_mapping
+        )
 
         _logger.info(f"Created CDF Group {group_name}")
         _logger.info("Finished CDF Project Bootstrapper in 'prepare' mode ")
@@ -934,7 +965,8 @@ class BootstrapCore:
             if delete_group_ids:
                 # only delete groups which exist
                 _logger.info(f"DELETE groups: {group_names}")
-                self.client.iam.groups.delete(delete_group_ids)
+                if not self.is_dry_run:
+                    self.client.iam.groups.delete(delete_group_ids)
             else:
                 _logger.info(f"Groups already deleted: {group_names}")
         else:
@@ -948,7 +980,8 @@ class BootstrapCore:
                 # only delete dbs which exist
                 # print("DELETE raw_dbs recursive with tables: ", raw_db_names)
                 _logger.info(f"DELETE raw_dbs recursive with tables: {raw_db_names}")
-                self.client.raw.databases.delete(delete_raw_db_names, recursive=True)
+                if not self.is_dry_run:
+                    self.client.raw.databases.delete(delete_raw_db_names, recursive=True)
             else:
                 # print(f"RAW DBs already deleted: {raw_db_names}")
                 _logger.info(f"RAW DBs already deleted: {raw_db_names}")
@@ -977,6 +1010,8 @@ class BootstrapCore:
                         # f"_DEPR_{add_prefix_external_id(update_dataset.external_id)}_[{get_timestamp()}]"
                         f"_DEPR_{update_dataset.external_id}_[{self.get_timestamp()}]"
                     )
+                    if self.is_dry_run:
+                        _logger.info(f"Dry run - Deprecating dataset: <{update_dataset}>")
                     self.client.data_sets.update(update_dataset)
         else:
             _logger.info("No Datasets to archive (and mark as deprecated)")
@@ -1090,6 +1125,17 @@ class BootstrapCore:
     "--dotenv-path",
     help="Provide a relative or absolute path to an .env file (for commandline usage only)",
 )
+@click.option(
+    "--debug",
+    is_flag=True,
+    help="Print debug information",
+)
+@click.option(
+    "--dry-run",
+    default="no",
+    type=click.Choice(["yes", "no"], case_sensitive=False),
+    help="Output planned action while doing nothing",
+)
 @click.pass_context
 def bootstrap_cli(
     # click.core.Context
@@ -1106,8 +1152,10 @@ def bootstrap_cli(
     token_url: Optional[str] = None,
     audience: Optional[str] = None,
     # cli
-    # dotenv_path: Optional[click.Path] = None,
+    # TODO: dotenv_path: Optional[click.Path] = None,
     dotenv_path: Optional[str] = None,
+    debug: bool = False,
+    dry_run: str = "no",
 ) -> None:
 
     # load .env from file if exists, use given dotenv_path if provided
@@ -1127,6 +1175,8 @@ def bootstrap_cli(
         "audience": audience,
         # cli
         "dotenv_path": dotenv_path,
+        "debug": debug,
+        "dry_run": dry_run,
     }
 
 
@@ -1134,11 +1184,6 @@ def bootstrap_cli(
 @click.argument(
     "config_file",
     default="./config-bootstrap.yml",
-)
-@click.option(
-    "--debug",
-    is_flag=True,
-    help="Print debug information",
 )
 @click.option(
     "--with-special-groups",
@@ -1150,7 +1195,13 @@ def bootstrap_cli(
     help="Create special CDF Groups, which don't have capabilities (extractions, transformations)",
 )
 @click.pass_obj
-def deploy(obj: Dict, config_file: str, debug: bool = False, with_special_groups: YesNoType = YesNoType.no) -> None:
+def deploy(
+    # click.core.Context obj
+    obj: Dict,
+    config_file: str,
+    debug: bool = False,
+    with_special_groups: YesNoType = YesNoType.no
+) -> None:
 
     click.echo(click.style("Deploying CDF Project bootstrap...", fg="red"))
 
@@ -1170,6 +1221,7 @@ def deploy(obj: Dict, config_file: str, debug: bool = False, with_special_groups
         (
             BootstrapCore(config_file)
             # .validate_config() # TODO
+            .dry_run(obj['dry_run'])
             .deploy(with_special_groups=with_special_groups)
         )
 
@@ -1189,11 +1241,7 @@ def deploy(obj: Dict, config_file: str, debug: bool = False, with_special_groups
     "config_file",
     default="./config-bootstrap.yml",
 )
-@click.option(
-    "--debug",
-    is_flag=True,
-    help="Print debug information",
-)
+
 @click.option(
     "--aad-source-id",
     required=True,
@@ -1201,7 +1249,14 @@ def deploy(obj: Dict, config_file: str, debug: bool = False, with_special_groups
     "Typically for a new project its the one configured for the CDF Group named 'oidc-admin-group'.",
 )
 @click.pass_obj
-def prepare(obj: Dict, config_file: str, aad_source_id: str, debug: bool = False) -> None:
+def prepare(
+    # click.core.Context obj
+    obj: Dict,
+    config_file: str,
+    aad_source_id: str,
+    debug: bool = False,
+    dry_run: YesNoType = YesNoType.no
+) -> None:
 
     click.echo(click.style("Prepare CDF Project ...", fg="red"))
 
@@ -1214,6 +1269,7 @@ def prepare(obj: Dict, config_file: str, aad_source_id: str, debug: bool = False
         (
             BootstrapCore(config_file)
             # .validate_config() # TODO
+            .dry_run(obj['dry_run'])
             .prepare(aad_source_id=aad_source_id)
         )
 
@@ -1231,13 +1287,14 @@ def prepare(obj: Dict, config_file: str, aad_source_id: str, debug: bool = False
     "config_file",
     default="./config-bootstrap.yml",
 )
-@click.option(
-    "--debug",
-    is_flag=True,
-    help="Print debug information",
-)
+
 @click.pass_obj
-def delete(obj: Dict, config_file: str, debug: bool = False) -> None:
+def delete(
+    # click.core.Context obj
+    obj: Dict,
+    config_file: str,
+    debug: bool = False
+    ) -> None:
 
     click.echo(click.style("Delete CDF Project ...", fg="red"))
 
@@ -1249,6 +1306,7 @@ def delete(obj: Dict, config_file: str, debug: bool = False) -> None:
         (
             BootstrapCore(config_file, delete=True)
             # .validate_config() # TODO
+            .dry_run(obj['dry_run'])
             .delete()
         )
 
