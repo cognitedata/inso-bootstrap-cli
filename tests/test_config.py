@@ -1,6 +1,8 @@
-from incubator.bootstrap_cli.__main__ import BootstrapCore
-from dotenv import load_dotenv
 import json
+
+from dotenv import load_dotenv
+
+from incubator.bootstrap_cli.__main__ import BootstrapCore
 
 
 def main():

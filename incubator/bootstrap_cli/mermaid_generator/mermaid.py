@@ -1,9 +1,6 @@
-# std-lib
-from datetime import datetime
 from dataclasses import dataclass
-
-# type-hints
-from typing import Dict, List, TypeVar, Type, Union
+from datetime import datetime
+from typing import Dict, List, Type, TypeVar, Union
 
 
 # helper function
@@ -148,7 +145,13 @@ class GraphRegistry:
         mermaid_flowchart = "\n".join(
             (
                 ["graph LR", f"%% {timestamp()} - Script generated Mermaid diagram"]
-                + list(map(str, self.elements + self.edges))
+                + list(map(
+                    str,
+                    # elements of cls 'Subgraph', will dump themselves recursively
+                    self.elements
+                    + [f"%% all {len(self.edges)} links connecting the above nodes"]
+                    + self.edges
+                ))  # fmt: skip
             )
         )
 
