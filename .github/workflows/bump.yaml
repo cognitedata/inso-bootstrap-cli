@@ -45,7 +45,7 @@ jobs:
           pip install python-semantic-release
       - name: Setup Bot git User
         run: |
-          git config --global user.email "tugce.oztetik@cognite.com"
+          git config --global user.email "bot@cognite.com"
           git config --global user.name "Semantic release bot"
       - name: Create a new Version
         run: |
