@@ -40,6 +40,7 @@ Purpose:
   - [run local with Python](#run-local-with-python)
   - [run local with Docker](#run-local-with-docker)
   - [run as github action](#run-as-github-action)
+      - [semantic versioning](#semantic-versioning)
 
 <!-- /code_chunk_output -->
 
@@ -432,5 +433,12 @@ jobs:
           config_file: ./configs/test-bootstrap-deploy-example.yml
           # "yes"|"no" deploy with special groups and aad_mappings
           with_special_groups: "yes"
-
 ```
+
+#### semantic versioning
+- Uses `semantic-release` to create version tags.
+- The rules for commit messages are conventional commits, see [conventionalcommits](https://www.conventionalcommits.org/en/v1.0.0-beta.4/#summary%3E)
+- Remark: If version needs change, before merge, make sure commit title has elements mentioned on `conventionalcommits`
+- Remark: with new version change, bump will update the version on `pyproject.toml` so no need to change version there.
+- Remark: version in `incubator/bootstrap_cli/__init__` is used in main to add version on metadata.
+  This is not a part of semantic release but needs to be updated to upcoming version before version update.
