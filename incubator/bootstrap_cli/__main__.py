@@ -1,101 +1,91 @@
-"""
-Changelog:
-210504 mh:
- * Adding support for minimum groups and project capabilities for read and owner Groups
- * Exception handling for root-groups to avoid duplicate groups and projects capabilities
-210610 mh:
- * Adding RAW DBs and Datasets for Groups {env}:allprojects:{owner/read} and {env}:{group}:allprojects:{owner/read}
- * Adding functionality for updating dataset details (external id, description, etc) based on the config.yml
-210910 pa:
- * extended acl_default_types by labels, relationships, functions
- * removed labels from acl_admin_types
- * functions don't have dataset scope
-211013 pa:
- * renamed "adfs" to "aad" terminology => aad_mappings
- * for AAD 'root:client' and 'root:user' can be merged into 'root'
-211014 pa:
- * adding new capabilities
-      extractionpipelinesAcl
-      extractionrunsAcl
-211108 pa:
- * adding new capabilities
-      entitymatchingAcl
- * refactor list of acl types which only support "all" scope
-      acl_all_scope_only_types
- * support "labels" for non admin groups
-211110 pa:
- * adding new capabilities
-      sessionsAcl
-220202 pa:
- * adding new capabilities
-      typesAcl
-220216 pa:
- * adding 'generate_special_groups()' to handle
-   'extractors' and 'transformations' and their 'aad_mappings'
-   * configurable through `deploy --with-special-groups=[yes|no]` parameter
- * adding new capabilities:
-      transformationsAcl (replacing the need for magic "transformations" CDF Group)
-220404 pa:
- * v1.4.0 limited datasets for 'owner' that they cannot edit or create datasets
-    * removed `datasets:write` capability
-    * moved that capability to action_dimensions['admin']
-220405 sd:
- * v1.5.0 added dry-run mode as global parameter for all commands
-220405 pa:
- * v1.6.0
- * removed 'transformation' acl from 'acl_all_scope_only_types'
-    as it now supports dataset scopes too!
- * refactor variable names to match the new documentation
-    1. group_types_dimensions > group_bootstrap_hierarchy
-    2. group_type > group_ns (namespace: src, ca, uc)
-    3. group_prefix > group_core (src:001:sap)
-220406 pa/sd:
- * v1.7.0
- * added 'diagram' command which creates a Mermaid (diagram as code) output
+# Changelog:
+# 210504 mh:
+#  * Adding support for minimum groups and project capabilities for read and owner Groups
+#  * Exception handling for root-groups to avoid duplicate groups and projects capabilities
+# 210610 mh:
+#  * Adding RAW DBs and Datasets for Groups {env}:allprojects:{owner/read} and {env}:{group}:allprojects:{owner/read}
+#  * Adding functionality for updating dataset details (external id, description, etc) based on the config.yml
+# 210910 pa:
+#  * extended acl_default_types by labels, relationships, functions
+#  * removed labels from acl_admin_types
+#  * functions don't have dataset scope
+# 211013 pa:
+#  * renamed "adfs" to "aad" terminology => aad_mappings
+#  * for AAD 'root:client' and 'root:user' can be merged into 'root'
+# 211014 pa:
+#  * adding new capabilities
+#       extractionpipelinesAcl
+#       extractionrunsAcl
+# 211108 pa:
+#  * adding new capabilities
+#       entitymatchingAcl
+#  * refactor list of acl types which only support "all" scope
+#       acl_all_scope_only_types
+#  * support "labels" for non admin groups
+# 211110 pa:
+#  * adding new capabilities
+#       sessionsAcl
+# 220202 pa:
+#  * adding new capabilities
+#       typesAcl
+# 220216 pa:
+#  * adding 'generate_special_groups()' to handle
+#    'extractors' and 'transformations' and their 'aad_mappings'
+#    * configurable through `deploy --with-special-groups=[yes|no]` parameter
+#  * adding new capabilities:
+#       transformationsAcl (replacing the need for magic "transformations" CDF Group)
+# 220404 pa:
+#  * v1.4.0 limited datasets for 'owner' that they cannot edit or create datasets
+#     * removed `datasets:write` capability
+#     * moved that capability to action_dimensions['admin']
+# 220405 sd:
+#  * v1.5.0 added dry-run mode as global parameter for all commands
+# 220405 pa:
+#  * v1.6.0
+#  * removed 'transformation' acl from 'acl_all_scope_only_types'
+#     as it now supports dataset scopes too!
+#  * refactor variable names to match the new documentation
+#     1. group_types_dimensions > group_bootstrap_hierarchy
+#     2. group_type > group_ns (namespace: src, ca, uc)
+#     3. group_prefix > group_core (src:001:sap)
+# 220406 pa/sd:
+#  * v1.7.0
+#  * added 'diagram' command which creates a Mermaid (diagram as code) output
 
+# 220406 pa:
+#  * v1.7.1
+#  * started to use '# fmt:skip' to save intended multiline formatted and indented code
+#    from black auto-format
 
-"""
-# std-lib
 import logging
 import time
-import yaml
 from dataclasses import dataclass, field
 from datetime import datetime
+from enum import Enum
 from itertools import islice
 from pathlib import Path
-
-# type-hints
-from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple, TypeVar
 
-# 3rd party libs
-import pandas as pd
-
-# cli
 import click
+import pandas as pd
+import yaml
 from click import Context
-
-# Cognite Python SDK and Utils support
-from cognite.client import CogniteClient
-
-# using extractor-utils instead of native CogniteClient
 from cognite.client.data_classes import DataSet, Group
 from cognite.client.data_classes.data_sets import DataSetUpdate
-from cognite.extractorutils.configtools import CogniteConfig, LoggingConfig, load_yaml
+from cognite.extractorutils.configtools import CogniteClient, CogniteConfig, LoggingConfig, load_yaml
 from dotenv import load_dotenv
 
 # cli internal
 from incubator.bootstrap_cli import __version__
-
 from incubator.bootstrap_cli.mermaid_generator.mermaid import (
+    AssymetricNode,
+    DottedEdge,
+    Edge,
     GraphRegistry,
     Node,
-    AssymetricNode,
     RoundedNode,
     SubroutineNode,
     TrapezNode,
-    Edge,
-    DottedEdge,
 )
 
 # import getpass
@@ -433,11 +423,10 @@ class BootstrapCore:
     def get_scope_ctx_groupedby_action(self, action, group_ns, group_core=None):
         ds_by_action = self.get_group_datasets_groupedby_action(action, group_ns, group_core)
         rawdbs_by_action = self.get_group_raw_dbs_groupedby_action(action, group_ns, group_core)
-        # regroup to get action as main key
-        # {action : scope_ctx}
         return {
-            action: {"raw": rawdbs_by_action[action], "datasets": ds_by_action[action]} for action in ["owner", "read"]
-        }
+            action: {"raw": rawdbs_by_action[action], "datasets": ds_by_action[action]}
+            for action in ["owner", "read"]
+        }  # fmt: skip
 
     def generate_scope(self, acl_type, scope_ctx):
         if acl_type == "raw":
@@ -698,7 +687,6 @@ class BootstrapCore:
             {
                 "description": group_core_config.get("description"),
                 "metadata": group_core_config.get("metadata"),
-                # "external_id": add_prefix_external_id(group_config.get("external_id")),
                 "external_id": group_core_config.get("external_id"),
             }
             for group_ns, group_ns_config in self.group_bootstrap_hierarchy.items()
@@ -748,7 +736,6 @@ class BootstrapCore:
                     DataSet(
                         name=name,
                         description=payload.get("description"),
-                        # external_id=add_prefix_external_id(payload.get("external_id")),
                         external_id=payload.get("external_id"),
                         metadata=payload.get("metadata"),
                         write_protected=True,
@@ -1011,10 +998,7 @@ class BootstrapCore:
                     )  # don't stack the DEPR prefixes
                     update_dataset.description = "Deprecated {}".format(self.get_timestamp())
                     update_dataset.metadata = dict(update_dataset.metadata, archived=True)  # or dict(a, **b)
-                    update_dataset.external_id = (
-                        # f"_DEPR_{add_prefix_external_id(update_dataset.external_id)}_[{get_timestamp()}]"
-                        f"_DEPR_{update_dataset.external_id}_[{self.get_timestamp()}]"
-                    )
+                    update_dataset.external_id = f"_DEPR_{update_dataset.external_id}_[{self.get_timestamp()}]"
                     if self.is_dry_run:
                         _logger.info(f"Dry run - Deprecating dataset: <{update_dataset}>")
                     self.client.data_sets.update(update_dataset)
@@ -1076,7 +1060,40 @@ class BootstrapCore:
 
         def get_group_name_and_scopes(
             action: str = None, group_ns: str = None, group_core: str = None, root_account: str = None
-        ) -> Tuple[str, List[str]]:
+        ) -> Tuple[str, Dict[str, Any]]:
+            """Adopted generate_group_name_and_capabilities() and get_scope_ctx_groupedby_action()
+            to respond with
+            - the full-qualified CDF Group name and
+            - all scopes sorted by action [read|owner] and [raw|datasets]
+
+            TODO: support 'root'
+
+            Args:
+                action (str, optional):
+                    One of the action_dimensions ["read", "owner"].
+                    Defaults to None.
+                group_ns (str, optional):
+                    Namespace like "src" or "uc".
+                    Defaults to None.
+                group_core (str, optional):
+                    Core group like "src:001:sap" or "uc:003:demand".
+                    Defaults to None.
+                root_account (str, optional):
+                    Name of the root-account.
+                    Defaults to None.
+
+                Returns:
+                    Tuple[str, Dict[str, Any]]: (group_name, scope_ctx_by_action)
+                        scope_ctx_by_action is a dictionary with the following structure:
+                            {'owner': {
+                                'raw': ['src:002:weather:rawdb', 'src:002:weather:rawdb:state'],
+                                'datasets': ['src:002:weather:dataset']
+                                },
+                            'read': {
+                                'raw': [],
+                                'datasets': []
+                            }}
+            """
 
             group_name_full_qualified, scope_ctx_by_action = None, None
 
@@ -1121,7 +1138,7 @@ class BootstrapCore:
             ns_cdf_read = "Namespace Level (Read)"
             scope_read = "Scopes (Read)"
 
-        def temp_group(
+        def group_to_graph(
             graph: GraphRegistry,
             action: str = None,
             group_ns: str = None,
@@ -1144,9 +1161,21 @@ class BootstrapCore:
 
             aad = graph.get_or_create(SubgraphTypes.aad)
             if aad_source_name and (aad_source_name not in aad):
-                aad.elements.append(TrapezNode(name=aad_source_name, short=aad_source_name, comments=[aad_source_id]))
-                # link from table to transformation
-                graph.edges.append(Edge(name=aad_source_name, dest=group_name, annotation=None, comments=[]))
+                aad.elements.append(
+                    TrapezNode(
+                        name=aad_source_name,
+                        short=aad_source_name,
+                        comments=[f'AAD objId: {aad_source_id}']
+                        )
+                    )  # fmt: skip
+                graph.edges.append(
+                    Edge(
+                        name=aad_source_name,
+                        dest=group_name,
+                        annotation=None,
+                        comments=[]
+                        )
+                    )  # fmt: skip
 
             # {'owner': {'raw': ['src:002:weather:rawdb', 'src:002:weather:rawdb:state'],
             #       'datasets': ['src:002:weather:dataset']},
@@ -1154,7 +1183,13 @@ class BootstrapCore:
 
             # core-level like cdf:src:001:public:read
             if action and group_ns and group_core:
-                core_cdf.elements.append(RoundedNode(name=group_name, short=group_name, comments=""))
+                core_cdf.elements.append(
+                    RoundedNode(
+                        name=group_name,
+                        short=group_name,
+                        comments=""
+                        )
+                    )  # fmt: skip
 
                 # link from 'src:all' to 'src:001:sap'
                 edge_type_cls = Edge if action == "owner" else DottedEdge
@@ -1169,7 +1204,7 @@ class BootstrapCore:
                         annotation="",
                         comments=[],
                     )
-                )
+                )  # fmt: skip
 
                 # add core and all scopes
                 for shared_action, scope_ctx in scope_ctx_by_action.items():
@@ -1190,7 +1225,7 @@ class BootstrapCore:
                                     annotation=shared_action,
                                     comments=[],
                                 )
-                            )
+                            )  # fmt: skip
 
             # namespace-level like cdf:src:all:read
             elif action and group_ns:
@@ -1205,11 +1240,17 @@ class BootstrapCore:
                         annotation="",
                         comments=[],
                     )
-                )
+                )  # fmt: skip
 
             # top-level like cdf:all:read
             elif action:
-                ns_cdf_graph.elements.append(Node(name=group_name, short=group_name, comments=""))
+                ns_cdf_graph.elements.append(
+                    Node(
+                        name=group_name,
+                        short=group_name,
+                        comments=""
+                        )
+                    )  # fmt: skip
 
         # sorting relationship output into potential subgraphs
         graph = GraphRegistry()
@@ -1257,17 +1298,17 @@ class BootstrapCore:
             for group_ns, group_configs in self.group_bootstrap_hierarchy.items():
                 for group_core, group_config in group_configs.items():
                     # group for each dedicated group-type id
-                    temp_group(graph, action, group_ns, group_core)
+                    group_to_graph(graph, action, group_ns, group_core)
                 # 'all' groups on group-type level
                 # (access to all datasets/ raw-dbs which belong to this group-type)
-                temp_group(graph, action, group_ns)
+                group_to_graph(graph, action, group_ns)
             # 'all' groups on action level (no limits to datasets or raw-dbs)
-            temp_group(graph, action)
+            group_to_graph(graph, action)
         # all (no limits + admin)
         # 211013 pa: for AAD root:client and root:user can be merged into 'root'
         # for root_account in ["root:client", "root:user"]:
         for root_account in ["root"]:
-            temp_group(graph, root_account=root_account)
+            group_to_graph(graph, root_account=root_account)
 
         mermaid_code = graph.to_mermaid()
 

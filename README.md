@@ -33,7 +33,8 @@ Purpose:
         - [`bootstrap` section](#bootstrap-section)
       - [Configuration for `delete` command](#configuration-for-delete-command)
         - [`delete_or_deprecate` section](#delete_or_deprecate-section)
-- [Development](#development)
+- [Development / Contribute](#development--contribute)
+  - [semantic versioning](#semantic-versioning)
   - [to be done](#to-be-done)
 - [how to run](#how-to-run)
   - [run local with poetry](#run-local-with-poetry)
@@ -306,7 +307,7 @@ If nothing to delete, provide an empty list like this: `[]`.
 
 For a complete example of the delete configuration, see the `configs/test-bootstrap-delete-example.yml`.
 
-# Development
+# Development / Contribute
 
 1. Clone the repository and `cd` to the project folder.  Then,
 2. initialize the project environment:
@@ -318,10 +319,27 @@ For a complete example of the delete configuration, see the `configs/test-bootst
 3. Install the pre-commit hook:
 
     ```sh
-    poetry run pre-commit install
+    poetry run pre-commit install #Only needed if not installed
+    poetry run pre-commit run --all-files
     ```
+## semantic versioning
+- Uses `semantic-release` to create version tags.
+- The rules for commit messages are conventional commits, see [conventionalcommits](https://www.conventionalcommits.org/en/v1.0.0-beta.4/#summary%3E)
+- Remark: If version needs change, before merge, make sure commit title has elements mentioned on `conventionalcommits`
+- Remark: with new version change, bump will update the version on `pyproject.toml` so no need to change version there.
+- Remark: version in `incubator/bootstrap_cli/__init__` is used in main to add version on metadata.
+  This is not a part of semantic release but needs to be updated to upcoming version before version update.
+## to be done
 
+- [x] `.pre-commit-config.yaml` hook support
+- [x] `.dockerignore` (pycache)
+- [x] logs folder handling (docker volume mount)
+- [x] logger.info() or print() or click.echo(click.style(..))
+    - logger debug support
+- [ ] compile as EXE (when Python is not available on customer server)
+  - code-signed exe required for Windows
 
+# how to run
 - it provides a configuration driven deployment for Cognite Bootstrap Pipelines (named `bootstrap` in short)
   - support to run it
     - from `poetry run`
@@ -334,18 +352,6 @@ For a complete example of the delete configuration, see the `configs/test-bootst
   - `cognitedata/python-extratcion-utils`
     - using `CogniteConfig` and `LoggingConfig`
     - and extended with custom config sections
-
-## to be done
-
-- [x] `.pre-commit-config.yaml` hook support
-- [x] `.dockerignore` (pycache)
-- [x] logs folder handling (docker volume mount)
-- [x] logger.info() or print() or click.echo(click.style(..))
-    - logger debug support
-- [ ] compile as EXE (when Python is not available on customer server)
-  - code-signed exe required for Windows
-
-# how to run
 
 Follow the initial setup first
 1. Fill out relevant configurations from `configs`
@@ -432,5 +438,4 @@ jobs:
           config_file: ./configs/test-bootstrap-deploy-example.yml
           # "yes"|"no" deploy with special groups and aad_mappings
           with_special_groups: "yes"
-
 ```
