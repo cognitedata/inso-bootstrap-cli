@@ -1,8 +1,5 @@
-# std-lib
 from dataclasses import dataclass
 from datetime import datetime
-
-# type-hints
 from typing import Dict, List, Type, TypeVar, Union
 
 

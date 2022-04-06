@@ -1,91 +1,78 @@
-"""
-Changelog:
-210504 mh:
- * Adding support for minimum groups and project capabilities for read and owner Groups
- * Exception handling for root-groups to avoid duplicate groups and projects capabilities
-210610 mh:
- * Adding RAW DBs and Datasets for Groups {env}:allprojects:{owner/read} and {env}:{group}:allprojects:{owner/read}
- * Adding functionality for updating dataset details (external id, description, etc) based on the config.yml
-210910 pa:
- * extended acl_default_types by labels, relationships, functions
- * removed labels from acl_admin_types
- * functions don't have dataset scope
-211013 pa:
- * renamed "adfs" to "aad" terminology => aad_mappings
- * for AAD 'root:client' and 'root:user' can be merged into 'root'
-211014 pa:
- * adding new capabilities
-      extractionpipelinesAcl
-      extractionrunsAcl
-211108 pa:
- * adding new capabilities
-      entitymatchingAcl
- * refactor list of acl types which only support "all" scope
-      acl_all_scope_only_types
- * support "labels" for non admin groups
-211110 pa:
- * adding new capabilities
-      sessionsAcl
-220202 pa:
- * adding new capabilities
-      typesAcl
-220216 pa:
- * adding 'generate_special_groups()' to handle
-   'extractors' and 'transformations' and their 'aad_mappings'
-   * configurable through `deploy --with-special-groups=[yes|no]` parameter
- * adding new capabilities:
-      transformationsAcl (replacing the need for magic "transformations" CDF Group)
-220404 pa:
- * v1.4.0 limited datasets for 'owner' that they cannot edit or create datasets
-    * removed `datasets:write` capability
-    * moved that capability to action_dimensions['admin']
-220405 sd:
- * v1.5.0 added dry-run mode as global parameter for all commands
-220405 pa:
- * v1.6.0
- * removed 'transformation' acl from 'acl_all_scope_only_types'
-    as it now supports dataset scopes too!
- * refactor variable names to match the new documentation
-    1. group_types_dimensions > group_bootstrap_hierarchy
-    2. group_type > group_ns (namespace: src, ca, uc)
-    3. group_prefix > group_core (src:001:sap)
-220406 pa/sd:
- * v1.7.0
- * added 'diagram' command which creates a Mermaid (diagram as code) output
+# Changelog:
+# 210504 mh:
+#  * Adding support for minimum groups and project capabilities for read and owner Groups
+#  * Exception handling for root-groups to avoid duplicate groups and projects capabilities
+# 210610 mh:
+#  * Adding RAW DBs and Datasets for Groups {env}:allprojects:{owner/read} and {env}:{group}:allprojects:{owner/read}
+#  * Adding functionality for updating dataset details (external id, description, etc) based on the config.yml
+# 210910 pa:
+#  * extended acl_default_types by labels, relationships, functions
+#  * removed labels from acl_admin_types
+#  * functions don't have dataset scope
+# 211013 pa:
+#  * renamed "adfs" to "aad" terminology => aad_mappings
+#  * for AAD 'root:client' and 'root:user' can be merged into 'root'
+# 211014 pa:
+#  * adding new capabilities
+#       extractionpipelinesAcl
+#       extractionrunsAcl
+# 211108 pa:
+#  * adding new capabilities
+#       entitymatchingAcl
+#  * refactor list of acl types which only support "all" scope
+#       acl_all_scope_only_types
+#  * support "labels" for non admin groups
+# 211110 pa:
+#  * adding new capabilities
+#       sessionsAcl
+# 220202 pa:
+#  * adding new capabilities
+#       typesAcl
+# 220216 pa:
+#  * adding 'generate_special_groups()' to handle
+#    'extractors' and 'transformations' and their 'aad_mappings'
+#    * configurable through `deploy --with-special-groups=[yes|no]` parameter
+#  * adding new capabilities:
+#       transformationsAcl (replacing the need for magic "transformations" CDF Group)
+# 220404 pa:
+#  * v1.4.0 limited datasets for 'owner' that they cannot edit or create datasets
+#     * removed `datasets:write` capability
+#     * moved that capability to action_dimensions['admin']
+# 220405 sd:
+#  * v1.5.0 added dry-run mode as global parameter for all commands
+# 220405 pa:
+#  * v1.6.0
+#  * removed 'transformation' acl from 'acl_all_scope_only_types'
+#     as it now supports dataset scopes too!
+#  * refactor variable names to match the new documentation
+#     1. group_types_dimensions > group_bootstrap_hierarchy
+#     2. group_type > group_ns (namespace: src, ca, uc)
+#     3. group_prefix > group_core (src:001:sap)
+# 220406 pa/sd:
+#  * v1.7.0
+#  * added 'diagram' command which creates a Mermaid (diagram as code) output
 
-220406 pa:
- * v1.7.1
- * started to use '# fmt:skip' to save intended multiline formatted and indented code
-   from black auto-format
+# 220406 pa:
+#  * v1.7.1
+#  * started to use '# fmt:skip' to save intended multiline formatted and indented code
+#    from black auto-format
 
-"""
-# std-lib
 import logging
 import time
 from dataclasses import dataclass, field
 from datetime import datetime
-
-# type-hints
 from enum import Enum
 from itertools import islice
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, TypeVar
 
-# cli
 import click
-
-# 3rd party libs
 import pandas as pd
 import yaml
 from click import Context
-
-# Cognite Python SDK and Utils support
-from cognite.client import CogniteClient
-
-# using extractor-utils instead of native CogniteClient
 from cognite.client.data_classes import DataSet, Group
 from cognite.client.data_classes.data_sets import DataSetUpdate
-from cognite.extractorutils.configtools import CogniteConfig, LoggingConfig, load_yaml
+from cognite.extractorutils.configtools import CogniteClient, CogniteConfig, LoggingConfig, load_yaml
 from dotenv import load_dotenv
 
 # cli internal
