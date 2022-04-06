@@ -95,6 +95,7 @@ This is just an example of how to group things, you are free to chose whatever g
 
 ```mermaid
   flowchart LR;
+      aad-allprojects-owner --> allprojects:owner
       allprojects:owner     --> src:allprojects:owner;
       src:allprojects:owner --> src:001:ifsdb:owner;
       src:allprojects:owner --> src:002:sensors:owner;
@@ -109,10 +110,12 @@ This is just an example of how to group things, you are free to chose whatever g
       uc:001:timeseries:owner   --ReadWriteOwner--> uc:001:timeseries:dataset
       uc:001:timeseries:owner   --ReadWrite     --> uc:001:timeseries:rawdb
       uc:001:timeseries:owner   --ReadWrite     --> uc:001:timeseries:rawdb:state
-      uc:001:timeseries:owner   ==>|<font size=4>READ| src:002:sensors:dataset
-      uc:001:timeseries:owner   ==>|<font size=4>READ| src:002:sensors:rawdb
-      uc:001:timeseries:owner   ==>|<font size=4>READ| src:002:sensors:rawdb:state
-      linkStyle 14,15,16 stroke:cyan,color:cyan;
+      uc:001:timeseries:owner   -.->|READ| src:002:sensors:dataset
+      uc:001:timeseries:owner   -.->|READ| src:002:sensors:rawdb
+      uc:001:timeseries:owner   -.->|READ| src:002:sensors:rawdb:state
+    subgraph "AAD Groups"
+      aad-allprojects-owner
+    end
     subgraph "Groups"
       allprojects:owner
       src:allprojects:owner
@@ -135,20 +138,24 @@ This is just an example of how to group things, you are free to chose whatever g
 ```
 ```mermaid
   flowchart LR;
+      aad-allprojects-read --> allprojects:read
       allprojects:read     --> src:allprojects:read;
       src:allprojects:read --> src:001:ifsdb:read;
       src:allprojects:read --> src:002:sensors:read;
       allprojects:read     --> uc:allprojects:read;
       uc:allprojects:read  --> uc:001:timeseries:read;
-      src:001:ifsdb:read       --Read     --> src:001:ifsdb:dataset
-      src:001:ifsdb:read       --Read     --> src:001:ifsdb:rawdb
-      src:001:ifsdb:read       --Read     --> src:001:ifsdb:rawdb:state
-      src:002:sensors:read     --Read     --> src:002:sensors:dataset
-      src:002:sensors:read     --Read     --> src:002:sensors:rawdb
-      src:002:sensors:read     --Read     --> src:002:sensors:rawdb:state
-      uc:001:timeseries:read   --Read     --> uc:001:timeseries:dataset
-      uc:001:timeseries:read   --Read     --> uc:001:timeseries:rawdb
-      uc:001:timeseries:read   --Read     --> uc:001:timeseries:rawdb:state
+      src:001:ifsdb:read       -.->|Read| src:001:ifsdb:dataset
+      src:001:ifsdb:read       -.->|Read| src:001:ifsdb:rawdb
+      src:001:ifsdb:read       -.->|Read| src:001:ifsdb:rawdb:state
+      src:002:sensors:read     -.->|Read| src:002:sensors:dataset
+      src:002:sensors:read     -.->|Read| src:002:sensors:rawdb
+      src:002:sensors:read     -.->|Read| src:002:sensors:rawdb:state
+      uc:001:timeseries:read   -.->|Read| uc:001:timeseries:dataset
+      uc:001:timeseries:read   -.->|Read| uc:001:timeseries:rawdb
+      uc:001:timeseries:read   -.->|Read| uc:001:timeseries:rawdb:state
+    subgraph "AAD Groups"
+      aad-allprojects-read
+    end
     subgraph "Groups"
       allprojects:read
       src:allprojects:read
