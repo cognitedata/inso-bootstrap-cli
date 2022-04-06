@@ -49,6 +49,9 @@ Changelog:
     1. group_types_dimensions > group_bootstrap_hierarchy
     2. group_type > group_ns (namespace: src, ca, uc)
     3. group_prefix > group_core (src:001:sap)
+220406 pa/sd:
+ * v1.7.0
+ * added 'diagram' command which creates a Mermaid (diagram as code) output
 
 
 """
@@ -83,6 +86,17 @@ from dotenv import load_dotenv
 
 # cli internal
 from incubator.bootstrap_cli import __version__
+
+from incubator.bootstrap_cli.mermaid_generator.mermaid import (
+    GraphRegistry,
+    Node,
+    AssymetricNode,
+    RoundedNode,
+    SubroutineNode,
+    TrapezNode,
+    Edge,
+    DottedEdge,
+)
 
 # import getpass
 _logger = logging.getLogger(__name__)
@@ -200,7 +214,7 @@ acl_default_types = [
 ]
 
 # give precedence when merging over acl_default_types
-acl_admin_types = list(action_dimensions['admin'].keys())
+acl_admin_types = list(action_dimensions["admin"].keys())
 
 # type-hint for ExtpipesCore instance response
 T_BootstrapCore = TypeVar("T_BootstrapCore", bound="BootstrapCore")
@@ -442,11 +456,9 @@ class BootstrapCore:
             # { "datasetScope": { "ids": [ 2695894113527579, 4254268848874387 ] } }
             return {"datasetScope": {"ids": self.dataset_names_to_ids(scope_ctx["datasets"])}}
 
-    def generate_group_name_and_capabilities(self,
-        action: str=None,
-        group_ns: str=None,
-        group_core: str=None,
-        root_account: str=None) -> Tuple[str, List[Dict[str, Any]]]:
+    def generate_group_name_and_capabilities(
+        self, action: str = None, group_ns: str = None, group_core: str = None, root_account: str = None
+    ) -> Tuple[str, List[Dict[str, Any]]]:
         """Create the group-name and its capabilities.
         The function supports following levels expressed by parameter combinations:
         - core: {action} + {group_ns} + {group_core}
@@ -502,7 +514,9 @@ class BootstrapCore:
         elif action and group_ns:
             # 'all' groups on group-type level
             # (access to all datasets/ raw-dbs which belong to this group-type)
-            group_name_full_qualified = f"{BootstrapCore.GROUP_NAME_PREFIX}{group_ns}:{BootstrapCore.AGGREGATED_GROUP_NAME}:{action}"
+            group_name_full_qualified = (
+                f"{BootstrapCore.GROUP_NAME_PREFIX}{group_ns}:{BootstrapCore.AGGREGATED_GROUP_NAME}:{action}"
+            )
 
             [
                 capabilities.append(  # type: ignore
@@ -524,7 +538,9 @@ class BootstrapCore:
         # top level like cdf:all:read
         elif action:
             # 'all' groups on action level (no limits to datasets or raw-dbs)
-            group_name_full_qualified = f"{BootstrapCore.GROUP_NAME_PREFIX}{BootstrapCore.AGGREGATED_GROUP_NAME}:{action}"
+            group_name_full_qualified = (
+                f"{BootstrapCore.GROUP_NAME_PREFIX}{BootstrapCore.AGGREGATED_GROUP_NAME}:{action}"
+            )
 
             [
                 capabilities.append(  # type: ignore
@@ -656,12 +672,9 @@ class BootstrapCore:
 
         return new_group
 
-    def process_group(self,
-        action: str=None,
-        group_ns: str=None,
-        group_core: str=None,
-        root_account:str =None
-        ) -> Group:
+    def process_group(
+        self, action: str = None, group_ns: str = None, group_core: str = None, root_account: str = None
+    ) -> Group:
         # to avoid complex upsert logic, all groups will be recreated and then the old ones deleted
 
         # to be merged with existing code
@@ -697,13 +710,17 @@ class BootstrapCore:
             {  # dictionary generator
                 # key:
                 self.get_dataset_name_template().format(
-                    group_core=f"{group_ns}:{BootstrapCore.AGGREGATED_GROUP_NAME}" if group_ns else BootstrapCore.AGGREGATED_GROUP_NAME
+                    group_core=f"{group_ns}:{BootstrapCore.AGGREGATED_GROUP_NAME}"
+                    if group_ns
+                    else BootstrapCore.AGGREGATED_GROUP_NAME
                 ):
                 # value
                 {
                     "description": f"Dataset for '{BootstrapCore.AGGREGATED_GROUP_NAME}' Owner Groups",
                     # "metadata": "",
-                    "external_id": f"{group_ns}:{BootstrapCore.AGGREGATED_GROUP_NAME}" if group_ns else BootstrapCore.AGGREGATED_GROUP_NAME,
+                    "external_id": f"{group_ns}:{BootstrapCore.AGGREGATED_GROUP_NAME}"
+                    if group_ns
+                    else BootstrapCore.AGGREGATED_GROUP_NAME,
                 }
                 # creating 'all' at group type level + top-level
                 for group_ns in list(self.group_bootstrap_hierarchy.keys()) + [""]
@@ -790,7 +807,8 @@ class BootstrapCore:
                 self.get_raw_dbs_name_template().format(
                     group_core=f"{group_ns}:{BootstrapCore.AGGREGATED_GROUP_NAME}"
                     if group_ns
-                    else BootstrapCore.AGGREGATED_GROUP_NAME, raw_suffix=raw_suffix
+                    else BootstrapCore.AGGREGATED_GROUP_NAME,
+                    raw_suffix=raw_suffix,
                 )
                 # creating allprojects at group type level + top-level
                 for group_ns in list(self.group_bootstrap_hierarchy.keys()) + [""]
@@ -907,7 +925,7 @@ class BootstrapCore:
     """
 
     def dry_run(self, dry_run: YesNoType) -> T_BootstrapCore:
-        self.is_dry_run = (dry_run == YesNoType.yes)
+        self.is_dry_run = dry_run == YesNoType.yes
 
         # return self for command chaining
         return self
@@ -936,9 +954,7 @@ class BootstrapCore:
         _logger.debug(f"GROUPS in CDF:\n{self.deployed['groups']}")
 
         # allows idempotent creates, as it cleans up old groups with same names after creation
-        self.create_group(
-            group_name=group_name, group_capabilities=group_capabilities, aad_mapping=aad_mapping
-        )
+        self.create_group(group_name=group_name, group_capabilities=group_capabilities, aad_mapping=aad_mapping)
 
         _logger.info(f"Created CDF Group {group_name}")
         _logger.info("Finished CDF Project Bootstrapper in 'prepare' mode ")
@@ -1050,6 +1066,224 @@ class BootstrapCore:
         _logger.info("Finished creating CDF Groups, Datasets and RAW Databases")
 
         # _logger.info(f'Bootstrap Pipelines: created: {len(created)}, deleted: {len(delete_ids)}')
+
+    def diagram(self, to_markdown: YesNoType = YesNoType.no):
+
+        """➟  poetry run bootstrap-cli diagram .local/config-deploy-bootstrap.yml | clip.exe"""
+
+        # load deployed groups, datasets, raw_dbs with their ids and metadata
+        self.load_deployed_config_from_cdf()
+
+        def get_group_name_and_scopes(
+            action: str = None, group_ns: str = None, group_core: str = None, root_account: str = None
+        ) -> Tuple[str, List[str]]:
+
+            group_name_full_qualified, scope_ctx_by_action = None, None
+
+            # detail level like cdf:src:001:public:read
+            if action and group_ns and group_core:
+                group_name_full_qualified = f"{BootstrapCore.GROUP_NAME_PREFIX}{group_core}:{action}"
+                scope_ctx_by_action = self.get_scope_ctx_groupedby_action(action, group_ns, group_core)
+            # group-type level like cdf:src:all:read
+            elif action and group_ns:
+                # 'all' groups on group-type level
+                # (access to all datasets/ raw-dbs which belong to this group-type)
+                group_name_full_qualified = (
+                    f"{BootstrapCore.GROUP_NAME_PREFIX}{group_ns}:{BootstrapCore.AGGREGATED_GROUP_NAME}:{action}"
+                )
+                scope_ctx_by_action = self.get_scope_ctx_groupedby_action(action, group_ns)
+            # top level like cdf:all:read
+            elif action:
+                # 'all' groups on action level (no limits to datasets or raw-dbs)
+                group_name_full_qualified = (
+                    f"{BootstrapCore.GROUP_NAME_PREFIX}{BootstrapCore.AGGREGATED_GROUP_NAME}:{action}"
+                )
+                # scope_ctx_by_action =  self.get_scope_ctx_groupedby_action(
+                #     action, self.all_scope_ctx
+                # )
+            # root level like cdf:root
+            elif root_account:  # no parameters
+                # all (no limits)
+                group_name_full_qualified = f"{BootstrapCore.GROUP_NAME_PREFIX}{root_account}"
+
+            return group_name_full_qualified, scope_ctx_by_action
+
+        class SubgraphTypes(str, Enum):
+            aad = "AAD Groups"
+            owner = "'Owner' Groups"
+            read = "'Read' Groups"
+            # OWNER
+            core_cdf_owner = "Core Level (Owner)"
+            ns_cdf_owner = "Namespace Level (Owner)"
+            scope_owner = "Scopes (Owner)"
+            # READ
+            core_cdf_read = "Core Level (Read)"
+            ns_cdf_read = "Namespace Level (Read)"
+            scope_read = "Scopes (Read)"
+
+        def temp_group(
+            graph: GraphRegistry,
+            action: str = None,
+            group_ns: str = None,
+            group_core: str = None,
+            root_account: str = None,
+        ) -> None:
+
+            if root_account:
+                return
+
+            group_name, scope_ctx_by_action = get_group_name_and_scopes(action, group_ns, group_core, root_account)
+            aad_source_id, aad_source_name = self.aad_mapping_lookup.get(group_name, [None, None])
+
+            _logger.info(f"{group_name=} : {scope_ctx_by_action=} [{aad_source_name=}]")
+
+            # preload master subgraphs
+            core_cdf = graph.get_or_create(getattr(SubgraphTypes, f"core_cdf_{action}"))
+            ns_cdf_graph = graph.get_or_create(getattr(SubgraphTypes, f"ns_cdf_{action}"))
+            scope_graph = graph.get_or_create(getattr(SubgraphTypes, f"scope_{action}"))
+
+            aad = graph.get_or_create(SubgraphTypes.aad)
+            if aad_source_name and (aad_source_name not in aad):
+                aad.elements.append(TrapezNode(name=aad_source_name, short=aad_source_name, comments=[aad_source_id]))
+                # link from table to transformation
+                graph.edges.append(Edge(name=aad_source_name, dest=group_name, annotation=None, comments=[]))
+
+            # {'owner': {'raw': ['src:002:weather:rawdb', 'src:002:weather:rawdb:state'],
+            #       'datasets': ['src:002:weather:dataset']},
+            # 'read': {'raw': [], 'datasets': []}}
+
+            # core-level like cdf:src:001:public:read
+            if action and group_ns and group_core:
+                core_cdf.elements.append(RoundedNode(name=group_name, short=group_name, comments=""))
+
+                # link from 'src:all' to 'src:001:sap'
+                edge_type_cls = Edge if action == "owner" else DottedEdge
+                graph.edges.append(
+                    edge_type_cls(
+                        # link from all:{ns}
+                        # multiline f-string split as it got too long
+                        # TODO: refactor into string-templates
+                        name=f"{BootstrapCore.GROUP_NAME_PREFIX}{group_ns}:"
+                        f"{BootstrapCore.AGGREGATED_GROUP_NAME}:{action}",
+                        dest=group_name,
+                        annotation="",
+                        comments=[],
+                    )
+                )
+
+                # add core and all scopes
+                for shared_action, scope_ctx in scope_ctx_by_action.items():
+                    for scope_type, scopes in scope_ctx.items():
+                        for scope_name in scopes:
+
+                            if scope_name not in scope_graph:
+                                node_type_cls = SubroutineNode if scope_type == "raw" else AssymetricNode
+                                scope_graph.elements.append(
+                                    node_type_cls(name=f"{scope_name}:{action}", short=scope_name, comments="")
+                                )
+                            # link from src:001:sap to 'src:001:sap:rawdb'
+                            edge_type_cls = Edge if shared_action == "owner" else DottedEdge
+                            graph.edges.append(
+                                edge_type_cls(
+                                    name=group_name,
+                                    dest=f"{scope_name}:{action}",
+                                    annotation=shared_action,
+                                    comments=[],
+                                )
+                            )
+
+            # namespace-level like cdf:src:all:read
+            elif action and group_ns:
+                ns_cdf_graph.elements.append(Node(name=group_name, short=group_name, comments=""))
+
+                # link from 'all' to 'src:all'
+                edge_type_cls = Edge if action == "owner" else DottedEdge
+                graph.edges.append(
+                    edge_type_cls(
+                        name=f"{BootstrapCore.GROUP_NAME_PREFIX}{BootstrapCore.AGGREGATED_GROUP_NAME}:{action}",
+                        dest=group_name,
+                        annotation="",
+                        comments=[],
+                    )
+                )
+
+            # top-level like cdf:all:read
+            elif action:
+                ns_cdf_graph.elements.append(Node(name=group_name, short=group_name, comments=""))
+
+        # sorting relationship output into potential subgraphs
+        graph = GraphRegistry()
+        # top subgraphs (three columns layout)
+        aad_group = graph.get_or_create(SubgraphTypes.aad)
+        owner = graph.get_or_create(SubgraphTypes.owner)
+        read = graph.get_or_create(SubgraphTypes.read)
+
+        # nested subgraphs
+        core_cdf_owner = graph.get_or_create(SubgraphTypes.core_cdf_owner)
+        ns_cdf_owner = graph.get_or_create(SubgraphTypes.ns_cdf_owner)
+        core_cdf_read = graph.get_or_create(SubgraphTypes.core_cdf_read)
+        ns_cdf_read = graph.get_or_create(SubgraphTypes.ns_cdf_read)
+        scope_owner = graph.get_or_create(SubgraphTypes.scope_owner)
+        scope_read = graph.get_or_create(SubgraphTypes.scope_read)
+
+        # add the three top level groups to our graph
+        graph.elements.extend(
+            [
+                aad_group,
+                owner,
+                read,
+                # doc_group
+            ]
+        )
+        # add the owner-subgraphs to its parent
+        owner.elements.extend(
+            [
+                core_cdf_owner,
+                ns_cdf_owner,
+                scope_owner,
+            ]
+        )
+        # add the read-subgraphs to its parent
+        read.elements.extend(
+            [
+                core_cdf_read,
+                ns_cdf_read,
+                scope_read,
+            ]
+        )
+
+        # permutate the combinations
+        for action in ["read", "owner"]:  # action_dimensions w/o 'admin'
+            for group_ns, group_configs in self.group_bootstrap_hierarchy.items():
+                for group_core, group_config in group_configs.items():
+                    # group for each dedicated group-type id
+                    temp_group(graph, action, group_ns, group_core)
+                # 'all' groups on group-type level
+                # (access to all datasets/ raw-dbs which belong to this group-type)
+                temp_group(graph, action, group_ns)
+            # 'all' groups on action level (no limits to datasets or raw-dbs)
+            temp_group(graph, action)
+        # all (no limits + admin)
+        # 211013 pa: for AAD root:client and root:user can be merged into 'root'
+        # for root_account in ["root:client", "root:user"]:
+        for root_account in ["root"]:
+            temp_group(graph, root_account=root_account)
+
+        mermaid_code = graph.to_mermaid()
+
+        _logger.info(f"Generated {len(mermaid_code)} characters")
+
+        markdown_wrapper_template = """
+## auto-generated by bootstrap-cli
+```mermaid
+{mermaid_code}
+```"""
+        # print to stdout that only the diagram can be piped to clipboard or file
+        print(
+            markdown_wrapper_template.format(mermaid_code=mermaid_code)
+            if to_markdown == YesNoType.yes
+            else mermaid_code
+        )
 
 
 @click.group(context_settings={"help_option_names": ["-h", "--help"]})
@@ -1188,8 +1422,7 @@ def deploy(
     # click.core.Context obj
     obj: Dict,
     config_file: str,
-    debug: bool = False,
-    with_special_groups: YesNoType = YesNoType.no
+    with_special_groups: YesNoType = YesNoType.no,
 ) -> None:
 
     click.echo(click.style("Deploying CDF Project bootstrap...", fg="red"))
@@ -1197,7 +1430,7 @@ def deploy(
     # debug new yes/no flag
     click.echo(click.style(f"with_special_groups={with_special_groups} / {with_special_groups == YesNoType.yes}"))
 
-    if debug:
+    if obj["debug"]:
         # TODO not working yet :/
         _logger.setLevel("DEBUG")  # INFO/DEBUG
 
@@ -1210,8 +1443,7 @@ def deploy(
         (
             BootstrapCore(config_file)
             # .validate_config() # TODO
-            .dry_run(obj['dry_run'])
-            .deploy(with_special_groups=with_special_groups)
+            .dry_run(obj["dry_run"]).deploy(with_special_groups=with_special_groups)
         )
 
         click.echo(click.style("CDF Project bootstrap deployed", fg="blue"))
@@ -1230,7 +1462,6 @@ def deploy(
     "config_file",
     default="./config-bootstrap.yml",
 )
-
 @click.option(
     "--aad-source-id",
     required=True,
@@ -1243,13 +1474,12 @@ def prepare(
     obj: Dict,
     config_file: str,
     aad_source_id: str,
-    debug: bool = False,
-    dry_run: YesNoType = YesNoType.no
+    dry_run: YesNoType = YesNoType.no,
 ) -> None:
 
     click.echo(click.style("Prepare CDF Project ...", fg="red"))
 
-    if debug:
+    if obj["debug"]:
         # TODO not working yet :/
         _logger.setLevel("DEBUG")  # INFO/DEBUG
 
@@ -1258,8 +1488,7 @@ def prepare(
         (
             BootstrapCore(config_file)
             # .validate_config() # TODO
-            .dry_run(obj['dry_run'])
-            .prepare(aad_source_id=aad_source_id)
+            .dry_run(obj["dry_run"]).prepare(aad_source_id=aad_source_id)
         )
 
         click.echo(click.style("CDF Project bootstrap prepared for running 'deploy' command next.", fg="blue"))
@@ -1276,18 +1505,16 @@ def prepare(
     "config_file",
     default="./config-bootstrap.yml",
 )
-
 @click.pass_obj
 def delete(
     # click.core.Context obj
     obj: Dict,
     config_file: str,
-    debug: bool = False
-    ) -> None:
+) -> None:
 
     click.echo(click.style("Delete CDF Project ...", fg="red"))
 
-    if debug:
+    if obj["debug"]:
         # TODO not working yet :/
         _logger.setLevel("DEBUG")  # INFO/DEBUG
 
@@ -1295,8 +1522,7 @@ def delete(
         (
             BootstrapCore(config_file, delete=True)
             # .validate_config() # TODO
-            .dry_run(obj['dry_run'])
-            .delete()
+            .dry_run(obj["dry_run"]).delete()
         )
 
         click.echo(
@@ -1310,9 +1536,54 @@ def delete(
         exit(e.message)
 
 
+@click.command(help="Diagram mode used to document the given configuration as a Mermaid diagram")
+@click.argument(
+    "config_file",
+    default="./config-bootstrap.yml",
+)
+@click.option(
+    "--markdown",
+    default="no",
+    type=click.Choice(["yes", "no"], case_sensitive=False),
+    help="Encapsulate Mermaid diagram in Markdown syntax",
+)
+@click.pass_obj
+def diagram(
+    # click.core.Context obj
+    obj: Dict,
+    config_file: str,
+    markdown: YesNoType,
+) -> None:
+
+    # click.echo(click.style("Diagram CDF Project ...", fg="red"))
+
+    if obj["debug"]:
+        # TODO not working yet :/
+        _logger.setLevel("DEBUG")  # INFO/DEBUG
+
+    try:
+        (
+            BootstrapCore(config_file)
+            # .validate_config() # TODO
+            # .dry_run(obj['dry_run'])
+            .diagram(markdown)
+        )
+
+        # click.echo(
+        #     click.style(
+        #         "CDF Project relevant groups and raw_dbs are documented as Mermaid",
+        #         fg="blue",
+        #     )
+        # )
+
+    except BootstrapConfigError as e:
+        exit(e.message)
+
+
 bootstrap_cli.add_command(deploy)
 bootstrap_cli.add_command(prepare)
 bootstrap_cli.add_command(delete)
+bootstrap_cli.add_command(diagram)
 
 
 def main() -> None:
