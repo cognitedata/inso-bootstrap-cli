@@ -49,6 +49,9 @@ Changelog:
     1. group_types_dimensions > group_bootstrap_hierarchy
     2. group_type > group_ns (namespace: src, ca, uc)
     3. group_prefix > group_core (src:001:sap)
+220406 pa/sd:
+ * v1.7.0
+ * added 'diagram' command which creates a Mermaid (diagram as code) output
 
 
 """
