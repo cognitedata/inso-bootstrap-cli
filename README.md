@@ -23,15 +23,15 @@ Purpose:
   - [Scope of Work](#scope-of-work)
   - [Table of Content](#table-of-content)
   - [Bootstrap CLI concept](#bootstrap-cli-concept)
-    - [**Secure access management**](#secure-access-management)
+    - [Secure access management](#secure-access-management)
     - [Data Sets](#data-sets)
   - [Bootstrap CLI makes Access-Control and Data Lineage manageable](#bootstrap-cli-makes-access-control-and-data-lineage-manageable)
     - [Namespaces](#namespaces)
     - [Templating](#templating)
     - [Packaging](#packaging)
     - [Bootstrap CLI example](#bootstrap-cli-example)
-      - [**Groups**](#groups)
-      - [**Scopes**](#scopes)
+      - [Groups](#groups)
+      - [Scopes](#scopes)
   - [Bootstrap CLI commands](#bootstrap-cli-commands)
     - [`Prepare` command](#prepare-command)
     - [`Deploy` command](#deploy-command)
@@ -74,7 +74,7 @@ Cognite provides support for a list of **DAY1** activities, to enable governance
 
 As all of this is connected to each other, and it is spanning customers Identity Provider (Azure AD) and CDF, this tool utilizes the CDF API for a configuration driven approach for the CDF part.
 
-### **Secure access management**
+### Secure access management
 
 **Secure access management** requires connection of Azure AD (AAD) Groups to CDF Groups. User or app Authentication is provided by customers AAD and Authorization by CDF Groups. CDF Groups are defined through capabilities and actions (like "Timeseries" capability with "Read/Write" actions).
 
@@ -313,7 +313,7 @@ If we take a closer look at only one namespace element.
 src:001:ifsdb
 ```
 For this element the cli creates/updates the following resources:
-#### **Groups**
+#### Groups
 ```
 cdf:all:owner
 cdf:all:read
@@ -324,7 +324,7 @@ cdf:src:all:read
 cdf:src:001:ifsdb:owner
 cdf:src:001:ifsdb:read
 ```
-#### **Scopes**
+#### Scopes
 ```
 all:dataset
 all:rawdb
