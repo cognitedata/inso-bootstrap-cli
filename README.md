@@ -23,10 +23,20 @@ Purpose:
   - [Scope of Work](#scope-of-work)
   - [Table of Content](#table-of-content)
   - [Bootstrap CLI concept](#bootstrap-cli-concept)
+    - [**Secure access management**](#secure-access-management)
+    - [Data Sets](#data-sets)
+  - [Bootstrap CLI makes Access-Control and Data Lineage manageable](#bootstrap-cli-makes-access-control-and-data-lineage-manageable)
+    - [Namespaces](#namespaces)
+    - [Templating](#templating)
+    - [Packaging](#packaging)
+    - [Bootstrap CLI example](#bootstrap-cli-example)
+      - [**Groups**](#groups)
+      - [**Scopes**](#scopes)
   - [Bootstrap CLI commands](#bootstrap-cli-commands)
     - [`Prepare` command](#prepare-command)
     - [`Deploy` command](#deploy-command)
     - [`Delete` command](#delete-command)
+    - [`Diagram` command](#diagram-command)
   - [Configuration](#configuration)
     - [Configuration for all commands](#configuration-for-all-commands)
       - [Configuration for `deploy` command](#configuration-for-deploy-command)
@@ -50,13 +60,13 @@ The Bootstrap CLI aims to tackle both DAY1 and DAY2 activities releated to Acces
 - Groups
 - Scopes
   - Data Sets
-  - Raw DBs
+  - RAW DBs
 
 
-DAY1 activities are initial setup and configurations before a system can be used.
-Followed by DAY2 activities which are the operational use of the system and scaling.
+**DAY1** activities are initial setup and configurations before a system can be used.
+Followed by **DAY2** activities which are the operational use of the system and scaling.
 
-Cognite provides support for a list of DAY1 activities, to enable governance best-practices from the start, such as:
+Cognite provides support for a list of **DAY1** activities, to enable governance best-practices from the start, such as:
 
 * **Secure access management** to control access for users, apps and services to the various types of resources (data sets, assets, files, events, time series, etc.) in CDF
 * **Data Sets** to document and track data lineage
@@ -74,7 +84,7 @@ As all of this is connected to each other, and it is spanning customers Identity
   * AAD Group creation
   * Service-principal (user and apps) creation and mapping to AAD Groups
 
-### **Data Sets**
+### Data Sets
 
 CDF **Data Sets** are used to scope CDF Groups capabilties to a set of CDF Resources. This allows fencing future usage, to stay within this scope. Creation of new Data Sets is a governace related action, and is executed by a defined process. An exception is CDF RAW data which is scoped through CDF RAW Databases.
 
@@ -82,18 +92,51 @@ CDF **Scopes** related configuration targets:
 * CDF Data Sets
 * CDF RAW Databases
 
-### **Bootstrap CLI simplifications**
+## Bootstrap CLI makes Access-Control and Data Lineage manageable
 
-The inso bootstrap cli offers a simplified way of controlling these elements. With a single two layered hierarchy it handles the creation of CDF groups, scopes (datasets/raw DBs) and their connection to AAD groups. The first layer of the hierarchy is a namespace and the second one is individual elements within a namespace. An example of this could be having the following namespaces with explanation for why this could be a good idea:
-* **src**: to scope 3rd party sources
-* **fac**: to scope customer facilities by name
-* **ca**: to scope "corporate applications" (SAP, Salesforce, ..)
-* **uc**: to scope your use-cases ("UC:001 - Flow Optimization", "UC:002 - Trading Balances"
-* **in**: to scope user-input from UIs
+CDF Groups allows with capabilities (~30), actions (2-5) and scopes (x) to create very complex configurations. To establish a **manageable** and **understandable** access-control & data-lineage, the `bootstrap-cli` uses an approach to reduce the complexity by templating and packaging. In addition namespaces help add operational semantic (meaning).
 
-This is just an example of how to group things, you are free to chose whatever grouping you like. Good style is to keep the namespaces and the namespace elements short.
+### Namespaces
 
-### **Bootstrap CLI example**
+A two-layered hierarchy allows organization of a growing list of CDF Groups.
+
+The first layer of the hierarchy is a namespace and the second one is individual elements within a namespace. An example of this could be having the following namespaces with explanation for why this could be a good idea:
+
+- **src**: to scope 3rd party sources
+- **fac**: to scope customer facilities by name
+- **ca**: to scope "corporate applications" (SAP, Salesforce, ..)
+- **uc**: to scope your use-cases ("UC:001 - Flow Optimization", "UC:002 - Trading Balances"
+- **in**: to scope user-input from UIs
+
+A namespace allows each project to apply **the** operational semantic, which fits your project and customers terminology.
+
+This is just an example of namespaces used in projects today, but you are free to chose whatever names fit your project.
+
+Good style is to keep the names short and add long names and details to the `description` fields.
+
+### Templating
+
+1. CDF Groups are created in `OWNER` and `READ` pairs
+   - **All** capabilities are handled the same, and are applied
+     - as either an `OWNWER`-set
+     - or as a `READ`-only-set
+   - access-control only works through scopes, but within your scopes you can work w/o limits
+2. The CDF Groups can be called "strict-scoped" meaning that access-control to this group only allows reading and writing data to the available scopes
+   - no data can exist outside the predefined scopes
+   - no user or app can create additional scopes
+
+### Packaging
+
+1. Every `OWNER/READ` pair of CDF Groups is configured with the same package of scopes:
+   - two RAW DBs (one for staging, one for state-stores)
+   - one Data Set (for all CDF Resource types, as capabilities are not restricted)
+   -  `OWNER` Groups can be configured with additional shared-access to scopes of other CDF Groups
+   - this allows users (or apps) working on a Use-Case (`uc`)
+     1. to read data from scopes of other Source (`src`) groups and
+     2. to write the processed and value-added data to its own scope
+     3. allowing data-lineage from sources through use-case model to data-products
+
+### Bootstrap CLI example
 An example config with the main abilities of the CLI. Shared owner access is also possible, but omitted here for simplicity.
 ```yaml
 bootstrap:
@@ -346,6 +389,7 @@ Options:
                            variable can be used instead.
   --dotenv-path TEXT       Provide a relative or absolute path to an .env file
                            (for commandline usage only)
+  --debug                  Print debug information
   --dry-run [yes|no]       Output planned action while doing nothing
   -h, --help               Show this message and exit.
 
@@ -387,7 +431,6 @@ Usage: bootstrap-cli prepare [OPTIONS] [CONFIG_FILE]
   only required once per CDF Project.
 
 Options:
-  --debug               Print debug information
   --aad-source-id TEXT  Provide the AAD Source ID to use for the
                         'cdf:bootstrap' Group. Typically for a new project its
                         the one configured for the CDF Group named 'oidc-
@@ -407,7 +450,6 @@ Usage: bootstrap-cli deploy [OPTIONS] [CONFIG_FILE]
   Deploy a set of bootstrap from a config-file
 
 Options:
-  --debug                         Print debug information
   --with-special-groups [yes|no]  Create special CDF Groups, which don't have
                                   capabilities (extractions, transformations)
   -h, --help                      Show this message and exit.
@@ -426,13 +468,13 @@ Usage: bootstrap-cli delete [OPTIONS] [CONFIG_FILE]
   deprecated, not deleted
 
 Options:
-  --debug     Print debug information
   -h, --help  Show this message and exit.
 ```
 ### `Diagram` command
 
 The diagram command is used to create a mermaid diagram to visualize the end state of a given configuration. This can be used to check the config file and to see if the constructed hiarchy is optimal. It is also very practical for documentation purposes.
-```
+
+```text
 Usage: bootstrap-cli diagram [OPTIONS] [CONFIG_FILE]
 
   Diagram mode used to document the given configuration as a Mermaid diagram
@@ -635,15 +677,15 @@ Follow the initial setup first
 ```
 - Deploy mode:
 ```bash
-  poetry run bootstrap-cli deploy --debug configs/test-bootstrap-deploy-example.yml
+  poetry run bootstrap-cli --debug deploy configs/test-bootstrap-deploy-example.yml
 ```
 - Prepare mode:
 ```bash
-  poetry run bootstrap-cli prepare --debug configs/test-bootstrap-deploy-example.yml
+  poetry run bootstrap-cli --debug prepare configs/test-bootstrap-deploy-example.yml
 ```
 - Delete mode:
 ```bash
-  poetry run bootstrap-cli delete --debug configs/test-bootstrap-delete-example.yml
+  poetry run bootstrap-cli --debug delete configs/test-bootstrap-delete-example.yml
 ```
 
 ## run local with Python
