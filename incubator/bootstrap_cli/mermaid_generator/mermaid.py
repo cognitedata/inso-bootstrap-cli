@@ -1,5 +1,8 @@
+# std-lib
 from dataclasses import dataclass
 from datetime import datetime
+
+# type-hints
 from typing import Dict, List, Type, TypeVar, Union
 
 
@@ -39,6 +42,12 @@ class Node(MermaidFlowchartElement):
     def __repr__(self):
         # TODO: how to add comments from super class the right way?
         return self.comments_to_mermaid() + f"""{self.name}""" + (rf"""["{self.short}"]""" if self.short else "")
+
+
+@dataclass
+class HexagonNode(Node):
+    def __repr__(self):
+        return self.comments_to_mermaid() + f"""{self.name}""" + (rf"""{{"{self.short}"}}""" if self.short else "")
 
 
 @dataclass
