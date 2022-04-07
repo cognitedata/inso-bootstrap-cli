@@ -368,15 +368,15 @@ Follow the initial setup first
 ```
 - Deploy mode:
 ```bash
-  poetry run bootstrap-cli deploy --debug configs/test-bootstrap-deploy-example.yml
+  poetry run bootstrap-cli --debug deploy configs/test-bootstrap-deploy-example.yml
 ```
 - Prepare mode:
 ```bash
-  poetry run bootstrap-cli prepare --debug configs/test-bootstrap-deploy-example.yml
+  poetry run bootstrap-cli --debug prepare configs/test-bootstrap-deploy-example.yml
 ```
 - Delete mode:
 ```bash
-  poetry run bootstrap-cli delete --debug configs/test-bootstrap-delete-example.yml
+  poetry run bootstrap-cli --debug delete configs/test-bootstrap-delete-example.yml
 ```
 
 ## run local with Python
