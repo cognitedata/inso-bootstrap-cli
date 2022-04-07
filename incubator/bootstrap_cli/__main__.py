@@ -156,24 +156,29 @@ class BootstrapConfigError(Exception):
 
 
 # this acls only support "all": {} scope
-acl_all_scope_only_types = set(["projects", "sessions", "functions", "entitymatching", "types"])
-
+acl_all_scope_only_types = set(["projects", "sessions", "functions", "entitymatching", "types", "threed"])
 action_dimensions = {
     # owner datasets might only need READ and OWNER
-    "owner": {
+    "owner": {  # else ["READ","WRITE"]
         "raw": ["READ", "WRITE", "LIST"],
         "datasets": ["READ", "OWNER"],
         "groups": ["LIST"],
         "projects": ["LIST"],
         "sessions": ["LIST", "CREATE"],
-    },  # else ["READ","WRITE"]
-    "read": {"raw": ["READ", "LIST"], "groups": ["LIST"], "projects": ["LIST"], "sessions": ["LIST"]},  # else ["READ"]
+        "threed": ["READ", "CREATE", "UPDATE", "DELETE"],
+    },
+    "read": {  # else ["READ"]
+        "raw": ["READ", "LIST"],
+        "groups": ["LIST"],
+        "projects": ["LIST"],
+        "sessions": ["LIST"]
+    },
     "admin": {
         "datasets": ["READ", "WRITE", "OWNER"],
         "groups": ["LIST", "READ", "CREATE", "UPDATE", "DELETE"],
         "projects": ["READ", "UPDATE", "LIST"],
     },
-}
+}  # fmt: skip
 
 #
 # GENERIC configurations
@@ -201,6 +206,7 @@ acl_default_types = [
     "timeSeries",
     "transformations",
     "types",
+    "threed",
 ]
 
 # give precedence when merging over acl_default_types
