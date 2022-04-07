@@ -54,7 +54,7 @@ runs:
     BOOTSTRAP_AUDIENCE: ${{ inputs.audience }}
     BOOTSTRAP_CLUSTER: "${{ inputs.cluster }}"
   args:
+    - "--debug"
     - "deploy"
     - "--with-special-groups=${{ inputs.with_special_groups }}"
-    - "--debug"
     - "${{ inputs.config_file }}"
