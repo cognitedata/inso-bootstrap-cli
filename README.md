@@ -22,10 +22,21 @@ Purpose:
 - [InSo Bootstrap CLI](#inso-bootstrap-cli)
   - [Scope of Work](#scope-of-work)
   - [Table of Content](#table-of-content)
+  - [Bootstrap CLI concept](#bootstrap-cli-concept)
+    - [Secure access management](#secure-access-management)
+    - [Data Sets](#data-sets)
+  - [Bootstrap CLI makes Access-Control and Data Lineage manageable](#bootstrap-cli-makes-access-control-and-data-lineage-manageable)
+    - [Namespaces](#namespaces)
+    - [Templating](#templating)
+    - [Packaging](#packaging)
+    - [Bootstrap CLI example](#bootstrap-cli-example)
+      - [Groups](#groups)
+      - [Scopes](#scopes)
   - [Bootstrap CLI commands](#bootstrap-cli-commands)
     - [`Prepare` command](#prepare-command)
     - [`Deploy` command](#deploy-command)
     - [`Delete` command](#delete-command)
+    - [`Diagram` command](#diagram-command)
   - [Configuration](#configuration)
     - [Configuration for all commands](#configuration-for-all-commands)
       - [Configuration for `deploy` command](#configuration-for-deploy-command)
@@ -43,6 +54,292 @@ Purpose:
   - [run as github action](#run-as-github-action)
 
 <!-- /code_chunk_output -->
+## Bootstrap CLI concept
+
+The Bootstrap CLI aims to tackle both DAY1 and DAY2 activities releated to Access Management. This include:
+- Groups
+- Scopes
+  - Data Sets
+  - RAW DBs
+
+
+**DAY1** activities are initial setup and configurations before a system can be used.
+Followed by **DAY2** activities which are the operational use of the system and scaling.
+
+Cognite provides support for a list of **DAY1** activities, to enable governance best-practices from the start, such as:
+
+* **Secure access management** to control access for users, apps and services to the various types of resources (data sets, assets, files, events, time series, etc.) in CDF
+* **Data Sets** to document and track data lineage
+* **Data quality** like monitoring the data integration pipelines into CDF
+
+As all of this is connected to each other, and it is spanning customers Identity Provider (Azure AD) and CDF, this tool utilizes the CDF API for a configuration driven approach for the CDF part.
+
+### Secure access management
+
+**Secure access management** requires connection of Azure AD (AAD) Groups to CDF Groups. User or app Authentication is provided by customers AAD and Authorization by CDF Groups. CDF Groups are defined through capabilities and actions (like "Timeseries" capability with "Read/Write" actions).
+
+**Secure access management** related configuration targets:
+* CDF Groups and links to AAD Groups
+* AAD-owner responsibilities:
+  * AAD Group creation
+  * Service-principal (user and apps) creation and mapping to AAD Groups
+
+### Data Sets
+
+CDF **Data Sets** are used to scope CDF Groups capabilties to a set of CDF Resources. This allows fencing future usage, to stay within this scope. Creation of new Data Sets is a governace related action, and is executed by a defined process. An exception is CDF RAW data which is scoped through CDF RAW Databases.
+
+CDF **Scopes** related configuration targets:
+* CDF Data Sets
+* CDF RAW Databases
+
+## Bootstrap CLI makes Access-Control and Data Lineage manageable
+
+CDF Groups allows with capabilities (~30), actions (2-5) and scopes (x) to create very complex configurations. To establish a **manageable** and **understandable** access-control & data-lineage, the `bootstrap-cli` uses an approach to reduce the complexity by templating and packaging. In addition namespaces help add operational semantic (meaning).
+
+### Namespaces
+
+A two-layered hierarchy allows organization of a growing list of CDF Groups.
+
+The first layer of the hierarchy is a namespace and the second one is individual elements within a namespace. An example of this could be having the following namespaces with explanation for why this could be a good idea:
+
+- **src**: to scope 3rd party sources
+- **fac**: to scope customer facilities by name
+- **ca**: to scope "corporate applications" (SAP, Salesforce, ..)
+- **uc**: to scope your use-cases ("UC:001 - Flow Optimization", "UC:002 - Trading Balances"
+- **in**: to scope user-input from UIs
+
+A namespace allows each project to apply **the** operational semantic, which fits your project and customers terminology.
+
+This is just an example of namespaces used in projects today, but you are free to chose whatever names fit your project.
+
+Good style is to keep the names short and add long names and details to the `description` fields.
+
+### Templating
+
+1. CDF Groups are created in `OWNER` and `READ` pairs
+   - **All** capabilities are handled the same, and are applied
+     - as either an `OWNWER`-set
+     - or as a `READ`-only-set
+   - access-control only works through scopes, but within your scopes you can work w/o limits
+2. The CDF Groups can be called "strict-scoped" meaning that access-control to this group only allows reading and writing data to the available scopes
+   - no data can exist outside the predefined scopes
+   - no user or app can create additional scopes
+
+### Packaging
+
+1. Every `OWNER/READ` pair of CDF Groups is configured with the same package of scopes:
+   - two RAW DBs (one for staging, one for state-stores)
+   - one Data Set (for all CDF Resource types, as capabilities are not restricted)
+   -  `OWNER` Groups can be configured with additional shared-access to scopes of other CDF Groups
+   - this allows users (or apps) working on a Use-Case (`uc`)
+     1. to read data from scopes of other Source (`src`) groups and
+     2. to write the processed and value-added data to its own scope
+     3. allowing data-lineage from sources through use-case model to data-products
+
+### Bootstrap CLI example
+An example config with the main abilities of the CLI. Shared owner access is also possible, but omitted here for simplicity.
+```yaml
+bootstrap:
+  src:
+    src:001:ifsdb:
+      description: Data from IFSDB
+      external_id: src:001:ifsdb
+    src:002:sens:
+      description: Information on sensors
+      external_id: src:002:sen
+    src:003:s_val:
+      description: Sensor values
+      external_id: src:003:s_val
+
+  uc:
+    uc:001:timeseries:
+      description: Contextualised sensorvalues
+      external_id: uc:001:timeseries
+      metadata:
+        created: 220328
+        generated: by CDF Bootstrap script
+      shared_read_access:
+        - src:001:ifsdb
+        - src:002:sens
+        - src:003:s_val
+```
+
+Using the diagram functionalty of the CLI we can produce the following chart of the example config.
+
+```mermaid
+graph LR
+%% 2022-04-06 21:46:26 - Script generated Mermaid diagram
+
+subgraph "AAD Groups"
+  %% AAD objId: 0b4d537c-208d-4993-8dc8-6a41f114d72c
+CDF_ALL_READ[\"CDF_ALL_READ"/]
+  %% AAD objId: 0b4d537c-208d-4993-8dc8-6a41f114d72c
+CDF_ALL_OWNER[\"CDF_ALL_OWNER"/]
+end
+
+
+subgraph "'Owner' Groups"
+
+subgraph "Core Level (Owner)"
+  cdf:src:001:ifsdb:owner("cdf:src:001:ifsdb:owner")
+  cdf:src:002::sens:owner("cdf:src:002::sens:owner")
+  cdf:src:003:s_val:owner("cdf:src:003:s_val:owner")
+  cdf:uc:001:timeseries:owner("cdf:uc:001:timeseries:owner")
+end
+
+
+subgraph "Namespace Level (Owner)"
+  cdf:src:all:owner["cdf:src:all:owner"]
+  cdf:uc:all:owner["cdf:uc:all:owner"]
+  cdf:all:owner["cdf:all:owner"]
+end
+
+
+subgraph "Scopes (Owner)"
+  src:001:ifsdb:rawdb:owner[["src:001:ifsdb:rawdb"]]
+  src:001:ifsdb:rawdb:state:owner[["src:001:ifsdb:rawdb:state"]]
+  src:001:ifsdb:dataset:owner>"src:001:ifsdb:dataset"]
+  src:002::sens:rawdb:owner[["src:002::sens:rawdb"]]
+  src:002::sens:rawdb:state:owner[["src:002::sens:rawdb:state"]]
+  src:002::sens:dataset:owner>"src:002::sens:dataset"]
+  src:003:s_val:rawdb:owner[["src:003:s_val:rawdb"]]
+  src:003:s_val:rawdb:state:owner[["src:003:s_val:rawdb:state"]]
+  src:003:s_val:dataset:owner>"src:003:s_val:dataset"]
+  uc:001:timeseries:rawdb:owner[["uc:001:timeseries:rawdb"]]
+  uc:001:timeseries:rawdb:state:owner[["uc:001:timeseries:rawdb:state"]]
+  uc:001:timeseries:dataset:owner>"uc:001:timeseries:dataset"]
+  src:001:ifsdb:rawdb:owner[["src:001:ifsdb:rawdb"]]
+  src:001:ifsdb:rawdb:state:owner[["src:001:ifsdb:rawdb:state"]]
+  src:002::sens:rawdb:owner[["src:002::sens:rawdb"]]
+  src:002::sens:rawdb:state:owner[["src:002::sens:rawdb:state"]]
+  src:003:s_val:rawdb:owner[["src:003:s_val:rawdb"]]
+  src:003:s_val:rawdb:state:owner[["src:003:s_val:rawdb:state"]]
+  src:001:ifsdb:dataset:owner>"src:001:ifsdb:dataset"]
+  src:002::sens:dataset:owner>"src:002::sens:dataset"]
+  src:003:s_val:dataset:owner>"src:003:s_val:dataset"]
+end
+
+end
+
+
+subgraph "'Read' Groups"
+
+subgraph "Core Level (Read)"
+  cdf:src:001:ifsdb:read("cdf:src:001:ifsdb:read")
+  cdf:src:002::sens:read("cdf:src:002::sens:read")
+  cdf:src:003:s_val:read("cdf:src:003:s_val:read")
+  cdf:uc:001:timeseries:read("cdf:uc:001:timeseries:read")
+end
+
+
+subgraph "Namespace Level (Read)"
+  cdf:src:all:read["cdf:src:all:read"]
+  cdf:uc:all:read["cdf:uc:all:read"]
+  cdf:all:read["cdf:all:read"]
+end
+
+
+subgraph "Scopes (Read)"
+  src:001:ifsdb:rawdb:read[["src:001:ifsdb:rawdb"]]
+  src:001:ifsdb:rawdb:state:read[["src:001:ifsdb:rawdb:state"]]
+  src:001:ifsdb:dataset:read>"src:001:ifsdb:dataset"]
+  src:002::sens:rawdb:read[["src:002::sens:rawdb"]]
+  src:002::sens:rawdb:state:read[["src:002::sens:rawdb:state"]]
+  src:002::sens:dataset:read>"src:002::sens:dataset"]
+  src:003:s_val:rawdb:read[["src:003:s_val:rawdb"]]
+  src:003:s_val:rawdb:state:read[["src:003:s_val:rawdb:state"]]
+  src:003:s_val:dataset:read>"src:003:s_val:dataset"]
+  uc:001:timeseries:rawdb:read[["uc:001:timeseries:rawdb"]]
+  uc:001:timeseries:rawdb:state:read[["uc:001:timeseries:rawdb:state"]]
+  uc:001:timeseries:dataset:read>"uc:001:timeseries:dataset"]
+end
+
+end
+
+%% all 47 links connecting the above nodes
+cdf:src:all:read-.->cdf:src:001:ifsdb:read
+cdf:src:001:ifsdb:read-.->src:001:ifsdb:rawdb:read
+cdf:src:001:ifsdb:read-.->src:001:ifsdb:rawdb:state:read
+cdf:src:001:ifsdb:read-.->src:001:ifsdb:dataset:read
+cdf:src:all:read-.->cdf:src:002::sens:read
+cdf:src:002::sens:read-.->src:002::sens:rawdb:read
+cdf:src:002::sens:read-.->src:002::sens:rawdb:state:read
+cdf:src:002::sens:read-.->src:002::sens:dataset:read
+cdf:src:all:read-.->cdf:src:003:s_val:read
+cdf:src:003:s_val:read-.->src:003:s_val:rawdb:read
+cdf:src:003:s_val:read-.->src:003:s_val:rawdb:state:read
+cdf:src:003:s_val:read-.->src:003:s_val:dataset:read
+cdf:all:read-.->cdf:src:all:read
+cdf:uc:all:read-.->cdf:uc:001:timeseries:read
+cdf:uc:001:timeseries:read-.->uc:001:timeseries:rawdb:read
+cdf:uc:001:timeseries:read-.->uc:001:timeseries:rawdb:state:read
+cdf:uc:001:timeseries:read-.->uc:001:timeseries:dataset:read
+cdf:all:read-.->cdf:uc:all:read
+CDF_ALL_READ-->cdf:all:read
+cdf:src:all:owner-->cdf:src:001:ifsdb:owner
+cdf:src:001:ifsdb:owner-->src:001:ifsdb:rawdb:owner
+cdf:src:001:ifsdb:owner-->src:001:ifsdb:rawdb:state:owner
+cdf:src:001:ifsdb:owner-->src:001:ifsdb:dataset:owner
+cdf:src:all:owner-->cdf:src:002::sens:owner
+cdf:src:002::sens:owner-->src:002::sens:rawdb:owner
+cdf:src:002::sens:owner-->src:002::sens:rawdb:state:owner
+cdf:src:002::sens:owner-->src:002::sens:dataset:owner
+cdf:src:all:owner-->cdf:src:003:s_val:owner
+cdf:src:003:s_val:owner-->src:003:s_val:rawdb:owner
+cdf:src:003:s_val:owner-->src:003:s_val:rawdb:state:owner
+cdf:src:003:s_val:owner-->src:003:s_val:dataset:owner
+cdf:all:owner-->cdf:src:all:owner
+cdf:uc:all:owner-->cdf:uc:001:timeseries:owner
+cdf:uc:001:timeseries:owner-->uc:001:timeseries:rawdb:owner
+cdf:uc:001:timeseries:owner-->uc:001:timeseries:rawdb:state:owner
+cdf:uc:001:timeseries:owner-->uc:001:timeseries:dataset:owner
+cdf:uc:001:timeseries:owner-.->src:001:ifsdb:rawdb:owner
+cdf:uc:001:timeseries:owner-.->src:001:ifsdb:rawdb:state:owner
+cdf:uc:001:timeseries:owner-.->src:002::sens:rawdb:owner
+cdf:uc:001:timeseries:owner-.->src:002::sens:rawdb:state:owner
+cdf:uc:001:timeseries:owner-.->src:003:s_val:rawdb:owner
+cdf:uc:001:timeseries:owner-.->src:003:s_val:rawdb:state:owner
+cdf:uc:001:timeseries:owner-.->src:001:ifsdb:dataset:owner
+cdf:uc:001:timeseries:owner-.->src:002::sens:dataset:owner
+cdf:uc:001:timeseries:owner-.->src:003:s_val:dataset:owner
+cdf:all:owner-->cdf:uc:all:owner
+CDF_ALL_OWNER-->cdf:all:owner
+```
+
+As one can see, even for this simple use case, the cli creates quite a lot of resources. There reason for this is to both provide the outward simplicity of a DAY1 setup like it is shown here, but with the possibility to add more granular group control later on. In this DAY1 setup, only the two top groups are mapped to actual AAD-groups.
+
+If we take a closer look at only one namespace element.
+```
+src:001:ifsdb
+```
+For this element the cli creates/updates the following resources:
+#### Groups
+```
+cdf:all:owner
+cdf:all:read
+
+cdf:src:all:owner
+cdf:src:all:read
+
+cdf:src:001:ifsdb:owner
+cdf:src:001:ifsdb:read
+```
+#### Scopes
+```
+all:dataset
+all:rawdb
+all:rawdb:state
+
+src:all:dataset
+src:all:rawdb
+src:all:rawdb:state
+
+src:001:ifsdb:dataset
+src:001:ifsdb:rawdb
+src:001:ifsdb:rawdb:state
+```
+This allows us to give access to for example all sources or just to a specific one like src:001 while forcing data to always be written into datasets.
+
 
 ## Bootstrap CLI commands
 
@@ -92,16 +389,19 @@ Options:
                            variable can be used instead.
   --dotenv-path TEXT       Provide a relative or absolute path to an .env file
                            (for commandline usage only)
+  --debug                  Print debug information
+  --dry-run [yes|no]       Output planned action while doing nothing
   -h, --help               Show this message and exit.
 
 Commands:
   delete   Delete mode used to delete CDF Groups, Datasets and Raw...
   deploy   Deploy a set of bootstrap from a config-file
-  prepare  Prepare an elevated CDF Group 'cdf:bootstrap', using your...
+  diagram  Diagram mode used to document the given configuration as a...
+  prepare  Prepare an elevated CDF Group 'cdf:bootstrap', using the same...
 ```
 ### `Prepare` command
 
-The first time you plan to run `bootstrap-cli` for your new CDF project, the `prepare` is required to create a CDF Group with capabilities which allow to run the other commands.
+The first time you plan to run `bootstrap-cli` for your new CDF project, the `prepare` is required to create a CDF Group with capabilities which allows it to run the other commands.
 
 A new CDF Project is typically only configured with one CDF Group (named `oidc-admin-group`) which grants these capabilities:
   - `projects:[read,list,update]`
@@ -113,7 +413,7 @@ To run bootstrap-cli additional capabilities (and actions) are required:
 - `raw:[read,write,list]`
 
 The `prepare` command creates a new CDF Group named `cdf:bootstrap` with this capabilities.
-The command requires an AAD Group ID to link to, which typically for a new project its the one configured
+The command requires an AAD Group ID to link to, which typically for a new project is the one configured
 for the CDF Group named `oidc-admin-group`. How to aquire it:
 
 1. Login to Fusion
@@ -131,7 +431,6 @@ Usage: bootstrap-cli prepare [OPTIONS] [CONFIG_FILE]
   only required once per CDF Project.
 
 Options:
-  --debug               Print debug information
   --aad-source-id TEXT  Provide the AAD Source ID to use for the
                         'cdf:bootstrap' Group. Typically for a new project its
                         the one configured for the CDF Group named 'oidc-
@@ -143,7 +442,7 @@ Options:
 
 The bootstrap-cli `deploy` command will apply the configuration-file to your CDF Project.
 It will create the necessary CDF Groups, Datasets and RAW Databases.
-This command supports GitHub-Action workflow too.
+This command supports GitHub-Action workflow too. To check what this command is going to do, run it with the flag `--dry-run=yes`.
 
 ```text
 Usage: bootstrap-cli deploy [OPTIONS] [CONFIG_FILE]
@@ -151,7 +450,6 @@ Usage: bootstrap-cli deploy [OPTIONS] [CONFIG_FILE]
   Deploy a set of bootstrap from a config-file
 
 Options:
-  --debug                         Print debug information
   --with-special-groups [yes|no]  Create special CDF Groups, which don't have
                                   capabilities (extractions, transformations)
   -h, --help                      Show this message and exit.
@@ -160,7 +458,7 @@ Options:
 ### `Delete` command
 
 If it is necessary to revert any changes, the `delete` mode can be used to delete CDF Groups, Datasets and RAW Databases.
-Note that the CDF Groups and RAW Databases will be deleted, while Datasets will be archived and deprecated, not deleted.
+Note that the CDF Groups and RAW Databases will be deleted, while Datasets will be archived and deprecated, not deleted. To check what this command is going to do, run it with the flag `--dry-run=yes`.
 
 ```text
 Usage: bootstrap-cli delete [OPTIONS] [CONFIG_FILE]
@@ -170,10 +468,21 @@ Usage: bootstrap-cli delete [OPTIONS] [CONFIG_FILE]
   deprecated, not deleted
 
 Options:
-  --debug     Print debug information
   -h, --help  Show this message and exit.
 ```
+### `Diagram` command
 
+The diagram command is used to create a mermaid diagram to visualize the end state of a given configuration. This can be used to check the config file and to see if the constructed hiarchy is optimal. It is also very practical for documentation purposes.
+
+```text
+Usage: bootstrap-cli diagram [OPTIONS] [CONFIG_FILE]
+
+  Diagram mode used to document the given configuration as a Mermaid diagram
+
+Options:
+  --markdown [yes|no]  Encapsulate Mermaid diagram in Markdown syntax
+  -h, --help           Show this message and exit.
+```
 ## Configuration
 
 A YAML configuration file must be passed as an argument when running the program.
@@ -232,9 +541,9 @@ aad_mappings:
   #cdf-group-name:
   #  - aad-group-object-id
   #  - READABLE_NAME like the AAD Group name
-  cdf:allprojects:owner:
+  cdf:all:owner:
     - 123456-7890-abcd-1234-314159
-    - CDF_DEV_ALLPROJECTS_OWNER
+    - CDF_DEV_ALL_OWNER
 ```
 
 ##### `bootstrap` section
