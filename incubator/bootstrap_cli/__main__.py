@@ -653,7 +653,8 @@ class BootstrapCore:
         # print(f"group_create_object:<{group_create_object}>")
         # overwrite new_group as it now contains id too
         if self.is_dry_run:
-            _logger.info(f"Dry run - Creating <{new_group}>")
+            _logger.info(f"Dry run - Creating group with name: <{new_group.name}>")
+            _logger.debug(f"Dry run - Creating group: <{new_group}>")
         else:
             new_group = self.client.iam.groups.create(new_group)
 
@@ -738,7 +739,7 @@ class BootstrapCore:
             # create all datasets which are not already deployed
             # https://docs.cognite.com/api/v1/#operation/createDataSets
             for chunked_missing_datasets in chunks(missing_datasets, 10):
-                datsets_to_be_created = [
+                datasets_to_be_created = [
                     DataSet(
                         name=name,
                         description=payload.get("description"),
@@ -749,9 +750,11 @@ class BootstrapCore:
                     for name, payload in chunked_missing_datasets.items()
                 ]
                 if self.is_dry_run:
-                    _logger.info(f"Dry run - Creating datasets: <{datsets_to_be_created}>")
+                    for data_set_to_be_created in datasets_to_be_created:
+                        _logger.info(f"Dry run - Creating dataset with name: <{data_set_to_be_created.name}>")
+                        _logger.debug(f"Dry run - Creating dataset: <{data_set_to_be_created}>")
                 else:
-                    self.client.data_sets.create(datsets_to_be_created)
+                    self.client.data_sets.create(datasets_to_be_created)
 
         # which targets are already deployed?
         existing_datasets = {
@@ -779,7 +782,9 @@ class BootstrapCore:
                     for name, dataset in chunked_existing_datasets.items()
                 ]
                 if self.is_dry_run:
-                    _logger.info(f"Dry run - Updating datasets: <{datasets_to_be_updated}>")
+                    for data_set_to_be_updated in datasets_to_be_updated:
+                        _logger.info(f"Dry run - Updating dataset with name: <{data_set_to_be_updated.name}>")
+                        _logger.debug(f"Dry run - Updating dataset: <{data_set_to_be_updated}>")
                 else:
                     self.client.data_sets.update(datasets_to_be_updated)
         return list(target_datasets.keys()), list(missing_datasets.keys())
@@ -818,7 +823,8 @@ class BootstrapCore:
         if missing_rawdbs:
             # create all raw_dbs which are not already deployed
             if self.is_dry_run:
-                _logger.info(f"Dry run - Creating these rawdbs: <{list(missing_rawdbs)}>")
+                for raw_db in list(missing_rawdbs):
+                    _logger.info(f"Dry run - Creating rawdb: <{raw_db}>")
             else:
                 self.client.raw.databases.create(list(missing_rawdbs))
 
@@ -860,28 +866,55 @@ class BootstrapCore:
         for root_account in ["root"]:
             self.process_group(root_account=root_account)
 
-    def load_deployed_config_from_cdf(self) -> None:
+    def load_deployed_config_from_cdf(self, groups_only=False) -> None:
+        """Load CDF Groups, Datasets and RAW DBs as pd.DataFrames
+        and store them in 'self.deployed' dictionary.
+
+        Args:
+            groups_only (bool, optional): Limit to CDF Groups only (used by 'prepare' command). Defaults to False.
+        """
         NOLIMIT = -1
-        # KeyError: "None of [Index(['name', 'id'], dtype='object')] are in the [columns]"
-        datasets = self.client.data_sets.list(limit=NOLIMIT).to_pandas()
-        if len(datasets) == 0:
-            # create an empty dataframe
-            datasets = pd.DataFrame(columns=["name", "id"])
-        else:
-            datasets = datasets[["name", "id"]]
-        # datasets = pd.DataFrame()
-        raw_list = [
-            column for column in self.client.raw.databases.list(limit=NOLIMIT).to_pandas().columns if column in ["name"]
-        ]
-        columns_list = [
+
+        #
+        # Groups
+        #
+        groups_df = self.client.iam.groups.list(all=True).to_pandas()
+        available_group_columns = [
             column
-            for column in self.client.iam.groups.list(all=True).to_pandas().columns
+            for column in groups_df.columns
             if column in ["name", "id", "sourceId", "capabilities"]
-        ]
+        ]  # fmt: skip
+
+        if groups_only:
+            self.deployed = {"groups": groups_df[available_group_columns]}
+            return
+
+        #
+        # Data Sets
+        #
+        datasets_df = self.client.data_sets.list(limit=NOLIMIT).to_pandas()
+        if len(datasets_df) == 0:
+            # overwrite with an empty dataframe with columns
+            datasets_df = pd.DataFrame(columns=["name", "id"])
+        else:
+            datasets_df = datasets_df[["name", "id"]]
+
+        #
+        # RAW DBs
+        #
+        rawdbs_df = self.client.raw.databases.list(limit=NOLIMIT).to_pandas()
+        available_raw_columns = [
+            column
+            for column in rawdbs_df.columns
+            if column in ["name"]
+            ]  # fmt: skip
+
+        # store DataFrames
+        # deployed: Dict[str, pd.DataFrame]
         self.deployed = {
-            "groups": self.client.iam.groups.list(all=True).to_pandas()[columns_list],
-            "datasets": datasets,
-            "raw_dbs": self.client.raw.databases.list(limit=NOLIMIT).to_pandas()[raw_list],
+            "groups": groups_df[available_group_columns],
+            "datasets": datasets_df,
+            "raw_dbs": rawdbs_df[available_raw_columns],
         }
 
     # prepare a yaml for "delete" job
@@ -942,14 +975,15 @@ class BootstrapCore:
             f"AAD Server Application: {aad_source_id}",
         ]
 
-        # load deployed groups, datasets, raw_dbs with their ids and metadata
-        self.load_deployed_config_from_cdf()
+        # load deployed groups with their ids and metadata
+        self.load_deployed_config_from_cdf(groups_only=True)
+
         _logger.debug(f"GROUPS in CDF:\n{self.deployed['groups']}")
 
         # allows idempotent creates, as it cleans up old groups with same names after creation
         self.create_group(group_name=group_name, group_capabilities=group_capabilities, aad_mapping=aad_mapping)
-
-        _logger.info(f"Created CDF Group {group_name}")
+        if not self.is_dry_run:
+            _logger.info(f"Created CDF Group {group_name}")
         _logger.info("Finished CDF Project Bootstrapper in 'prepare' mode ")
 
     def delete(self):
@@ -1048,7 +1082,8 @@ class BootstrapCore:
 
         # CDF Groups from configuration
         self.generate_groups()
-        _logger.info("Created new CDF Groups")
+        if not self.is_dry_run:
+            _logger.info("Created new CDF Groups")
 
         # and reload again now with latest group config too
         # dump all configs to yaml, as cope/paste template for delete_or_deprecate step
@@ -1060,9 +1095,6 @@ class BootstrapCore:
     def diagram(self, to_markdown: YesNoType = YesNoType.no):
 
         """➟  poetry run bootstrap-cli diagram .local/config-deploy-bootstrap.yml | clip.exe"""
-
-        # load deployed groups, datasets, raw_dbs with their ids and metadata
-        self.load_deployed_config_from_cdf()
 
         def get_group_name_and_scopes(
             action: str = None, group_ns: str = None, group_core: str = None, root_account: str = None
