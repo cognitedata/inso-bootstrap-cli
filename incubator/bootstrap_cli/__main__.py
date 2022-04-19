@@ -866,34 +866,55 @@ class BootstrapCore:
         for root_account in ["root"]:
             self.process_group(root_account=root_account)
 
-    def load_deployed_config_from_cdf(self, only_groups=False) -> None:
+    def load_deployed_config_from_cdf(self, groups_only=False) -> None:
+        """Load CDF Groups, Datasets and RAW DBs as pd.DataFrames
+        and store them in 'self.deployed' dictionary.
+
+        Args:
+            groups_only (bool, optional): Limit to CDF Groups only (used by 'prepare' command). Defaults to False.
+        """
         NOLIMIT = -1
 
-        columns_list = [
+        #
+        # Groups
+        #
+        groups_df = self.client.iam.groups.list(all=True).to_pandas()
+        available_group_columns = [
             column
-            for column in self.client.iam.groups.list(all=True).to_pandas().columns
+            for column in groups_df.columns
             if column in ["name", "id", "sourceId", "capabilities"]
-        ]
-        if only_groups:
-            self.deployed = {"groups": self.client.iam.groups.list(all=True).to_pandas()[columns_list]}
+        ]  # fmt: skip
+
+        if groups_only:
+            self.deployed = {"groups": groups_df[available_group_columns]}
             return
 
-        # KeyError: "None of [Index(['name', 'id'], dtype='object')] are in the [columns]"
-        datasets = self.client.data_sets.list(limit=NOLIMIT).to_pandas()
-        if len(datasets) == 0:
-            # create an empty dataframe
-            datasets = pd.DataFrame(columns=["name", "id"])
+        #
+        # Data Sets
+        #
+        datasets_df = self.client.data_sets.list(limit=NOLIMIT).to_pandas()
+        if len(datasets_df) == 0:
+            # overwrite with an empty dataframe with columns
+            datasets_df = pd.DataFrame(columns=["name", "id"])
         else:
-            datasets = datasets[["name", "id"]]
-        # datasets = pd.DataFrame()
-        raw_list = [
-            column for column in self.client.raw.databases.list(limit=NOLIMIT).to_pandas().columns if column in ["name"]
-        ]
+            datasets_df = datasets_df[["name", "id"]]
 
+        #
+        # RAW DBs
+        #
+        rawdbs_df = self.client.raw.databases.list(limit=NOLIMIT).to_pandas()
+        available_raw_columns = [
+            column
+            for column in rawdbs_df.columns
+            if column in ["name"]
+            ]  # fmt: skip
+
+        # store DataFrames
+        # deployed: Dict[str, pd.DataFrame]
         self.deployed = {
-            "groups": self.client.iam.groups.list(all=True).to_pandas()[columns_list],
-            "datasets": datasets,
-            "raw_dbs": self.client.raw.databases.list(limit=NOLIMIT).to_pandas()[raw_list],
+            "groups": groups_df[available_group_columns],
+            "datasets": datasets_df,
+            "raw_dbs": rawdbs_df[available_raw_columns],
         }
 
     # prepare a yaml for "delete" job
@@ -955,7 +976,7 @@ class BootstrapCore:
         ]
 
         # load deployed groups with their ids and metadata
-        self.load_deployed_config_from_cdf(only_groups=True)
+        self.load_deployed_config_from_cdf(groups_only=True)
 
         _logger.debug(f"GROUPS in CDF:\n{self.deployed['groups']}")
 
