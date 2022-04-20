@@ -44,7 +44,7 @@ Purpose:
         - [`bootstrap` section](#bootstrap-section)
       - [Configuration for `delete` command](#configuration-for-delete-command)
         - [`delete_or_deprecate` section](#delete_or_deprecate-section)
-- [Development / Contribute](#development--contribute)
+- [Development / Contribute](#development-contribute)
   - [semantic versioning](#semantic-versioning)
   - [to be done](#to-be-done)
 - [how to run](#how-to-run)
@@ -670,7 +670,10 @@ Follow the initial setup first
    - complete CDF and IdP configuration in `.env`
 ## run local with poetry
 
+- some more information for running on native Windows / PowerShell / multiple Python versions can be [found here](POETRY_ON_WINDOWS.md)
+
 ```bash
+  # typical commands
   poetry build
   poetry install
   poetry update
