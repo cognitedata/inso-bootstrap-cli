@@ -146,9 +146,11 @@ poetry config virtualenvs.in-project true
   ```powershell
   poetry install
 
-  # when finished successfully for a quick test
+  # when finished successfully, run a quick test
   poetry run bootstrap-cli --help
   ```
+
+### notes about running poetry preview version
 
 - poetry update to `preview` breaks poetry
   - update to preview 1.2, causes poetry to break
