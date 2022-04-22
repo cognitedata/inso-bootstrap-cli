@@ -1268,7 +1268,10 @@ class BootstrapCore:
                 )  # fmt: skip
 
                 # add core and all scopes
+                # shared_action: [read|owner]
                 for shared_action, scope_ctx in scope_ctx_by_action.items():
+                    # scope_type: [raw|datasets]
+                    # scopes: List[str]
                     for scope_type, scopes in scope_ctx.items():
 
                         if not self.with_raw_capability and scope_type == "raw":
@@ -1279,8 +1282,12 @@ class BootstrapCore:
                             if scope_name not in scope_graph:
                                 node_type_cls = SubroutineNode if scope_type == "raw" else AssymetricNode
                                 scope_graph.elements.append(
-                                    node_type_cls(name=f"{scope_name}:{action}", short=scope_name, comments="")
-                                )
+                                    node_type_cls(
+                                        name=f"{scope_name}:{action}",
+                                        short=scope_name,
+                                        comments=""
+                                        )
+                                )  # fmt: skip
                             # link from src:001:sap to 'src:001:sap:rawdb'
                             edge_type_cls = Edge if shared_action == "owner" else DottedEdge
                             graph.edges.append(
@@ -1294,7 +1301,13 @@ class BootstrapCore:
 
             # namespace-level like cdf:src:all:read
             elif action and group_ns:
-                ns_cdf_graph.elements.append(Node(name=group_name, short=group_name, comments=""))
+                ns_cdf_graph.elements.append(
+                    Node(
+                        name=group_name,
+                        short=group_name,
+                        comments=""
+                        )
+                    )  # fmt: skip
 
                 # link from 'all' to 'src:all'
                 edge_type_cls = Edge if action == "owner" else DottedEdge
