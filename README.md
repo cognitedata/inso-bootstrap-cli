@@ -390,7 +390,8 @@ Options:
   --dotenv-path TEXT       Provide a relative or absolute path to an .env file
                            (for commandline usage only)
   --debug                  Print debug information
-  --dry-run [yes|no]       Output planned action while doing nothing
+  --dry-run [yes|no]       Only logging planned CDF API action while doing
+                           nothing. Defaults to 'no'
   -h, --help               Show this message and exit.
 
 Commands:
@@ -431,7 +432,7 @@ Usage: bootstrap-cli prepare [OPTIONS] [CONFIG_FILE]
   only required once per CDF Project.
 
 Options:
-  --aad-source-id TEXT  Provide the AAD Source ID to use for the
+  --aad-source-id TEXT  [required] Provide the AAD Source ID to use for the
                         'cdf:bootstrap' Group. Typically for a new project its
                         the one configured for the CDF Group named 'oidc-
                         admin-group'.  [required]
@@ -451,8 +452,10 @@ Usage: bootstrap-cli deploy [OPTIONS] [CONFIG_FILE]
 
 Options:
   --with-special-groups [yes|no]  Create special CDF Groups, which don't have
-                                  capabilities (extractions, transformations)
-  --with-raw-capability [yes|no]  Create RAW DBs and 'rawAcl' capability
+                                  capabilities (extractions, transformations).
+                                  Defaults to 'no'
+  --with-raw-capability [yes|no]  Create RAW DBs and 'rawAcl' capability.
+                                  Defaults to 'yes'
   -h, --help                      Show this message and exit.
 ```
 
@@ -482,8 +485,9 @@ Usage: bootstrap-cli diagram [OPTIONS] [CONFIG_FILE]
 
 Options:
   --markdown [yes|no]             Encapsulate Mermaid diagram in Markdown
-                                  syntax
-  --with-raw-capability [yes|no]  Create RAW DBs and 'rawAcl' capability
+                                  syntax. Defaults to 'no'
+  --with-raw-capability [yes|no]  Create RAW DBs and 'rawAcl' capability.
+                                  Defaults to 'yes'
   -h, --help                      Show this message and exit.
 ```
 ## Configuration

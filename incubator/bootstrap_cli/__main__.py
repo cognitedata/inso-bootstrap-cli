@@ -51,16 +51,17 @@
 # 220406 pa/sd:
 #  * v1.7.0
 #  * added 'diagram' command which creates a Mermaid (diagram as code) output
-
 # 220406 pa:
 #  * v1.7.1
 #  * started to use '# fmt:skip' to save intended multiline formatted and indented code
 #    from black auto-format
-
+# 220420 pa:
+#  * v.1.9.2
+#  * fixed Poetry on Windows issues
 # 220422 pa:
 #  * v1.10.0
 #  *  issue #28 possibility to skip creation of RAW DBs
-#   * added '--with-raw-capability' parameter for 'deploy' and 'diagram' commands
+#  * added '--with-raw-capability' parameter for 'deploy' and 'diagram' commands
 
 import logging
 import time
@@ -1476,7 +1477,7 @@ class BootstrapCore:
     "--dry-run",
     default="no",
     type=click.Choice(["yes", "no"], case_sensitive=False),
-    help="Output planned action while doing nothing",
+    help="Only logging planned CDF API action while doing nothing." " Defaults to 'no'",
 )
 @click.pass_context
 def bootstrap_cli(
@@ -1534,7 +1535,7 @@ def bootstrap_cli(
     # is_flag=True,
     default="no",
     type=click.Choice(["yes", "no"], case_sensitive=False),
-    help="Create special CDF Groups, which don't have capabilities (extractions, transformations)",
+    help="Create special CDF Groups, which don't have capabilities (extractions, transformations). " "Defaults to 'no'",
 )
 @click.option(
     "--with-raw-capability",
@@ -1543,7 +1544,7 @@ def bootstrap_cli(
     # is_flag=True,
     default="yes",
     type=click.Choice(["yes", "no"], case_sensitive=False),
-    help="Create RAW DBs and 'rawAcl' capability",
+    help="Create RAW DBs and 'rawAcl' capability. " "Defaults to 'yes'",
 )
 @click.pass_obj
 def deploy(
@@ -1594,7 +1595,7 @@ def deploy(
 @click.option(
     "--aad-source-id",
     required=True,
-    help="Provide the AAD Source ID to use for the 'cdf:bootstrap' Group. "
+    help="[required] Provide the AAD Source ID to use for the 'cdf:bootstrap' Group. "
     "Typically for a new project its the one configured for the CDF Group named 'oidc-admin-group'.",
 )
 @click.pass_obj
@@ -1674,7 +1675,7 @@ def delete(
     "--markdown",
     default="no",
     type=click.Choice(["yes", "no"], case_sensitive=False),
-    help="Encapsulate Mermaid diagram in Markdown syntax",
+    help="Encapsulate Mermaid diagram in Markdown syntax. " "Defaults to 'no'",
 )
 @click.option(
     "--with-raw-capability",
@@ -1683,7 +1684,7 @@ def delete(
     # is_flag=True,
     default="yes",
     type=click.Choice(["yes", "no"], case_sensitive=False),
-    help="Create RAW DBs and 'rawAcl' capability",
+    help="Create RAW DBs and 'rawAcl' capability. " "Defaults to 'yes'",
 )
 @click.pass_obj
 def diagram(
