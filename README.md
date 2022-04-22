@@ -44,7 +44,7 @@ Purpose:
         - [`bootstrap` section](#bootstrap-section)
       - [Configuration for `delete` command](#configuration-for-delete-command)
         - [`delete_or_deprecate` section](#delete_or_deprecate-section)
-- [Development / Contribute](#development-contribute)
+- [Development / Contribute](#development--contribute)
   - [semantic versioning](#semantic-versioning)
   - [to be done](#to-be-done)
 - [how to run](#how-to-run)
@@ -452,6 +452,7 @@ Usage: bootstrap-cli deploy [OPTIONS] [CONFIG_FILE]
 Options:
   --with-special-groups [yes|no]  Create special CDF Groups, which don't have
                                   capabilities (extractions, transformations)
+  --with-raw-capability [yes|no]  Create RAW DBs and 'rawAcl' capability
   -h, --help                      Show this message and exit.
 ```
 
@@ -480,8 +481,10 @@ Usage: bootstrap-cli diagram [OPTIONS] [CONFIG_FILE]
   Diagram mode used to document the given configuration as a Mermaid diagram
 
 Options:
-  --markdown [yes|no]  Encapsulate Mermaid diagram in Markdown syntax
-  -h, --help           Show this message and exit.
+  --markdown [yes|no]             Encapsulate Mermaid diagram in Markdown
+                                  syntax
+  --with-raw-capability [yes|no]  Create RAW DBs and 'rawAcl' capability
+  -h, --help                      Show this message and exit.
 ```
 ## Configuration
 
