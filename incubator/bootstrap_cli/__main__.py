@@ -51,11 +51,17 @@
 # 220406 pa/sd:
 #  * v1.7.0
 #  * added 'diagram' command which creates a Mermaid (diagram as code) output
-
 # 220406 pa:
 #  * v1.7.1
 #  * started to use '# fmt:skip' to save intended multiline formatted and indented code
 #    from black auto-format
+# 220420 pa:
+#  * v.1.9.2
+#  * fixed Poetry on Windows issues
+# 220422 pa:
+#  * v1.10.0
+#  *  issue #28 possibility to skip creation of RAW DBs
+#  * added '--with-raw-capability' parameter for 'deploy' and 'diagram' commands
 
 import logging
 import time
@@ -238,6 +244,7 @@ class BootstrapCore:
         self.deployed: Dict[str, Any] = {}
         self.all_scope_ctx: Dict[str, Any] = {}
         self.is_dry_run: bool = False
+        self.with_raw_capability: bool = True
 
         # TODO debug
         # print(f"self.config= {self.config}")
@@ -1050,7 +1057,12 @@ class BootstrapCore:
         # TODO: write to file or standard output
         _logger.info("Finished creating CDF Groups, Datasets and RAW Databases")
 
-    def deploy(self, with_special_groups: YesNoType = YesNoType.no):
+    def deploy(
+        self, with_special_groups: YesNoType = YesNoType.no, with_raw_capability: YesNoType = YesNoType.yes
+    ) -> None:
+
+        # store parameter as bool flag
+        self.with_raw_capability = with_raw_capability == YesNoType.yes
 
         # load deployed groups, datasets, raw_dbs with their ids and metadata
         self.load_deployed_config_from_cdf()
@@ -1059,9 +1071,20 @@ class BootstrapCore:
         _logger.debug(f"GROUPS in CDF:\n{self.deployed['groups']}")
 
         # run generate steps (only print results atm)
-        target_raw_dbs, new_created_raw_dbs = self.generate_missing_raw_dbs()
-        _logger.info(f"All RAW_DBS from config:\n{target_raw_dbs}")
-        _logger.info(f"New RAW_DBS to CDF:\n{new_created_raw_dbs}")
+
+        target_raw_dbs: List[str] = []
+        new_created_raw_dbs: List[str] = []
+        if self.with_raw_capability:
+            target_raw_dbs, new_created_raw_dbs = self.generate_missing_raw_dbs()
+            _logger.info(f"All RAW_DBS from config:\n{target_raw_dbs}")
+            _logger.info(f"New RAW_DBS to CDF:\n{new_created_raw_dbs}")
+        else:
+            # no RAW DBs means no access to RAW at all
+            # which means no 'rawAcl' capability to create
+            # remove it form the default types
+            _logger.info("Creating no RAW_DBS and no 'rawAcl' capability")
+            acl_default_types.remove("raw")
+
         target_datasets, new_created_datasets = self.generate_missing_datasets()
         _logger.info(f"All DATASETS from config:\n{target_datasets}")
         _logger.info(f"New DATASETS to CDF:\n{new_created_datasets}")
@@ -1092,7 +1115,7 @@ class BootstrapCore:
 
         # _logger.info(f'Bootstrap Pipelines: created: {len(created)}, deleted: {len(delete_ids)}')
 
-    def diagram(self, to_markdown: YesNoType = YesNoType.no):
+    def diagram(self, to_markdown: YesNoType = YesNoType.no, with_raw_capability: YesNoType = YesNoType.yes):
 
         """➟  poetry run bootstrap-cli diagram .local/config-deploy-bootstrap.yml | clip.exe"""
 
@@ -1245,15 +1268,26 @@ class BootstrapCore:
                 )  # fmt: skip
 
                 # add core and all scopes
+                # shared_action: [read|owner]
                 for shared_action, scope_ctx in scope_ctx_by_action.items():
+                    # scope_type: [raw|datasets]
+                    # scopes: List[str]
                     for scope_type, scopes in scope_ctx.items():
+
+                        if not self.with_raw_capability and scope_type == "raw":
+                            continue  # SKIP RAW
+
                         for scope_name in scopes:
 
                             if scope_name not in scope_graph:
                                 node_type_cls = SubroutineNode if scope_type == "raw" else AssymetricNode
                                 scope_graph.elements.append(
-                                    node_type_cls(name=f"{scope_name}:{action}", short=scope_name, comments="")
-                                )
+                                    node_type_cls(
+                                        name=f"{scope_name}:{action}",
+                                        short=scope_name,
+                                        comments=""
+                                        )
+                                )  # fmt: skip
                             # link from src:001:sap to 'src:001:sap:rawdb'
                             edge_type_cls = Edge if shared_action == "owner" else DottedEdge
                             graph.edges.append(
@@ -1267,7 +1301,13 @@ class BootstrapCore:
 
             # namespace-level like cdf:src:all:read
             elif action and group_ns:
-                ns_cdf_graph.elements.append(Node(name=group_name, short=group_name, comments=""))
+                ns_cdf_graph.elements.append(
+                    Node(
+                        name=group_name,
+                        short=group_name,
+                        comments=""
+                        )
+                    )  # fmt: skip
 
                 # link from 'all' to 'src:all'
                 edge_type_cls = Edge if action == "owner" else DottedEdge
@@ -1289,6 +1329,20 @@ class BootstrapCore:
                         comments=""
                         )
                     )  # fmt: skip
+
+        #
+        # finished inline helper-methods
+        # starting diagram logic
+        #
+        # store parameter as bool flag
+        self.with_raw_capability = with_raw_capability == YesNoType.yes
+
+        if not self.with_raw_capability:
+            # no RAW DBs means no access to RAW at all
+            # which means no 'rawAcl' capability to create
+            # remove it form the default types
+            _logger.info("Without RAW_DBS and 'rawAcl' capability")
+            acl_default_types.remove("raw")
 
         # sorting relationship output into potential subgraphs
         graph = GraphRegistry()
@@ -1436,7 +1490,7 @@ class BootstrapCore:
     "--dry-run",
     default="no",
     type=click.Choice(["yes", "no"], case_sensitive=False),
-    help="Output planned action while doing nothing",
+    help="Only logging planned CDF API action while doing nothing." " Defaults to 'no'",
 )
 @click.pass_context
 def bootstrap_cli(
@@ -1494,36 +1548,46 @@ def bootstrap_cli(
     # is_flag=True,
     default="no",
     type=click.Choice(["yes", "no"], case_sensitive=False),
-    help="Create special CDF Groups, which don't have capabilities (extractions, transformations)",
+    help="Create special CDF Groups, which don't have capabilities (extractions, transformations). " "Defaults to 'no'",
+)
+@click.option(
+    "--with-raw-capability",
+    # having this as a flag is not working for gh-action 'actions.yml' manifest
+    # instead using explicit choice options
+    # is_flag=True,
+    default="yes",
+    type=click.Choice(["yes", "no"], case_sensitive=False),
+    help="Create RAW DBs and 'rawAcl' capability. " "Defaults to 'yes'",
 )
 @click.pass_obj
 def deploy(
     # click.core.Context obj
     obj: Dict,
     config_file: str,
-    with_special_groups: YesNoType = YesNoType.no,
+    with_special_groups: YesNoType,
+    with_raw_capability: YesNoType,
 ) -> None:
 
     click.echo(click.style("Deploying CDF Project bootstrap...", fg="red"))
 
     # debug new yes/no flag
-    click.echo(click.style(f"with_special_groups={with_special_groups} / {with_special_groups == YesNoType.yes}"))
+    click.echo(click.style(f"{with_special_groups=} / {with_special_groups == YesNoType.yes}"))
+    click.echo(click.style(f"{with_raw_capability=} / {with_raw_capability == YesNoType.yes}"))
 
     if obj["debug"]:
         # TODO not working yet :/
         _logger.setLevel("DEBUG")  # INFO/DEBUG
 
     try:
-
-        # _logger.debug(f'os.environ = {os.environ}')
-        # print(f'os.environ= {os.environ}')
-
-        # run deployment
         (
             BootstrapCore(config_file)
             # .validate_config() # TODO
-            .dry_run(obj["dry_run"]).deploy(with_special_groups=with_special_groups)
-        )
+            .dry_run(obj["dry_run"])
+            .deploy(
+                with_special_groups=with_special_groups,
+                with_raw_capability=with_raw_capability,
+                )
+        )  # fmt:skip
 
         click.echo(click.style("CDF Project bootstrap deployed", fg="blue"))
 
@@ -1544,7 +1608,7 @@ def deploy(
 @click.option(
     "--aad-source-id",
     required=True,
-    help="Provide the AAD Source ID to use for the 'cdf:bootstrap' Group. "
+    help="[required] Provide the AAD Source ID to use for the 'cdf:bootstrap' Group. "
     "Typically for a new project its the one configured for the CDF Group named 'oidc-admin-group'.",
 )
 @click.pass_obj
@@ -1624,7 +1688,16 @@ def delete(
     "--markdown",
     default="no",
     type=click.Choice(["yes", "no"], case_sensitive=False),
-    help="Encapsulate Mermaid diagram in Markdown syntax",
+    help="Encapsulate Mermaid diagram in Markdown syntax. " "Defaults to 'no'",
+)
+@click.option(
+    "--with-raw-capability",
+    # having this as a flag is not working for gh-action 'actions.yml' manifest
+    # instead using explicit choice options
+    # is_flag=True,
+    default="yes",
+    type=click.Choice(["yes", "no"], case_sensitive=False),
+    help="Create RAW DBs and 'rawAcl' capability. " "Defaults to 'yes'",
 )
 @click.pass_obj
 def diagram(
@@ -1632,6 +1705,7 @@ def diagram(
     obj: Dict,
     config_file: str,
     markdown: YesNoType,
+    with_raw_capability: YesNoType,
 ) -> None:
 
     # click.echo(click.style("Diagram CDF Project ...", fg="red"))
@@ -1645,8 +1719,11 @@ def diagram(
             BootstrapCore(config_file)
             # .validate_config() # TODO
             # .dry_run(obj['dry_run'])
-            .diagram(markdown)
-        )
+            .diagram(
+                to_markdown=markdown,
+                with_raw_capability=with_raw_capability,
+                )
+        )  # fmt:skip
 
         # click.echo(
         #     click.style(

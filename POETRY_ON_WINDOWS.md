@@ -1,5 +1,7 @@
 ## 220420 Windows + PowerShell + Python(s) + Poetry - lessons learned
 
+- Added to Cognite internal "Python Develkoper Hub" documentation
+
 ### environment
 
 - using a non-elevated PowerShell on Windows 10/11
@@ -10,7 +12,7 @@
 
 - use `poetry` with support for different Python versions on Windows
 - the solution requires
-  - no `pipenv` and
+  - no `pyenv` and
   - only one (non python-version specific) path added to environment
 
 ### tl;dr summary of environment changes
