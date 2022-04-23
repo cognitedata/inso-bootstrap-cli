@@ -64,4 +64,3 @@ runs:
     - "--with-special-groups=${{ inputs.with_special_groups }}"
     - "--with-raw-capability=${{ inputs.with_raw_capability }}"
     - "${{ inputs.config_file }}"
-    
