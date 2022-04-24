@@ -1,29 +1,56 @@
 bootstrap:
+  # 220422 pa:
+  #   - new v2-syntax making *all* bootstrap configuration parameters
+  #     available through explicit named properties.
+  #
+  # Motivation for the breaking change:
+  # Compared to v1, which used an extremly sparse syntax, using values as yaml key and values.
+  # The v2 change is required to support loading and validating the configuration through
+  # Python 'dataclasses', which is a best practice and used by most Cognite yaml-based
+  # configurations.
+
+  # bootstrap supports now three sections
+  # 1. 'features'
+  #   - making cli parameters and customizable naming-elements available
+  # 2. 'idp-cdf-mappings'
+  #   - providing multi CDF Project support of IdP to CDF Group mappings
+  # 3. 'namespaces'
+  #   - migration of v1 configuration into a hierarchy of
+  #     - namespaces > ns-nodes
 
   features:
-  #   # available as cli paramaters only atm
-    # with-special-groups: yes
-    # with-raw-capability: yes
-  #   # default hard-coded names atm, which might be required to change
-    group-prefix: 'xyz'
-    aggregated-level-name: all
-  #   dataset-suffix: dataset
-  #   # not sure about providing multiple datasets per ns-name, atm it is only one
-  #   rawdb-suffix: rawdb
+    # v2 adding as features, available as cli paramaters only atm (v1)
+    with-special-groups: false
+    with-raw-capability: yes
+
+    # new in v2 to configure prior (v1) hard-coded naming elements
+    # all following feature values are set to match their v1 default values,
+    # to support a v1 migration.
+    #
+    # atm (v1) 'cdf' is a hard-coded value
+    group-prefix: 'cdf'
+    # atm (v1) 'allprojects' is a hard-coded value
+    aggregated-level-name: allprojects
+    # atm (v1) 'dataset' is a hard-coded value
+    dataset-suffix: dataset
+    # atm (v1) 'rawdb' is a hard-coded value
+    rawdb-suffix: rawdb
+    # atm (v1) only ['state'] is a hard-coded value
     rawdb-additional-variants:
-  #     # provide more than one rawdb per ns-nodes
-  #     # atm hardcoded is one additional rawdb
+      # provide more than one rawdb per ns-nodes
+      # atm (v1) hardcoded is one additional rawdb
       - state
-      - pump
 
   idp-cdf-mappings:
-    # mappings are different for dev/test/prod CDF Projects
-    # including all mappings into one config is an optimization, and reduces the need of redundant maintenance
-    # BOOTSTRAP_CDF_PROJECT env-variable is available and can be used to select
+    # Prior (v1) named 'aad_mappings'.
+    # Values for 'cdf-group' requires knowledge of resulting CDF Group names
+    #
+    # Now supporting multiple CDF Projects, like dev/test/prod
+    # in one config. Optimization, to reduce redundant maintenance.
+    # BOOTSTRAP_CDF_PROJECT env-variable is available and is used to select.
     - cdf-project: shiny-dev
       mappings:
       - cdf-group: cdf:root
-        # use AAD or CDF or like here a mix of boths for naming the AAD Group object-id and name?
         idp-source-id: 374dc9f6-f3a1-4b34-b897-11111111111
         idp-source-name: CDF_DEV_ROOT
       - cdf-group: cdf:allprojects:owner
@@ -35,7 +62,6 @@ bootstrap:
     - cdf-project: shiny-prod
       mappings:
       - cdf-group: cdf:root
-        # use AAD or CDF or like here a mix of boths for naming the AAD Group object-id and name?
         idp-source-id: 374dc9f6-f3a1-4b34-b897-22222222222
         idp-source-name: CDF_PROD_ROOT
       - cdf-group: cdf:allprojects:owner
@@ -77,8 +103,10 @@ bootstrap:
             owner:
               - node-name: in:001:trade
 
-# follows the same parameter structure as the DB extractor configuration
-cognite: # kwargs to pass to the CogniteClient, Environment variable format: ${ENVIRONMENT_VARIABLE}
+# de-facto standards for CDF CogniteClient and logger configuration.
+# Following the same parameter structure as the 'Cognite Python Extractor-Utilities'
+# and 'Cognite DB Extractor' configuration.
+cognite: # kwargs to pass to the CogniteClient, Environment variable format: ${ENVIRONMENT_VARIABLE_NAME}
   # host: https://${BOOTSTRAP_CDF_CLUSTER}.cognitedata.com/
   host: ${BOOTSTRAP_CDF_HOST}
   project: ${BOOTSTRAP_CDF_PROJECT}
@@ -91,8 +119,6 @@ cognite: # kwargs to pass to the CogniteClient, Environment variable format: ${E
     scopes:
       - ${BOOTSTRAP_IDP_SCOPES}
     token_url: ${BOOTSTRAP_IDP_TOKEN_URL}
-    # only requiered for ADFS
-    # resource: ${CDF_IDP_RESOURCE}
 
 logger:
   file:
