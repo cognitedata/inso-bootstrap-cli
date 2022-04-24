@@ -350,41 +350,40 @@ Usage: bootstrap-cli [OPTIONS] COMMAND [ARGS]...
 
 Options:
   --version                Show the version and exit.
-  --cdf-project-name TEXT  Project to interact with transformations API,
+  --cdf-project-name TEXT  CDF Project to interact with CDF API,
                            'BOOTSTRAP_CDF_PROJECT',environment variable can be
                            used instead. Required for OAuth2 and optional for
                            api-keys.
-  --cluster TEXT           The CDF cluster where Transformations is hosted
-                           (e.g. greenfield, europe-west1-1),Provide this or
-                           make sure to set 'BOOTSTRAP_CDF_CLUSTER'
-                           environment variable.
-  --host TEXT              The CDF cluster where Bootstrap-Pipelines are
-                           hosted (e.g.
+  --cluster TEXT           The CDF cluster where CDF Project is hosted (e.g.
+                           greenfield, europe-west1-1),Provide this or make
+                           sure to set 'BOOTSTRAP_CDF_CLUSTER' environment
+                           variable. Default: westeurope-1
+  --host TEXT              The CDF host where CDF Project is hosted (e.g.
                            https://bluefield.cognitedata.com),Provide this or
                            make sure to set 'BOOTSTRAP_CDF_HOST' environment
-                           variable.
-  --api-key TEXT           API key to interact with transformations API.
-                           Provide this or make sure to set
+                           variable.Default:
+                           https://bluefield.cognitedata.com/
+  --api-key TEXT           API key to interact with CDF API. Provide this or
+                           make sure to set
                            'BOOTSTRAP_CDF_API_KEY',environment variable if you
                            want to authenticate with API keys.
-  --client-id TEXT         Client ID to interact with transformations API.
-                           Provide this or make sure to
-                           set,'BOOTSTRAP_IDP_CLIENT_ID' environment variable
-                           if you want to authenticate with OAuth2.
-  --client-secret TEXT     Client secret to interact with transformations API.
-                           Provide this or make sure to
+  --client-id TEXT         IdP Client ID to interact with CDF API. Provide
+                           this or make sure to set,'BOOTSTRAP_IDP_CLIENT_ID'
+                           environment variable if you want to authenticate
+                           with OAuth2.
+  --client-secret TEXT     IdP Client secret to interact with CDF API. Provide
+                           this or make sure to
                            set,'BOOTSTRAP_IDP_CLIENT_SECRET' environment
                            variable if you want to authenticate with OAuth2.
-  --token-url TEXT         Token URL to interact with transformations API.
-                           Provide this or make sure to
-                           set,'BOOTSTRAP_IDP_TOKEN_URL' environment variable
-                           if you want to authenticate with OAuth2.
-  --scopes TEXT            Scopes to interact with transformations API,
-                           relevant for OAuth2 authentication
-                           method,'BOOTSTRAP_IDP_SCOPES' environment variable
-                           can be used instead.
-  --audience TEXT          Audience to interact with transformations API,
-                           relevant for OAuth2 authentication
+  --token-url TEXT         IdP Token URL to interact with CDF API. Provide
+                           this or make sure to set,'BOOTSTRAP_IDP_TOKEN_URL'
+                           environment variable if you want to authenticate
+                           with OAuth2.
+  --scopes TEXT            IdP Scopes to interact with CDF API, relevant for
+                           OAuth2 authentication method,'BOOTSTRAP_IDP_SCOPES'
+                           environment variable can be used instead.
+  --audience TEXT          IdP Audience to interact with CDF API, relevant for
+                           OAuth2 authentication
                            method,'BOOTSTRAP_IDP_AUDIENCE' environment
                            variable can be used instead.
   --dotenv-path TEXT       Provide a relative or absolute path to an .env file
@@ -467,9 +466,9 @@ Note that the CDF Groups and RAW Databases will be deleted, while Datasets will 
 ```text
 Usage: bootstrap-cli delete [OPTIONS] [CONFIG_FILE]
 
-  Delete mode used to delete CDF Groups, Datasets and Raw Databases,CDF Groups
-  and RAW Databases will be deleted, while Datasets will be archived and
-  deprecated, not deleted
+  Delete mode used to delete CDF Groups, Datasets and Raw Databases, CDF
+  Groups and RAW Databases will be deleted, while Datasets will be archived
+  and deprecated (as they cannot be deleted).
 
 Options:
   -h, --help  Show this message and exit.
@@ -488,6 +487,8 @@ Options:
                                   syntax. Defaults to 'no'
   --with-raw-capability [yes|no]  Create RAW DBs and 'rawAcl' capability.
                                   Defaults to 'yes'
+  --cdf-project TEXT              [optional] Provide the CDF Project name to
+                                  use for the diagram 'idp-cdf-mappings'.
   -h, --help                      Show this message and exit.
 ```
 ## Configuration

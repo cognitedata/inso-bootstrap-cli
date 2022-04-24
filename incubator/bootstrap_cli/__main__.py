@@ -1693,6 +1693,7 @@ def deploy(
     "config_file",
     default="./config-bootstrap.yml",
 )
+# TODO: support '--idp-source-id' as an option too, to match v2 naming changes?
 @click.option(
     "--aad-source-id",
     required=True,
@@ -1729,8 +1730,9 @@ def prepare(
 
 
 @click.command(
-    help="Delete mode used to delete CDF Groups, Datasets and Raw Databases,"
-    "CDF Groups and RAW Databases will be deleted, while Datasets will be archived and deprecated, not deleted"
+    help="Delete mode used to delete CDF Groups, Datasets and Raw Databases, "
+    "CDF Groups and RAW Databases will be deleted, while Datasets will be archived "
+    "and deprecated (as they cannot be deleted)."
 )
 @click.argument(
     "config_file",
