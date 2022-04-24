@@ -62,9 +62,17 @@
 #  * v1.10.0
 #  *  issue #28 possibility to skip creation of RAW DBs
 #  * added '--with-raw-capability' parameter for 'deploy' and 'diagram' commands
+# 220424 pa:
+#  * introduced CommandMode enums to support more detailed BootstrapCore initialization
+#  * started with validation-functions ('validate_config_is_cdf_project_in_mappings')
+#  * for 'diagram' command
+#    - made 'cognite' section optional
+#    - added support for parameter '--cdf-project' to explicit diagram a specific CDF Project
+#    - Added cdf-project name to diagram "IdP Groups for CDF: <>" subgraph title
+#    - renamed mermaid properties from 'name/short' to 'id_name/display'
+#  * documented config-simple-v2-draft.yml
 
 import logging
-import os
 import time
 
 # from dataclasses import dataclass, field
@@ -97,59 +105,14 @@ from incubator.bootstrap_cli.mermaid_generator.mermaid import (
     TrapezNode,
 )
 
-# import getpass
 _logger = logging.getLogger(__name__)
-#
-# LOAD configs
-#
 
 
-# # mixin 'str' to 'Enum' to support comparison to string-values
-# # https://docs.python.org/3/library/enum.html#others
-# # https://stackoverflow.com/a/63028809/1104502
-# class YesNoType(str, Enum):
-#     yes = "yes"
-#     no = "no"
-
-
-# @dataclass
-# class BootstrapBaseConfig:
-#     logger: LoggingConfig
-#     cognite: CogniteConfig
-#     # token_custom_args: Dict[str, Any]
-#     # TODO: ading default_factory value, will break the code
-#     # or you have to apply for all *following* fields, default values too
-#     # see https://stackoverflow.com/q/51575931/1104502
-#     # https://medium.com/@aniscampos/python-dataclass-inheritance-finally-686eaf60fbb5
-#     token_custom_args: Dict[str, Any] = field(default_factory=dict)
-
-#     @classmethod
-#     def from_yaml(cls, filepath):
-#         try:
-#             with open(filepath) as file:
-#                 return load_yaml(source=file, config_type=cls)
-#         except FileNotFoundError as exc:
-#             print("Incorrect file path, error message: ", exc)
-#             raise
-
-
-# @dataclass
-# class BootstrapDeployConfig(BootstrapBaseConfig):
-#     """
-#     Configuration parameters for CDF Project Bootstrap, deploy(create) & prepare mode
-#     """
-
-#     bootstrap: Dict[str, Any] = field(default_factory=dict)
-#     aad_mappings: Dict[str, Any] = field(default_factory=dict)
-
-
-# @dataclass
-# class BootstrapDeleteConfig(BootstrapBaseConfig):
-#     """
-#     Configuration parameters for CDF Project Bootstrap, delete mode
-#     """
-
-#     delete_or_deprecate: Dict[str, Any] = field(default_factory=dict)
+class CommandMode(str, Enum):
+    PREPARE = "prepare"
+    DEPLOY = "deploy"
+    DELETE = "delete"
+    DIAGRAM = "diagram"
 
 
 class BootstrapConfigError(Exception):
@@ -241,57 +204,75 @@ class BootstrapCore:
     # 210330 pa: rawdbs in multiple variants `:rawdb` and `:rawdb:state`
     RAW_VARIANTS = [""]
 
-    def __init__(self, configpath: str, delete: bool = False):
-        if delete:
+    def __init__(self, configpath: str, command: CommandMode):
+        if command == CommandMode.DELETE:
             self.config: BootstrapDeleteConfig = BootstrapDeleteConfig.from_yaml(configpath)
             self.delete_or_deprecate: Dict[str, Any] = self.config.delete_or_deprecate
-        else:
-            self.config: BootstrapDeployConfig = BootstrapDeployConfig.from_yaml(configpath)
-            self.bootstrap_config: BootstrapDeployConfig = self.config.bootstrap
-            self.idp_cdf_mappings = self.bootstrap_config.idp_cdf_mappings
+            assert self.config.cognite, "'cognite' section required in configuration"
+        elif command.DEPLOY or command.DIAGRAM:
+
+            if command != CommandMode.DIAGRAM:
+                # mandatory section
+                assert self.config.cognite, "'cognite' section required in configuration"
+
+            if command == CommandMode.DEPLOY:
+                self.config: BootstrapDeployConfig = BootstrapDeployConfig.from_yaml(configpath)
+                self.bootstrap_config: BootstrapDeployConfig = self.config.bootstrap
+                self.idp_cdf_mappings = self.bootstrap_config.idp_cdf_mappings
+
+            elif command == CommandMode.DIAGRAM:
+                self.config: BootstrapDeployConfig = BootstrapDeployConfig.from_yaml(configpath)
+                self.bootstrap_config: BootstrapDeployConfig = self.config.bootstrap
+                self.idp_cdf_mappings = self.bootstrap_config.idp_cdf_mappings
+                # CogniteClient is optional for diagram
+
+            #
+            # load 'bootstrap.features'
+            #
+            # [OPTIONAL] default: True
+            self.with_raw_capability: bool = self.bootstrap_config.features.with_raw_capability
+            # [OPTIONAL] default: "allprojects"
+            BootstrapCore.AGGREGATED_LEVEL_NAME = self.bootstrap_config.features.aggregated_level_name
+            # [OPTIONAL] default: "cdf:"
+            BootstrapCore.GROUP_NAME_PREFIX = f"{self.bootstrap_config.features.group_prefix}:"
+            # [OPTIONAL] default: "dataset"
+            BootstrapCore.DATASET_SUFFIX = self.bootstrap_config.features.dataset_suffix
+            # [OPTIONAL] default: "rawdb"
+            BootstrapCore.RAW_SUFFIX = self.bootstrap_config.features.rawdb_suffix
+            # [OPTIONAL] default: ["", ":"state"]
+            BootstrapCore.RAW_VARIANTS = [""] + [
+                f":{suffix}" for suffix in self.bootstrap_config.features.rawdb_additional_variants
+            ]
 
         self.deployed: Dict[str, Any] = {}
         self.all_scope_ctx: Dict[str, Any] = {}
         self.is_dry_run: bool = False
+        self.client: CogniteClient = None
+        self.cdf_project = None
 
         # TODO debug
         # print(f"self.config= {self.config}")
 
-        # default: True
-        self.with_raw_capability: bool = self.bootstrap_config.features.with_raw_capability
-        # default: "allprojects"
-        BootstrapCore.AGGREGATED_LEVEL_NAME = self.bootstrap_config.features.aggregated_level_name
-        # default: "cdf:"
-        BootstrapCore.GROUP_NAME_PREFIX = f"{self.bootstrap_config.features.group_prefix}:"
-
-        # default: "dataset"
-        BootstrapCore.DATASET_SUFFIX = self.bootstrap_config.features.dataset_suffix
-
-        # default: "rawdb"
-        BootstrapCore.RAW_SUFFIX = self.bootstrap_config.features.rawdb_suffix
-
-        # default: ["", ":state"]
-        BootstrapCore.RAW_VARIANTS = [""] + [
-            f":{suffix}" for suffix in self.bootstrap_config.features.rawdb_additional_variants
-        ]
-
+        # TODO: support 'logger' section optional, provide default config for logger with console only
+        #
+        # Logger initialisation
+        #
         # make sure the optional folders in logger.file.path exists
         # to avoid: FileNotFoundError: [Errno 2] No such file or directory: '/github/workspace/logs/test-deploy.log'
-
         if self.config.logger.file:
             (Path.cwd() / self.config.logger.file.path).parent.mkdir(parents=True, exist_ok=True)
-
         self.config.logger.setup_logging()
-
         _logger.info("Starting CDF Bootstrap configuration")
 
-        self.client: CogniteClient = self.config.cognite.get_cognite_client(  # noqa
-            client_name="inso-bootstrap-cli", token_custom_args=self.config.token_custom_args
-        )
-
-        self.cdf_project = self.client.config.project
-
-        _logger.info("Successful connection to CDF client")
+        #
+        # Cognite initialisation (optional for 'diagram')
+        #
+        if self.config.cognite:
+            self.client: CogniteClient = self.config.cognite.get_cognite_client(  # noqa
+                client_name="inso-bootstrap-cli", token_custom_args=self.config.token_custom_args
+            )
+            self.cdf_project = self.client.config.project
+            _logger.info("Successful connection to CDF client")
 
     @staticmethod
     def acl_template(actions, scope):
@@ -313,16 +294,14 @@ class BootstrapCore:
     def get_timestamp():
         return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    def validate_config(self):
+    def validate_config_is_cdf_project_in_mappings(self):
 
-        # check if mapping exists for cdf-project
-        is_cdf_project_in_mappings = os.getenv("BOOTSTRAP_CDF_PROJECT") in [
-            mapping.cdf_project for mapping in self.idp_cdf_mappings
-        ]
+        # check if mapping exists for configured cdf-project
+        is_cdf_project_in_mappings = self.cdf_project in [mapping.cdf_project for mapping in self.idp_cdf_mappings]
         if not is_cdf_project_in_mappings:
-            _logger.info(f'No mapping for CDF project {os.getenv("BOOTSTRAP_CDF_PROJECT")}')
+            _logger.info(f"No 'idp-cdf-mapping' found for CDF Project <{self.cdf_project}>")
             # log or raise?
-            # raise ValueError(f'No mapping for CDF project {os.getenv("BOOTSTRAP_CDF_PROJECT")}')
+            # raise ValueError(f'No mapping for CDF project {self.cdf_project}')
 
         # return self for chaining
         return self
@@ -1181,9 +1160,34 @@ class BootstrapCore:
 
         # _logger.info(f'Bootstrap Pipelines: created: {len(created)}, deleted: {len(delete_ids)}')
 
-    def diagram(self, to_markdown: YesNoType = YesNoType.no, with_raw_capability: YesNoType = YesNoType.yes):
+    def diagram(
+        self,
+        to_markdown: YesNoType = YesNoType.no,
+        with_raw_capability: YesNoType = YesNoType.yes,
+        cdf_project: str = None,
+    ) -> None:
+        """Diagram mode used to document the given configuration as a Mermaid diagram.
 
-        """➟  poetry run bootstrap-cli diagram .local/config-deploy-bootstrap.yml | clip.exe"""
+        Args:
+            to_markdown (YesNoType, optional):
+              - Encapsulate Mermaid diagram in Markdown syntax.
+              - Defaults to 'YesNoType.no'.
+            with_raw_capability (YesNoType, optional):
+              - Create RAW DBs and 'rawAcl' capability. Defaults to 'YesNoType.tes'.
+            cdf_project (str, optional):
+              - Provide the CDF Project to use for the diagram 'idp-cdf-mappings'.
+
+        Example:
+            # requires a 'cognite' configuration section
+            ➟  poetry run bootstrap-cli diagram configs/config-simple-v2-draft.yml | clip.exe
+            # precedence over 'cognite.project' which CDF Project to diagram 'bootstrap.idp-cdf-mappings'
+            # making a 'cognite' section optional
+            ➟  poetry run bootstrap-cli diagram --cdf-project shiny-dev configs/config-simple-v2-draft.yml | clip.exe
+            # precedence over configuration 'bootstrap.features.with-raw-capability'
+            ➟  poetry run bootstrap-cli diagram --with-raw-capability no --cdf-project shiny-prod configs/config-simple-v2-draft.yml
+        """  # noqa
+
+        diagram_cdf_project = cdf_project if cdf_project else self.cdf_project
 
         def get_group_name_and_scopes(
             action: str = None, ns_name: str = None, node_name: str = None, root_account: str = None
@@ -1284,7 +1288,9 @@ class BootstrapCore:
 
             # check lookup from provided config
             mapping = self.bootstrap_config.get_idp_cdf_mapping_for_group(
-                cdf_project=self.cdf_project, cdf_group=group_name
+                # diagram explicit given cdf_project, or configured in 'cognite' configuration section
+                cdf_project=diagram_cdf_project,
+                cdf_group=group_name,
             )
             # unpack
             # idp_source_id, idp_source_name = self.aad_mapping_lookup.get(node_name, [None, None])
@@ -1301,14 +1307,14 @@ class BootstrapCore:
             if idp_source_name and (idp_source_name not in idp):
                 idp.elements.append(
                     TrapezNode(
-                        name=idp_source_name,
-                        short=idp_source_name,
+                        id_name=idp_source_name,
+                        display=idp_source_name,
                         comments=[f'IdP objectId: {idp_source_id}']
                         )
                     )  # fmt: skip
                 graph.edges.append(
                     Edge(
-                        name=idp_source_name,
+                        id_name=idp_source_name,
                         dest=group_name,
                         annotation=None,
                         comments=[]
@@ -1323,8 +1329,8 @@ class BootstrapCore:
             if action and ns_name and node_name:
                 core_cdf.elements.append(
                     RoundedNode(
-                        name=group_name,
-                        short=group_name,
+                        id_name=group_name,
+                        display=group_name,
                         comments=""
                         )
                     )  # fmt: skip
@@ -1336,7 +1342,7 @@ class BootstrapCore:
                         # link from all:{ns}
                         # multiline f-string split as it got too long
                         # TODO: refactor into string-templates
-                        name=f"{BootstrapCore.GROUP_NAME_PREFIX}{ns_name}:"
+                        id_name=f"{BootstrapCore.GROUP_NAME_PREFIX}{ns_name}:"
                         f"{BootstrapCore.AGGREGATED_LEVEL_NAME}:{action}",
                         dest=group_name,
                         annotation="",
@@ -1360,8 +1366,8 @@ class BootstrapCore:
                                 node_type_cls = SubroutineNode if scope_type == "raw" else AssymetricNode
                                 scope_graph.elements.append(
                                     node_type_cls(
-                                        name=f"{scope_name}:{action}",
-                                        short=scope_name,
+                                        id_name=f"{scope_name}:{action}",
+                                        display=scope_name,
                                         comments=""
                                         )
                                 )  # fmt: skip
@@ -1369,7 +1375,7 @@ class BootstrapCore:
                             edge_type_cls = Edge if shared_action == "owner" else DottedEdge
                             graph.edges.append(
                                 edge_type_cls(
-                                    name=group_name,
+                                    id_name=group_name,
                                     dest=f"{scope_name}:{action}",
                                     annotation=shared_action,
                                     comments=[],
@@ -1380,8 +1386,8 @@ class BootstrapCore:
             elif action and ns_name:
                 ns_cdf_graph.elements.append(
                     Node(
-                        name=group_name,
-                        short=group_name,
+                        id_name=group_name,
+                        display=group_name,
                         comments=""
                         )
                     )  # fmt: skip
@@ -1390,7 +1396,7 @@ class BootstrapCore:
                 edge_type_cls = Edge if action == "owner" else DottedEdge
                 graph.edges.append(
                     edge_type_cls(
-                        name=f"{BootstrapCore.GROUP_NAME_PREFIX}{BootstrapCore.AGGREGATED_LEVEL_NAME}:{action}",
+                        id_name=f"{BootstrapCore.GROUP_NAME_PREFIX}{BootstrapCore.AGGREGATED_LEVEL_NAME}:{action}",
                         dest=group_name,
                         annotation="",
                         comments=[],
@@ -1401,8 +1407,8 @@ class BootstrapCore:
             elif action:
                 ns_cdf_graph.elements.append(
                     Node(
-                        name=group_name,
-                        short=group_name,
+                        id_name=group_name,
+                        display=group_name,
                         comments=""
                         )
                     )  # fmt: skip
@@ -1424,7 +1430,9 @@ class BootstrapCore:
         # sorting relationship output into potential subgraphs
         graph = GraphRegistry()
         # top subgraphs (three columns layout)
-        aad_group = graph.get_or_create(SubgraphTypes.idp)
+        idp_group = graph.get_or_create(
+            SubgraphTypes.idp, f"{SubgraphTypes.idp.value} for CDF: '{diagram_cdf_project}'"
+        )
         owner = graph.get_or_create(SubgraphTypes.owner)
         read = graph.get_or_create(SubgraphTypes.read)
 
@@ -1439,7 +1447,7 @@ class BootstrapCore:
         # add the three top level groups to our graph
         graph.elements.extend(
             [
-                aad_group,
+                idp_group,
                 owner,
                 read,
                 # doc_group
@@ -1500,57 +1508,60 @@ class BootstrapCore:
 @click.version_option(prog_name="bootstrap_cli", version=__version__)
 @click.option(
     "--cdf-project-name",
-    help="Project to interact with transformations API, 'BOOTSTRAP_CDF_PROJECT',"
+    help="CDF Project to interact with CDF API, 'BOOTSTRAP_CDF_PROJECT',"
     "environment variable can be used instead. Required for OAuth2 and optional for api-keys.",
     envvar="BOOTSTRAP_CDF_PROJECT",
 )
+# TODO: is cluster and alternative for host?
 @click.option(
     "--cluster",
     default="westeurope-1",
-    help="The CDF cluster where Transformations is hosted (e.g. greenfield, europe-west1-1),"
-    "Provide this or make sure to set 'BOOTSTRAP_CDF_CLUSTER' environment variable.",
+    help="The CDF cluster where CDF Project is hosted (e.g. greenfield, europe-west1-1),"
+    "Provide this or make sure to set 'BOOTSTRAP_CDF_CLUSTER' environment variable. "
+    "Default: westeurope-1",
     envvar="BOOTSTRAP_CDF_CLUSTER",
 )
 @click.option(
     "--host",
-    default="bluefield",
-    help="The CDF cluster where Bootstrap-Pipelines are hosted (e.g. https://bluefield.cognitedata.com),"
-    "Provide this or make sure to set 'BOOTSTRAP_CDF_HOST' environment variable.",
+    default="https://bluefield.cognitedata.com/",
+    help="The CDF host where CDF Project is hosted (e.g. https://bluefield.cognitedata.com),"
+    "Provide this or make sure to set 'BOOTSTRAP_CDF_HOST' environment variable."
+    "Default: https://bluefield.cognitedata.com/",
     envvar="BOOTSTRAP_CDF_HOST",
 )
 @click.option(
     "--api-key",
-    help="API key to interact with transformations API. Provide this or make sure to set 'BOOTSTRAP_CDF_API_KEY',"
+    help="API key to interact with CDF API. Provide this or make sure to set 'BOOTSTRAP_CDF_API_KEY',"
     "environment variable if you want to authenticate with API keys.",
     envvar="BOOTSTRAP_CDF_API_KEY",
 )
 @click.option(
     "--client-id",
-    help="Client ID to interact with transformations API. Provide this or make sure to set,"
+    help="IdP Client ID to interact with CDF API. Provide this or make sure to set,"
     "'BOOTSTRAP_IDP_CLIENT_ID' environment variable if you want to authenticate with OAuth2.",
     envvar="BOOTSTRAP_IDP_CLIENT_ID",
 )
 @click.option(
     "--client-secret",
-    help="Client secret to interact with transformations API. Provide this or make sure to set,"
+    help="IdP Client secret to interact with CDF API. Provide this or make sure to set,"
     "'BOOTSTRAP_IDP_CLIENT_SECRET' environment variable if you want to authenticate with OAuth2.",
     envvar="BOOTSTRAP_IDP_CLIENT_SECRET",
 )
 @click.option(
     "--token-url",
-    help="Token URL to interact with transformations API. Provide this or make sure to set,"
+    help="IdP Token URL to interact with CDF API. Provide this or make sure to set,"
     "'BOOTSTRAP_IDP_TOKEN_URL' environment variable if you want to authenticate with OAuth2.",
     envvar="BOOTSTRAP_IDP_TOKEN_URL",
 )
 @click.option(
     "--scopes",
-    help="Scopes to interact with transformations API, relevant for OAuth2 authentication method,"
+    help="IdP Scopes to interact with CDF API, relevant for OAuth2 authentication method,"
     "'BOOTSTRAP_IDP_SCOPES' environment variable can be used instead.",
     envvar="BOOTSTRAP_IDP_SCOPES",
 )
 @click.option(
     "--audience",
-    help="Audience to interact with transformations API, relevant for OAuth2 authentication method,"
+    help="IdP Audience to interact with CDF API, relevant for OAuth2 authentication method,"
     "'BOOTSTRAP_IDP_AUDIENCE' environment variable can be used instead.",
     envvar="BOOTSTRAP_IDP_AUDIENCE",
 )
@@ -1657,8 +1668,8 @@ def deploy(
 
     try:
         (
-            BootstrapCore(config_file)
-            .validate_config()
+            BootstrapCore(config_file, command=CommandMode.DEPLOY)
+            .validate_config_is_cdf_project_in_mappings()
             .dry_run(obj["dry_run"])
             .deploy(
                 with_special_groups=with_special_groups,
@@ -1706,7 +1717,7 @@ def prepare(
     try:
 
         (
-            BootstrapCore(config_file)
+            BootstrapCore(config_file, command=CommandMode.PREPARE)
             # .validate_config() # TODO
             .dry_run(obj["dry_run"]).prepare(aad_source_id=aad_source_id)
         )
@@ -1740,7 +1751,7 @@ def delete(
 
     try:
         (
-            BootstrapCore(config_file, delete=True)
+            BootstrapCore(config_file, command=CommandMode.DELETE)
             # .validate_config() # TODO
             .dry_run(obj["dry_run"]).delete()
         )
@@ -1776,6 +1787,10 @@ def delete(
     type=click.Choice(["yes", "no"], case_sensitive=False),
     help="Create RAW DBs and 'rawAcl' capability. " "Defaults to 'yes'",
 )
+@click.option(
+    "--cdf-project",
+    help="[optional] Provide the CDF Project name to use for the diagram 'idp-cdf-mappings'.",
+)
 @click.pass_obj
 def diagram(
     # click.core.Context obj
@@ -1783,6 +1798,7 @@ def diagram(
     config_file: str,
     markdown: YesNoType,
     with_raw_capability: YesNoType,
+    cdf_project: str,
 ) -> None:
 
     # click.echo(click.style("Diagram CDF Project ...", fg="red"))
@@ -1793,12 +1809,13 @@ def diagram(
 
     try:
         (
-            BootstrapCore(config_file)
-            # .validate_config() # TODO
+            BootstrapCore(config_file, command=CommandMode.DIAGRAM)
+            .validate_config_is_cdf_project_in_mappings()
             # .dry_run(obj['dry_run'])
             .diagram(
                 to_markdown=markdown,
                 with_raw_capability=with_raw_capability,
+                cdf_project=cdf_project,
                 )
         )  # fmt:skip
 

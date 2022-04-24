@@ -100,8 +100,6 @@ class BootstrapFeatures:
         if self.rawdb_additional_variants is None:
             self.rawdb_additional_variants = ["state"]
 
-        print(f"BootstrapFeatures2 {self=}")
-
 
 @dataclass
 class BootstrapCoreConfig:
@@ -155,8 +153,8 @@ class BootstrapCoreConfig:
 @dataclass
 class BootstrapBaseConfig:
 
-    logger: LoggingConfig
-    cognite: CogniteConfig
+    logger: Optional[LoggingConfig]
+    cognite: Optional[CogniteConfig]
     # logger: Optional[Dict[str, Any]]
     # cognite: Optional[Dict[str, Any]]
     # optional for OIDC authentication
