@@ -1221,22 +1221,24 @@ class BootstrapCore:
         # if available it overrides configuration or defaults from yaml-config
         if with_raw_capability:
             self.with_raw_capability = with_raw_capability == YesNoType.yes
-            target_raw_dbs = self.generate_target_raw_dbs()
 
-        target_datasets = self.generate_target_datasets()
+        # debug new features and override with cli-parameters
+        _logger.info(f"From cli: {with_raw_capability=}")
+        _logger.info(f"Effective: {self.with_raw_capability=}")
+
         # store all raw_dbs and datasets in scope of this configuration
         self.all_scope_ctx = {
             "owner": (
                 all_scopes := {
-                    "raw": list(target_raw_dbs),  # all raw_dbs
-                    "datasets": list(target_datasets.keys()),  # all datasets
+                    # generate_target_raw_dbs -> returns a Set[str]
+                    "raw": list(self.generate_target_raw_dbs()),  # all raw_dbs
+                    # generate_target_datasets -> returns a Dict[str, Any]
+                    "datasets": list(self.generate_target_datasets().keys()),  # all datasets
                 }
             ),
+            # and copy the same to 'read'
             "read": all_scopes,
         }
-
-        # debug new features and override with cli-parameters
-        _logger.info(f"Effective: {self.with_special_groups=} / {self.with_raw_capability=}")
 
         def get_group_name_and_scopes(
             action: str = None, ns_name: str = None, node_name: str = None, root_account: str = None
@@ -1583,8 +1585,6 @@ class BootstrapCore:
         # finished inline helper-methods
         # starting diagram logic
         #
-        # store parameter as bool flag
-        self.with_raw_capability = with_raw_capability == YesNoType.yes
 
         if not self.with_raw_capability:
             # no RAW DBs means no access to RAW at all
