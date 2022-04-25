@@ -40,6 +40,11 @@ inputs:
       yes/no string-flag, for creating special CDF Groups, which don't have capabilities (extractions, transformations)
     required: false
     default: 'no'
+  with_raw_capability:
+    description: >-
+      yes/no string-flag, for creating RAW DBs and 'rawAcl' capability.
+    required: false
+    default: 'yes'
 
 runs:
   using: 'docker'
@@ -57,4 +62,5 @@ runs:
     - "--debug"
     - "deploy"
     - "--with-special-groups=${{ inputs.with_special_groups }}"
+    - "--with-raw-capability=${{ inputs.with_raw_capability }}"
     - "${{ inputs.config_file }}"
