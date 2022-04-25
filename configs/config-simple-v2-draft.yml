@@ -38,10 +38,12 @@ bootstrap:
     # atm (v1) 'rawdb' is a hard-coded value
     rawdb-suffix: rawdb
     # atm (v1) only ['state'] is a hard-coded value
+    # rawdb-additional-variants: [] # empty list, for no additional variants
     rawdb-additional-variants:
       # provide more than one rawdb per ns-nodes
       # atm (v1) hardcoded is one additional rawdb
       - state
+      # - pump # one more additional variant
 
   idp-cdf-mappings:
     # Prior (v1) named 'aad_mappings'.
@@ -57,6 +59,9 @@ bootstrap:
         idp-source-name: CDF_DEV_ROOT
       - cdf-group: cdf:allprojects:owner
         idp-source-id: acd2fe35-aa51-45a7-acef-11111111111
+        idp-source-name: CDF_DEV_ALLPROJECTS_OWNER
+      - cdf-group: cdf:allprojects:read
+        idp-source-id: acd2fe35-aa51-45a7-acef-11111111111
         idp-source-name: CDF_DEV_ALLPROJECTS_READ
       - cdf-group: cdf:uc:001:demand:read
         idp-source-id: 314159-aa51-45a7-acef-11111111111
@@ -68,6 +73,9 @@ bootstrap:
         idp-source-name: CDF_PROD_ROOT
       - cdf-group: cdf:allprojects:owner
         idp-source-id: acd2fe35-aa51-45a7-acef-22222222222
+        idp-source-name: CDF_PROD_ALLPROJECTS_OWNER
+      - cdf-group: cdf:allprojects:read
+        idp-source-id: acd2fe35-aa51-45a7-acef-11111111111
         idp-source-name: CDF_PROD_ALLPROJECTS_READ
       - cdf-group: cdf:uc:001:demand:read
         idp-source-id: 314159-aa51-45a7-acef-22222222222
