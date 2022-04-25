@@ -209,11 +209,7 @@ class BootstrapCore:
             self.config: BootstrapDeleteConfig = BootstrapDeleteConfig.from_yaml(configpath)
             self.delete_or_deprecate: Dict[str, Any] = self.config.delete_or_deprecate
             assert self.config.cognite, "'cognite' section required in configuration"
-        elif command.DEPLOY or command.DIAGRAM:
-
-            if command != CommandMode.DIAGRAM:
-                # mandatory section
-                assert self.config.cognite, "'cognite' section required in configuration"
+        elif command in (CommandMode.DEPLOY, CommandMode.DIAGRAM):
 
             if command == CommandMode.DEPLOY:
                 self.config: BootstrapDeployConfig = BootstrapDeployConfig.from_yaml(configpath)
@@ -226,9 +222,15 @@ class BootstrapCore:
                 self.idp_cdf_mappings = self.bootstrap_config.idp_cdf_mappings
                 # CogniteClient is optional for diagram
 
+            if command != CommandMode.DIAGRAM:
+                # mandatory section
+                assert self.config.cognite, "'cognite' section required in configuration"
+
             #
             # load 'bootstrap.features'
             #
+            # [OPTIONAL] default: False
+            self.with_special_groups: bool = self.bootstrap_config.features.with_special_groups
             # [OPTIONAL] default: True
             self.with_raw_capability: bool = self.bootstrap_config.features.with_raw_capability
             # [OPTIONAL] default: "allprojects"
@@ -263,6 +265,12 @@ class BootstrapCore:
             (Path.cwd() / self.config.logger.file.path).parent.mkdir(parents=True, exist_ok=True)
         self.config.logger.setup_logging()
         _logger.info("Starting CDF Bootstrap configuration")
+
+        # debug new features
+        _logger.info(
+            "Features from yaml-config or defaults (can be overridden by cli-parameters!): "
+            f"{self.bootstrap_config.features=}"
+        )
 
         #
         # Cognite initialisation (optional for 'diagram')
@@ -1102,12 +1110,18 @@ class BootstrapCore:
         # TODO: write to file or standard output
         _logger.info("Finished creating CDF Groups, Datasets and RAW Databases")
 
-    def deploy(
-        self, with_special_groups: YesNoType = YesNoType.no, with_raw_capability: YesNoType = YesNoType.yes
-    ) -> None:
+    def deploy(self, with_special_groups: YesNoType, with_raw_capability: YesNoType) -> None:
 
-        # store parameter as bool flag
-        self.with_raw_capability = with_raw_capability == YesNoType.yes
+        # store parameter as bool
+        # if provided they override configuration or defaults from yaml-config
+        if with_special_groups:
+            self.with_special_groups = with_special_groups == YesNoType.yes
+        if with_raw_capability:
+            self.with_raw_capability = with_raw_capability == YesNoType.yes
+
+        # debug new features and override with cli-parameters
+        _logger.info(f"From cli: {with_special_groups=} / {with_raw_capability=}")
+        _logger.info(f"Effective: {self.with_special_groups=} / {self.with_raw_capability=}")
 
         # load deployed groups, datasets, raw_dbs with their ids and metadata
         self.load_deployed_config_from_cdf()
@@ -1188,6 +1202,14 @@ class BootstrapCore:
         """  # noqa
 
         diagram_cdf_project = cdf_project if cdf_project else self.cdf_project
+        # same handling as in 'deploy' command
+        # store parameter as bool
+        # if available it overrides configuration or defaults from yaml-config
+        if with_raw_capability:
+            self.with_raw_capability = with_raw_capability == YesNoType.yes
+
+        # debug new features and override with cli-parameters
+        _logger.info(f"Effective: {self.with_special_groups=} / {self.with_raw_capability=}")
 
         def get_group_name_and_scopes(
             action: str = None, ns_name: str = None, node_name: str = None, root_account: str = None
@@ -1636,18 +1658,15 @@ def bootstrap_cli(
     # having this as a flag is not working for gh-action 'actions.yml' manifest
     # instead using explicit choice options
     # is_flag=True,
-    default="no",
+    # default="no",
     type=click.Choice(["yes", "no"], case_sensitive=False),
-    help="Create special CDF Groups, which don't have capabilities (extractions, transformations). " "Defaults to 'no'",
+    help="Create special CDF Groups, which don't have capabilities (extractions, transformations). Defaults to 'no'",
 )
 @click.option(
     "--with-raw-capability",
-    # having this as a flag is not working for gh-action 'actions.yml' manifest
-    # instead using explicit choice options
-    # is_flag=True,
-    default="yes",
+    # default="yes", # default defined in 'configuration.BootstrapFeatures'
     type=click.Choice(["yes", "no"], case_sensitive=False),
-    help="Create RAW DBs and 'rawAcl' capability. " "Defaults to 'yes'",
+    help="Create RAW DBs and 'rawAcl' capability. Defaults to 'yes'",
 )
 @click.pass_obj
 def deploy(
@@ -1659,10 +1678,6 @@ def deploy(
 ) -> None:
 
     click.echo(click.style("Deploying CDF Project bootstrap...", fg="red"))
-
-    # debug new yes/no flag
-    click.echo(click.style(f"{with_special_groups=} / {with_special_groups == YesNoType.yes}"))
-    click.echo(click.style(f"{with_raw_capability=} / {with_raw_capability == YesNoType.yes}"))
 
     if obj["debug"]:
         # TODO not working yet :/
@@ -1784,10 +1799,6 @@ def delete(
 )
 @click.option(
     "--with-raw-capability",
-    # having this as a flag is not working for gh-action 'actions.yml' manifest
-    # instead using explicit choice options
-    # is_flag=True,
-    default="yes",
     type=click.Choice(["yes", "no"], case_sensitive=False),
     help="Create RAW DBs and 'rawAcl' capability. " "Defaults to 'yes'",
 )
