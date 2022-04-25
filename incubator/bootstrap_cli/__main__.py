@@ -209,9 +209,9 @@ class BootstrapCore:
             self.config: BootstrapDeleteConfig = BootstrapDeleteConfig.from_yaml(configpath)
             self.delete_or_deprecate: Dict[str, Any] = self.config.delete_or_deprecate
             assert self.config.cognite, "'cognite' section required in configuration"
-        elif command in (CommandMode.DEPLOY, CommandMode.DIAGRAM):
+        elif command in (CommandMode.DEPLOY, CommandMode.DIAGRAM, CommandMode.PREPARE):
 
-            if command == CommandMode.DEPLOY:
+            if command in (CommandMode.DEPLOY, CommandMode.PREPARE):
                 self.config: BootstrapDeployConfig = BootstrapDeployConfig.from_yaml(configpath)
                 self.bootstrap_config: BootstrapDeployConfig = self.config.bootstrap
                 self.idp_cdf_mappings = self.bootstrap_config.idp_cdf_mappings
@@ -267,10 +267,12 @@ class BootstrapCore:
         _logger.info("Starting CDF Bootstrap configuration")
 
         # debug new features
-        _logger.info(
-            "Features from yaml-config or defaults (can be overridden by cli-parameters!): "
-            f"{self.bootstrap_config.features=}"
-        )
+        if self.bootstrap_config:
+            # TODO: not available for 'delete' but there must be aa smarter solution
+            _logger.info(
+                "Features from yaml-config or defaults (can be overridden by cli-parameters!): "
+                f"{self.bootstrap_config.features=}"
+            )
 
         #
         # Cognite initialisation (optional for 'diagram')
@@ -695,9 +697,6 @@ class BootstrapCore:
             # unpack
             idp_source_id, idp_source_name = mapping.idp_source_id, mapping.idp_source_name
 
-        # print(f"=====  group_name<{group_name}> | aad_source_id<{aad_source_id}>
-        # | aad_source_name<{aad_source_name}> ===")
-
         # check if group already exists, if yes it will be deleted after a new one is created
         old_group_ids = self.get_group_ids_by_name(group_name)
 
@@ -705,14 +704,14 @@ class BootstrapCore:
         if idp_source_id:
             # inject (both will be pushed through the API call!)
             new_group.source_id = idp_source_id  # 'S-314159-1234'
-            new_group.source = idp_source_name  # type: ignore # 'AD Group FooBar' # type: ignore
+            new_group.source = idp_source_name  # type: ignore
 
         # print(f"group_create_object:<{group_create_object}>")
         # overwrite new_group as it now contains id too
         if self.is_dry_run:
             _logger.info(f"Dry run - Creating group with name: <{new_group.name}>")
-            _logger.debug(f"Dry run - Creating group: <{new_group}>")
-            # _logger.info(f"Dry run - Creating group details: <{new_group}>")
+            # _logger.debug(f"Dry run - Creating group details: <{new_group}>")
+            _logger.info(f"Dry run - Creating group details: <{new_group}>")
         else:
             new_group = self.client.iam.groups.create(new_group)
 
@@ -1016,7 +1015,7 @@ class BootstrapCore:
         # return self for command chaining
         return self
 
-    def prepare(self, aad_source_id: str) -> None:
+    def prepare(self, idp_source_id: str) -> None:
         group_name = "cdf:bootstrap"
         # group_name = f"{create_config.environment}:bootstrap"
 
@@ -1028,11 +1027,11 @@ class BootstrapCore:
         ]
 
         # TODO: replace with dataclass
-        aad_mapping = [
+        idp_mapping = [
             # sourceId
-            aad_source_id,
+            idp_source_id,
             # sourceName
-            f"AAD Server Application: {aad_source_id}",
+            f"IdP Group ID: {idp_source_id}",
         ]
 
         # load deployed groups with their ids and metadata
@@ -1041,7 +1040,7 @@ class BootstrapCore:
         _logger.debug(f"GROUPS in CDF:\n{self.deployed['groups']}")
 
         # allows idempotent creates, as it cleans up old groups with same names after creation
-        self.create_group(group_name=group_name, group_capabilities=group_capabilities, idp_mapping=aad_mapping)
+        self.create_group(group_name=group_name, group_capabilities=group_capabilities, idp_mapping=idp_mapping)
         if not self.is_dry_run:
             _logger.info(f"Created CDF Group {group_name}")
         _logger.info("Finished CDF Project Bootstrapper in 'prepare' mode ")
@@ -1713,16 +1712,20 @@ def deploy(
 # TODO: support '--idp-source-id' as an option too, to match v2 naming changes?
 @click.option(
     "--aad-source-id",
+    "--idp-source-id",
+    "idp_source_id",  # explicit named variable for alternatives
     required=True,
-    help="[required] Provide the AAD Source ID to use for the 'cdf:bootstrap' Group. "
-    "Typically for a new project its the one configured for the CDF Group named 'oidc-admin-group'.",
+    help="Provide the IdP Source ID to use for the 'cdf:bootstrap' Group. "
+    "Typically for a new project its the same configured for the initial provided "
+    "CDF Group named 'oidc-admin-group'. "
+    "The parameter option '--aad-source-id' will be deprecated in next major release",
 )
 @click.pass_obj
 def prepare(
     # click.core.Context obj
     obj: Dict,
     config_file: str,
-    aad_source_id: str,
+    idp_source_id: str,
     dry_run: YesNoType = YesNoType.no,
 ) -> None:
 
@@ -1733,12 +1736,12 @@ def prepare(
         _logger.setLevel("DEBUG")  # INFO/DEBUG
 
     try:
-
         (
             BootstrapCore(config_file, command=CommandMode.PREPARE)
             # .validate_config() # TODO
-            .dry_run(obj["dry_run"]).prepare(aad_source_id=aad_source_id)
-        )
+            .dry_run(obj["dry_run"])
+            .prepare(idp_source_id=idp_source_id)
+        )  # fmt:skip
 
         click.echo(click.style("CDF Project bootstrap prepared for running 'deploy' command next.", fg="blue"))
 
