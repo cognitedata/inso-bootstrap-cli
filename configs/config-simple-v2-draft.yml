@@ -20,6 +20,8 @@ bootstrap:
 
   features:
     # v2 adding as features, available as cli paramaters only atm (v1)
+    # allowed values are parsed case-insensitive: [true|yes|YES|..] or [false|no|NO|..]
+    # not as strings in quotes "yes" or 'yes'
     with-special-groups: false
     with-raw-capability: yes
 
