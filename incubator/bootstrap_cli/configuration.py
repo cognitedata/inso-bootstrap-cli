@@ -88,7 +88,7 @@ class BootstrapFeatures:
         if self.with_special_groups is None:
             self.with_special_groups = False
         if self.with_raw_capability is None:
-            self.with_raw_capability = False
+            self.with_raw_capability = True
         if self.group_prefix is None:
             self.group_prefix = "cdf"
         if self.aggregated_level_name is None:
