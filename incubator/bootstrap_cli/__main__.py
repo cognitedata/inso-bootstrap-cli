@@ -1122,7 +1122,7 @@ class BootstrapCore:
         # dump all configs to yaml, as cope/paste template for delete_or_deprecate step
         self.dump_delete_template_to_yaml()
         # TODO: write to file or standard output
-        _logger.info("Finished creating CDF Groups, Datasets and RAW Databases")
+        _logger.info("Finished deleting CDF Groups, Datasets and RAW Databases")
 
     def deploy(self, with_special_groups: YesNoType, with_raw_capability: YesNoType) -> None:
 
