@@ -267,7 +267,7 @@ class BootstrapCore:
         _logger.info("Starting CDF Bootstrap configuration")
 
         # debug new features
-        if self.bootstrap_config:
+        if getattr(self, "bootstrap_config", False):
             # TODO: not available for 'delete' but there must be aa smarter solution
             _logger.info(
                 "Features from yaml-config or defaults (can be overridden by cli-parameters!): "
