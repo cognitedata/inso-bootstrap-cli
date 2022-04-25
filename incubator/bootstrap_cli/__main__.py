@@ -1430,19 +1430,21 @@ class BootstrapCore:
         # sorting relationship output into potential subgraphs
         graph = GraphRegistry()
         # top subgraphs (three columns layout)
+        # provide Subgraphs with a 'subgraph_name' and a 'subgraph_short_name'
+        # using the SubgraphTypes enum 'name' (default) and 'value' properties
         idp_group = graph.get_or_create(
             SubgraphTypes.idp, f"{SubgraphTypes.idp.value} for CDF: '{diagram_cdf_project}'"
         )
-        owner = graph.get_or_create(SubgraphTypes.owner)
-        read = graph.get_or_create(SubgraphTypes.read)
+        owner = graph.get_or_create(SubgraphTypes.owner, SubgraphTypes.owner.value)
+        read = graph.get_or_create(SubgraphTypes.read, SubgraphTypes.read.value)
 
         # nested subgraphs
-        core_cdf_owner = graph.get_or_create(SubgraphTypes.core_cdf_owner)
-        ns_cdf_owner = graph.get_or_create(SubgraphTypes.ns_cdf_owner)
-        core_cdf_read = graph.get_or_create(SubgraphTypes.core_cdf_read)
-        ns_cdf_read = graph.get_or_create(SubgraphTypes.ns_cdf_read)
-        scope_owner = graph.get_or_create(SubgraphTypes.scope_owner)
-        scope_read = graph.get_or_create(SubgraphTypes.scope_read)
+        core_cdf_owner = graph.get_or_create(SubgraphTypes.core_cdf_owner, SubgraphTypes.core_cdf_owner.value)
+        ns_cdf_owner = graph.get_or_create(SubgraphTypes.ns_cdf_owner, SubgraphTypes.ns_cdf_owner.value)
+        core_cdf_read = graph.get_or_create(SubgraphTypes.core_cdf_read, SubgraphTypes.core_cdf_read.value)
+        ns_cdf_read = graph.get_or_create(SubgraphTypes.ns_cdf_read, SubgraphTypes.ns_cdf_read.value)
+        scope_owner = graph.get_or_create(SubgraphTypes.scope_owner, SubgraphTypes.scope_owner.value)
+        scope_read = graph.get_or_create(SubgraphTypes.scope_read, SubgraphTypes.scope_read.value)
 
         # add the three top level groups to our graph
         graph.elements.extend(
