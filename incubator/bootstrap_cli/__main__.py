@@ -1455,7 +1455,7 @@ class BootstrapCore:
                 # doc_group
             ]
         )
-        # add the owner-subgraphs to its parent
+        # add/nest the owner-subgraphs to its parent subgraph
         owner.elements.extend(
             [
                 core_cdf_owner,
@@ -1463,7 +1463,7 @@ class BootstrapCore:
                 scope_owner,
             ]
         )
-        # add the read-subgraphs to its parent
+        # add/nest the read-subgraphs to its parent subgraph
         read.elements.extend(
             [
                 core_cdf_read,
