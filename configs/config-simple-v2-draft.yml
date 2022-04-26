@@ -29,16 +29,18 @@ bootstrap:
     # all following feature values are set to match their v1 default values,
     # to support a v1 migration.
     #
-    # atm (v1) 'cdf' is a hard-coded value
-    group-prefix: 'cdf'
     # atm (v1) 'allprojects' is a hard-coded value
     aggregated-level-name: allprojects
+    # atm (v1) 'cdf' is a hard-coded value
+    #   supports empty-string ''
+    group-prefix: cdf
     # atm (v1) 'dataset' is a hard-coded value
+    #   supports empty-string ''
     dataset-suffix: dataset
     # atm (v1) 'rawdb' is a hard-coded value
     rawdb-suffix: rawdb
     # atm (v1) only ['state'] is a hard-coded value
-    # rawdb-additional-variants: [] # empty list, for no additional variants
+    #   supports empty list [] for no additional variants
     rawdb-additional-variants:
       # provide more than one rawdb per ns-nodes
       # atm (v1) hardcoded is one additional rawdb
