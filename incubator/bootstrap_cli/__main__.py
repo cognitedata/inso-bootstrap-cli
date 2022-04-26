@@ -107,6 +107,9 @@ from incubator.bootstrap_cli.mermaid_generator.mermaid import (
 
 _logger = logging.getLogger(__name__)
 
+# because within f'' strings no backslash-character is allowed
+NEWLINE = "\n"
+
 
 class CommandMode(str, Enum):
     PREPARE = "prepare"
@@ -229,22 +232,27 @@ class BootstrapCore:
             #
             # load 'bootstrap.features'
             #
+            # unpack and process features
+            features = self.bootstrap_config.features
+
             # [OPTIONAL] default: False
-            self.with_special_groups: bool = self.bootstrap_config.features.with_special_groups
+            self.with_special_groups: bool = features.with_special_groups
             # [OPTIONAL] default: True
-            self.with_raw_capability: bool = self.bootstrap_config.features.with_raw_capability
+            self.with_raw_capability: bool = features.with_raw_capability
+
             # [OPTIONAL] default: "allprojects"
-            BootstrapCore.AGGREGATED_LEVEL_NAME = self.bootstrap_config.features.aggregated_level_name
+            BootstrapCore.AGGREGATED_LEVEL_NAME = features.aggregated_level_name
             # [OPTIONAL] default: "cdf:"
-            BootstrapCore.GROUP_NAME_PREFIX = f"{self.bootstrap_config.features.group_prefix}:"
+            # support for '' empty string
+            BootstrapCore.GROUP_NAME_PREFIX = f"{features.group_prefix}:" if features.group_prefix else ""
             # [OPTIONAL] default: "dataset"
-            BootstrapCore.DATASET_SUFFIX = self.bootstrap_config.features.dataset_suffix
+            # support for '' empty string
+            BootstrapCore.DATASET_SUFFIX = f":{features.dataset_suffix}" if features.dataset_suffix else ""
             # [OPTIONAL] default: "rawdb"
-            BootstrapCore.RAW_SUFFIX = self.bootstrap_config.features.rawdb_suffix
+            # support for '' empty string
+            BootstrapCore.RAW_SUFFIX = f":{features.rawdb_suffix}" if features.rawdb_suffix else ""
             # [OPTIONAL] default: ["", ":"state"]
-            BootstrapCore.RAW_VARIANTS = [""] + [
-                f":{suffix}" for suffix in self.bootstrap_config.features.rawdb_additional_variants
-            ]
+            BootstrapCore.RAW_VARIANTS = [""] + [f":{suffix}" for suffix in features.rawdb_additional_variants]
 
         self.deployed: Dict[str, Any] = {}
         self.all_scope_ctx: Dict[str, Any] = {}
@@ -294,15 +302,86 @@ class BootstrapCore:
 
     @staticmethod
     def get_dataset_name_template():
-        return "{node_name}:" + BootstrapCore.DATASET_SUFFIX
+        return "{node_name}" + BootstrapCore.DATASET_SUFFIX
 
     @staticmethod
     def get_raw_dbs_name_template():
-        return "{node_name}:" + BootstrapCore.RAW_SUFFIX + "{raw_variant}"
+        return "{node_name}" + BootstrapCore.RAW_SUFFIX + "{raw_variant}"
 
     @staticmethod
     def get_timestamp():
         return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    def validate_config_length_limits(self):
+        """
+        Validate features in config
+        """
+
+        #
+        # CHECK 1 (availability)
+        #
+        assert self.AGGREGATED_LEVEL_NAME, (
+            "Features validation error: 'features.aggregated-level-name' is required, "
+            f"but provided as <{self.AGGREGATED_LEVEL_NAME}>"
+        )
+
+        #
+        # CHECK 2 (length limits)
+        #
+        # TODO: GROUP_NAME_LENGTH_LIMIT = ??
+        RAWDB_NAME_LENGTH_LIMIT = 32
+        DATASET_NAME_LENGTH_LIMIT = 50
+        DATASET_EXTERNALID_LENGTH_LIMIT = 255
+
+        # create all required scopes to check name lengths
+        all_scopes = {
+            # generate_target_raw_dbs -> returns a Set[str]
+            "raw": self.generate_target_raw_dbs(),  # all raw_dbs
+            # generate_target_datasets -> returns a Dict[str, Any]
+            "datasets": self.generate_target_datasets(),  # all datasets
+        }
+
+        errors = []
+        if self.with_raw_capability:
+            errors.extend(
+                [
+                    ("RAW DB", rawdb_name, len(rawdb_name), RAWDB_NAME_LENGTH_LIMIT)
+                    for rawdb_name in all_scopes["raw"]
+                    if len(rawdb_name) > RAWDB_NAME_LENGTH_LIMIT
+                ]
+            )
+        errors.extend(
+            [
+                ("DATA SET name", dataset_name, len(dataset_name), DATASET_NAME_LENGTH_LIMIT)
+                for dataset_name, dataset_details in all_scopes["datasets"].items()
+                if len(dataset_name) > DATASET_NAME_LENGTH_LIMIT
+            ]
+        )
+        errors.extend(
+            [
+                (
+                    "DATA SET external_id",
+                    dataset_details["external_id"],
+                    len(dataset_name),
+                    DATASET_EXTERNALID_LENGTH_LIMIT,
+                )
+                for dataset_name, dataset_details in all_scopes["datasets"].items()
+                if len(dataset_details["external_id"]) > DATASET_EXTERNALID_LENGTH_LIMIT
+            ]
+        )
+
+        assert not errors, (
+            "Features validation error(s):\n"
+            # RAW DB src:002:weather:rawdbiswaytoolongtofit : len(38) > 32
+            f"""{NEWLINE.join(
+                [
+                    f'{scope_type} {scope_error} : len({scope_length}) > {max_length}'
+                    for (scope_type, scope_error, scope_length, max_length) in errors
+                ])}"""
+        )
+
+        # return self for chaining
+        return self
 
     def validate_config_is_cdf_project_in_mappings(self):
 
@@ -1427,7 +1506,7 @@ class BootstrapCore:
                                 node_type_cls = SubroutineNode if scope_type == "raw" else AssymetricNode
                                 scope_graph.elements.append(
                                     node_type_cls(
-                                        id_name=f"{scope_name}:{action}",
+                                        id_name=f"{scope_name}__{action}__{scope_type}",
                                         display=scope_name,
                                         comments=""
                                         )
@@ -1441,7 +1520,7 @@ class BootstrapCore:
                             graph.edges.append(
                                 edge_type_cls(
                                     id_name=group_name,
-                                    dest=f"{scope_name}:{action}",
+                                    dest=f"{scope_name}__{action}__{scope_type}",
                                     annotation=shared_action,
                                     comments=[],
                                 )
@@ -1499,7 +1578,7 @@ class BootstrapCore:
                                 node_type_cls = SubroutineNode if scope_type == "raw" else AssymetricNode
                                 scope_graph.elements.append(
                                     node_type_cls(
-                                        id_name=f"{scope_name}:{action}",
+                                        id_name=f"{scope_name}__{action}__{scope_type}",
                                         display=scope_name,
                                         comments=""
                                         )
@@ -1513,7 +1592,7 @@ class BootstrapCore:
                             graph.edges.append(
                                 edge_type_cls(
                                     id_name=group_name,
-                                    dest=f"{scope_name}:{action}",
+                                    dest=f"{scope_name}__{action}__{scope_type}",
                                     annotation=shared_action,
                                     comments=[],
                                 )
@@ -1549,19 +1628,19 @@ class BootstrapCore:
                             if not scope_name.startswith(f"{BootstrapCore.AGGREGATED_LEVEL_NAME}:"):
                                 continue
 
-                            _logger.info(f"> {action=} {shared_action=} process {scope_name=} : all {scopes=}")
+                            # _logger.info(f"> {action=} {shared_action=} process {scope_name=} : all {scopes=}")
                             #
                             # NODE DATASET or RAW scope
                             #    'all:rawdb'
                             #
                             if scope_name not in scope_graph:
 
-                                _logger.info(f">> add {scope_name=}:{action=}")
+                                # _logger.info(f">> add {scope_name=}__{action=}")
 
                                 node_type_cls = SubroutineNode if scope_type == "raw" else AssymetricNode
                                 scope_graph.elements.append(
                                     node_type_cls(
-                                        id_name=f"{scope_name}:{action}",
+                                        id_name=f"{scope_name}__{action}__{scope_type}",
                                         display=scope_name,
                                         comments=""
                                         )
@@ -1575,7 +1654,7 @@ class BootstrapCore:
                             graph.edges.append(
                                 edge_type_cls(
                                     id_name=group_name,
-                                    dest=f"{scope_name}:{action}",
+                                    dest=f"{scope_name}__{action}__{scope_type}",
                                     annotation=shared_action,
                                     comments=[],
                                 )
@@ -1830,6 +1909,7 @@ def deploy(
     try:
         (
             BootstrapCore(config_file, command=CommandMode.DEPLOY)
+            .validate_config_length_limits()
             .validate_config_is_cdf_project_in_mappings()
             .dry_run(obj["dry_run"])
             .deploy(
@@ -1973,6 +2053,7 @@ def diagram(
     try:
         (
             BootstrapCore(config_file, command=CommandMode.DIAGRAM)
+            .validate_config_length_limits()
             .validate_config_is_cdf_project_in_mappings()
             # .dry_run(obj['dry_run'])
             .diagram(
