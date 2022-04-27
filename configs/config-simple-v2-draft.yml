@@ -1,4 +1,6 @@
 bootstrap:
+  # 220426 pa:
+  #  - extended comments explaining options
   # 220422 pa:
   #   - new v2-syntax making *all* bootstrap configuration parameters
   #     available through explicit named properties.
