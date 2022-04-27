@@ -793,7 +793,7 @@ class BootstrapCore:
         # overwrite new_group as it now contains id too
         if self.is_dry_run:
             _logger.info(f"Dry run - Creating group with name: <{new_group.name}>")
-            _logger.debug(f"Dry run - Creating group details: <{new_group}>")
+            _logger.info(f"Dry run - Creating group details: <{new_group}>")
             # _logger.info(f"Dry run - Creating group details: <{new_group}>")
         else:
             new_group = self.client.iam.groups.create(new_group)
@@ -1392,7 +1392,7 @@ class BootstrapCore:
             owner = "'Owner' Groups"
             read = "'Read' Groups"
             # OWNER
-            core_cdf_owner = "Core Level (Owner)"
+            core_cdf_owner = "Node Level (Owner)"
             ns_cdf_owner = "Namespace Level (Owner)"
             scope_owner = "Scopes (Owner)"
             # READ
