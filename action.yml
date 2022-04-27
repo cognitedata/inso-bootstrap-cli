@@ -35,16 +35,6 @@ inputs:
       This is relative to $GITHUB_WORKSPACE,
       which will be the root of the repository when using actions/checkout with default settings.
     required: true
-  with_special_groups:
-    description: >-
-      yes/no string-flag, for creating special CDF Groups, which don't have capabilities (extractions, transformations)
-    required: false
-    default: 'no'
-  with_raw_capability:
-    description: >-
-      yes/no string-flag, for creating RAW DBs and 'rawAcl' capability.
-    required: false
-    default: 'yes'
 
 runs:
   using: 'docker'
