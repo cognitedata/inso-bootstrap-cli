@@ -45,7 +45,7 @@ inputs:
       yes/no string-flag, for creating RAW DBs and 'rawAcl' capability.
     required: false
     default: 'yes'
-    
+
 runs:
   using: 'docker'
   image: 'Dockerfile'
