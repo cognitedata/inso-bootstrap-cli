@@ -1396,7 +1396,7 @@ class BootstrapCore:
             ns_cdf_owner = "Namespace Level (Owner)"
             scope_owner = "Scopes (Owner)"
             # READ
-            core_cdf_read = "Core Level (Read)"
+            core_cdf_read = "Node Level (Read)"
             ns_cdf_read = "Namespace Level (Read)"
             scope_read = "Scopes (Read)"
 
