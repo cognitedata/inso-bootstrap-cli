@@ -19,6 +19,17 @@ bootstrap:
   # 3. 'namespaces'
   #   - a hierarchy of 'namespaces' => 'ns-nodes'
 
+  # Changes can always be checked with 'bootstrap-cli diagram'
+  # - adding 'diagram --with-raw-capability no --cdf-project my-project configs/config-simple-v2-draft.yml'
+  #   to reduce the clutter, focus only on dataset scopes and see you idp-cdf-mappings
+  #   for your cdf-project of interest
+  #   On Windows the mermaid output can be easily copied to clipboard with
+  #      'diagram .. | clip.exe'
+  #   On Mac OSX the same can be done with '| pbcopy'
+  #   The clipboard can then be pasted into webbrowser https://mermaid.live to render.
+  #   - nice trick is, that the URL of the mermaid.live page, contains the full diagram
+  #     and can be shared and bookmarked :)
+
   features:
     # v2 adding as features, available as cli paramaters only atm (v1)
     # allowed values are parsed case-insensitive: [true|yes|YES|..] or [false|no|NO|..]
