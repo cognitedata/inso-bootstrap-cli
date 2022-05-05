@@ -214,17 +214,11 @@ class BootstrapCore:
             assert self.config.cognite, "'cognite' section required in configuration"
         elif command in (CommandMode.DEPLOY, CommandMode.DIAGRAM, CommandMode.PREPARE):
 
-            if command in (CommandMode.DEPLOY, CommandMode.PREPARE):
-                self.config: BootstrapDeployConfig = BootstrapDeployConfig.from_yaml(configpath)
-                self.bootstrap_config: BootstrapDeployConfig = self.config.bootstrap
-                self.idp_cdf_mappings = self.bootstrap_config.idp_cdf_mappings
+            self.config: BootstrapDeployConfig = BootstrapDeployConfig.from_yaml(configpath)
+            self.bootstrap_config: BootstrapDeployConfig = self.config.bootstrap
+            self.idp_cdf_mappings = self.bootstrap_config.idp_cdf_mappings
 
-            elif command == CommandMode.DIAGRAM:
-                self.config: BootstrapDeployConfig = BootstrapDeployConfig.from_yaml(configpath)
-                self.bootstrap_config: BootstrapDeployConfig = self.config.bootstrap
-                self.idp_cdf_mappings = self.bootstrap_config.idp_cdf_mappings
-                # CogniteClient is optional for diagram
-
+            # CogniteClient is optional for diagram
             if command != CommandMode.DIAGRAM:
                 # mandatory section
                 assert self.config.cognite, "'cognite' section required in configuration"

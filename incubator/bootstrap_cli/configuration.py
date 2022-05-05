@@ -155,8 +155,6 @@ class BootstrapBaseConfig:
 
     logger: Optional[LoggingConfig]
     cognite: Optional[CogniteConfig]
-    # logger: Optional[Dict[str, Any]]
-    # cognite: Optional[Dict[str, Any]]
     # optional for OIDC authentication
     token_custom_args: Optional[Dict[str, Any]]
 
