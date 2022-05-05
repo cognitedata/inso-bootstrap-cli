@@ -662,13 +662,14 @@ For a complete example of the delete configuration, see the `configs/test-bootst
     - from `poetry run`
     - from `python -m`
     - from `docker run`
-    - and as GitHub Action
+    - as GitHub Action
+    - as Windows Executable (planned as feature-request)
 
-- templates used for implementation are
+- templates (blueprints) used for implementation are
   - `cognitedata/transformation-cli`
   - `cognitedata/python-extratcion-utils`
     - using `CogniteConfig` and `LoggingConfig`
-    - and extended with custom config sections
+    - and extended with custom `dataclass` driven configuration
 
 Follow the initial setup first
 1. Fill out relevant configurations from `configs`
@@ -679,6 +680,13 @@ Follow the initial setup first
 ## run local with poetry
 
 - some more information for running on native Windows / PowerShell / multiple Python versions can be [found here](POETRY_ON_WINDOWS.md)
+
+> **WINDOWS USER:** the provided `pyproject.toml` and `poetry.lock` files are built to support "*nux" (MacOS, WSL2, Linux) first.
+>
+> On Windows (native, not WSL2) you have to delete the `poerty.lock` file first before you run `poetry install`.
+>
+> We have plans to support Windows with an executable, which eliminates the need for a Python installed too.
+
 
 ```bash
   # typical commands
