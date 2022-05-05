@@ -128,7 +128,7 @@ typing-extensions = ">=3.7.4,<5"
 
 [[package]]
 name = "cognite-sdk-core"
-version = "2.45.0"
+version = "2.47.0"
 description = "Client library for Cognite Data Fusion (CDF)"
 category = "main"
 optional = false
@@ -219,7 +219,7 @@ pyflakes = ">=2.3.0,<2.4.0"
 
 [[package]]
 name = "identify"
-version = "2.4.12"
+version = "2.5.0"
 description = "File identification library for Python"
 category = "dev"
 optional = false
@@ -576,7 +576,7 @@ rsa = ["oauthlib[signedtoken] (>=3.0.0)"]
 name = "setuptools"
 version = "62.1.0"
 description = "Easily download, build, install, upgrade, and uninstall Python packages"
-category = "dev"
+category = "main"
 optional = false
 python-versions = ">=3.7"
 
@@ -659,7 +659,7 @@ testing = ["coverage (>=4)", "coverage-enable-subprocess (>=1)", "flaky (>=3)", 
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.9"
-content-hash = "c81a71569d985e3be3328634b333f493788c5de21b8aeb68ef77ac7a927ec17b"
+content-hash = "1cd1bf824236cad53dcbb3fddbfb4bd2410c5d1700053f1cfa5f03b97c267773"
 
 [metadata.files]
 arrow = [
@@ -702,8 +702,8 @@ cognite-extractor-utils = [
     {file = "cognite_extractor_utils-2.2.0-py3-none-any.whl", hash = "sha256:1adebe06e50982a74268ccc27e6b1cc0e60f8d25bd3ec35770c790e7cf82f46f"},
 ]
 cognite-sdk-core = [
-    {file = "cognite-sdk-core-2.45.0.tar.gz", hash = "sha256:36f405ae11a7fb1108773bc0f105ec763f832107a70a1f3d07efda8c6950ebcc"},
-    {file = "cognite_sdk_core-2.45.0-py3-none-any.whl", hash = "sha256:6a50c0e299d599e0378336dab63b33b52a91df3233fc65eb063f706f5873100a"},
+    {file = "cognite-sdk-core-2.47.0.tar.gz", hash = "sha256:4e33420ea27e8ac0b0508b4004e7cced12142a26d16a62dafcb19022645f4707"},
+    {file = "cognite_sdk_core-2.47.0-py3-none-any.whl", hash = "sha256:e694a6eb273bf9c813632de2e354947d2ffa9a3e1dfea3a0787ab89f9fbeff6f"},
 ]
 colorama = [
     {file = "colorama-0.4.4-py2.py3-none-any.whl", hash = "sha256:9f47eda37229f68eee03b24b9748937c7dc3868f906e8ba69fbcbdd3bc5dc3e2"},
@@ -773,8 +773,8 @@ flake8 = [
     {file = "flake8-3.9.2.tar.gz", hash = "sha256:07528381786f2a6237b061f6e96610a4167b226cb926e2aa2b6b1d78057c576b"},
 ]
 identify = [
-    {file = "identify-2.4.12-py2.py3-none-any.whl", hash = "sha256:5f06b14366bd1facb88b00540a1de05b69b310cbc2654db3c7e07fa3a4339323"},
-    {file = "identify-2.4.12.tar.gz", hash = "sha256:3f3244a559290e7d3deb9e9adc7b33594c1bc85a9dd82e0f1be519bf12a1ec17"},
+    {file = "identify-2.5.0-py2.py3-none-any.whl", hash = "sha256:3acfe15a96e4272b4ec5662ee3e231ceba976ef63fd9980ed2ce9cc415df393f"},
+    {file = "identify-2.5.0.tar.gz", hash = "sha256:c83af514ea50bf2be2c4a3f2fb349442b59dc87284558ae9ff54191bff3541d2"},
 ]
 idna = [
     {file = "idna-3.3-py3-none-any.whl", hash = "sha256:84d9dd047ffa80596e0f246e2eab0b391788b0503584e8945f2368256d2735ff"},
