@@ -1080,9 +1080,13 @@ class BootstrapCore:
                 },
                 "latest_deployment": {
                     "raw_dbs": sorted(self.deployed["raw_dbs"].sort_values(["name"])["name"].tolist()),
-                    "datasets": sorted(self.deployed["datasets"].sort_values(["name"])["name"].tolist()),
-                    "groups": sorted(self.deployed["groups"].sort_values(["name"])["name"].tolist()),
+                    # fillna('') because dataset names can be empty (NaN value)
+                    "datasets": sorted(self.deployed["datasets"].fillna("").sort_values(["name"])["name"].tolist()),
+                    # fillna('') because group names can be empty (NaN value)
+                    "groups": sorted(self.deployed["groups"].fillna("").sort_values(["name"])["name"].tolist()),
                 },
+                # TODO: 220509 pa: this dict cannot support (possible) duplicate dataset names
+                #   and why is this dumped anyway? Is this just for info?
                 "dataset_ids": {
                     row["name"]: row["id"] for i, row in sorted(self.deployed["datasets"][["name", "id"]].iterrows())
                 },
