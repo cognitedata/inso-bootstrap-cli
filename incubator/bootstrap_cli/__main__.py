@@ -191,10 +191,15 @@ T_BootstrapCore = TypeVar("T_BootstrapCore", bound="BootstrapCore")
 
 class BootstrapCore:
 
-    # Marking all auto-generated CDF Group names with a prefix
+    # CDF Group prefix, i.e. "cdf:", to make bootstrap created CDF Groups easy recognizable in Fusion
     GROUP_NAME_PREFIX = ""
+
+    # mandatory for hierarchical-namespace
     AGGREGATED_LEVEL_NAME = ""
-    # 210330 pa: rawdbs in multiple variants `:rawdb` and `:rawdb:state`
+
+    # rawdbs creation support additional variants, for special purposes (like saving statestores)
+    # - default-suffix is ':rawdb' with no variant-suffix (represented by "")
+    # - additional variant-suffixes can be added like this ["", ":state"]
     RAW_VARIANTS = [""]
 
     def __init__(self, configpath: str, command: CommandMode):
@@ -978,6 +983,7 @@ class BootstrapCore:
 
     Both of them are about getting deprecated in the near future (time of writing: Q4 '21).
     - 'transformations' can already be replaced with dedicated 'transformationsAcl' capabilities
+    - 'extractors' only used to grant access to extractor-download page
     """
 
     def generate_special_groups(self):
@@ -988,7 +994,7 @@ class BootstrapCore:
         for special_group_name in special_group_names:
             self.create_group(group_name=special_group_name)
 
-    # generate all groups
+    # generate all groups - iterating through the 3-level hierarchy
     def generate_groups(self):
         # permutate the combinations
         for action in ["read", "owner"]:  # action_dimensions w/o 'admin'
@@ -1001,9 +1007,7 @@ class BootstrapCore:
                 self.process_group(action, ns.ns_name)
             # 'all' groups on action level (no limits to datasets or raw-dbs)
             self.process_group(action)
-        # all (no limits + admin)
-        # 211013 pa: for AAD root:client and root:user can be merged into 'root'
-        # for root_account in ["root:client", "root:user"]:
+        # creating CDF Group for root_account (highest admin-level)
         for root_account in ["root"]:
             self.process_group(root_account=root_account)
 

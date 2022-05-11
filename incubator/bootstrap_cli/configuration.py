@@ -63,6 +63,15 @@ class SharedNode:
     node_name: str
 
 
+# DATACLASS CODING STYLE NOTE:
+#
+# Coding decision to not use default values and factories for 'dataclass'
+# - inheritance might enforce to add default values to all specialized dataclass-properties (known problem)
+# - complex logic needs to be implemented in __post_init__ anyway
+# => to make my coding-style consistent, I've decided to implement default values only in __post_init__
+#
+
+
 @dataclass
 class SharedAccess:
     owner: Optional[List[SharedNode]]
@@ -144,7 +153,7 @@ class BootstrapCoreConfig:
 
     def get_idp_cdf_mapping_for_group(self, cdf_project, cdf_group) -> IdpCdfMapping:
         """
-        Return the IdpCdfMapping for the given cdf_project and cdf_group
+        Return the IdpCdfMapping for the given cdf_project and cdf_group (two nested-loops with filter)
         """
         mappings = [
             mapping
