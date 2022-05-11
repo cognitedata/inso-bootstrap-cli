@@ -71,6 +71,7 @@
 #    - Added cdf-project name to diagram "IdP Groups for CDF: <>" subgraph title
 #    - renamed mermaid properties from 'name/short' to 'id_name/display'
 #  * documented config-simple-v2-draft.yml
+# 220511 pa: v2.0.0 release :)
 
 import logging
 import time
