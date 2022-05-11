@@ -93,7 +93,15 @@ from dotenv import load_dotenv
 
 # cli internal
 from incubator.bootstrap_cli import __version__
-from incubator.bootstrap_cli.configuration import BootstrapDeleteConfig, BootstrapDeployConfig, SharedAccess, YesNoType
+from incubator.bootstrap_cli.configuration import (
+    BootstrapConfigError,
+    BootstrapDeleteConfig,
+    BootstrapDeployConfig,
+    BootstrapValidationError,
+    CommandMode,
+    SharedAccess,
+    YesNoType,
+)
 from incubator.bootstrap_cli.mermaid_generator.mermaid import (
     AssymetricNode,
     DottedEdge,
@@ -110,38 +118,7 @@ _logger = logging.getLogger(__name__)
 # because within f'' strings no backslash-character is allowed
 NEWLINE = "\n"
 
-
-class CommandMode(str, Enum):
-    PREPARE = "prepare"
-    DEPLOY = "deploy"
-    DELETE = "delete"
-    DIAGRAM = "diagram"
-
-
-class BootstrapConfigError(Exception):
-    """Exception raised for config parser
-
-    Attributes:
-        message -- explanation of the error
-    """
-
-    def __init__(self, message: str):
-        self.message = message
-        super().__init__(self.message)
-
-
-class BootstrapValidationError(Exception):
-    """Exception raised for config validation
-
-    Attributes:
-        message -- explanation of the error
-    """
-
-    def __init__(self, message: str):
-        self.message = message
-        super().__init__(self.message)
-
-
+# capabilities (acl) which only support  scope: {"all":{}}
 acl_all_scope_only_types = set(
     [
         "projects",
@@ -150,8 +127,9 @@ acl_all_scope_only_types = set(
         "entitymatching",
         "types",
         "threed",
-        ]
-    )  # fmt: skip
+    ]
+)
+# lookup of non-default actions per capability (acl) and role (owner/read/admin)
 action_dimensions = {
     # owner datasets might only need READ and OWNER
     "owner": {  # else ["READ","WRITE"]
@@ -166,18 +144,18 @@ action_dimensions = {
         "raw": ["READ", "LIST"],
         "groups": ["LIST"],
         "projects": ["LIST"],
-        "sessions": ["LIST"]
+        "sessions": ["LIST"],
     },
     "admin": {
         "datasets": ["READ", "WRITE", "OWNER"],
         "groups": ["LIST", "READ", "CREATE", "UPDATE", "DELETE"],
         "projects": ["READ", "UPDATE", "LIST"],
     },
-}  # fmt: skip
+}
 
 #
 # GENERIC configurations
-# extend when new capability is available
+# extend when new capability (acl) is available
 # check if action_dimensions must be extended with non-default capabilities:
 #   which are owner: ["READ","WRITE"]
 #   and read: ["READ"])

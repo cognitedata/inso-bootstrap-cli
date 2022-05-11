@@ -6,12 +6,43 @@ from cognite.extractorutils.configtools import CogniteConfig, LoggingConfig, loa
 from dotenv import load_dotenv
 
 
+class BootstrapConfigError(Exception):
+    """Exception raised for config parser
+
+    Attributes:
+        message -- explanation of the error
+    """
+
+    def __init__(self, message: str):
+        self.message = message
+        super().__init__(self.message)
+
+
+class BootstrapValidationError(Exception):
+    """Exception raised for config validation
+
+    Attributes:
+        message -- explanation of the error
+    """
+
+    def __init__(self, message: str):
+        self.message = message
+        super().__init__(self.message)
+
+
 # mixin 'str' to 'Enum' to support comparison to string-values
 # https://docs.python.org/3/library/enum.html#others
 # https://stackoverflow.com/a/63028809/1104502
 class YesNoType(str, Enum):
     yes = "yes"
     no = "no"
+
+
+class CommandMode(str, Enum):
+    PREPARE = "prepare"
+    DEPLOY = "deploy"
+    DELETE = "delete"
+    DIAGRAM = "diagram"
 
 
 @dataclass
@@ -122,7 +153,11 @@ class BootstrapCoreConfig:
             for mapping in idp_cdf_mapping_projects.mappings
             if cdf_group == mapping.cdf_group
         ]
-        assert len(mappings) <= 1, f"More than one mapping for cdf_group {cdf_group} in cdf_project {cdf_project}"
+        if len(mappings) > 1:
+            raise BootstrapConfigError(
+                f"Found more than one mapping for cdf_group {cdf_group} in cdf_project {cdf_project}"
+            )
+
         return mappings[0] if mappings else IdpCdfMapping(cdf_group, None, None)
 
     def __post_init__(self):
