@@ -73,7 +73,6 @@
 #  * documented config-simple-v2-draft.yml
 # 220511 pa: v2.0.0 release :)
 
-
 import logging
 import time
 
