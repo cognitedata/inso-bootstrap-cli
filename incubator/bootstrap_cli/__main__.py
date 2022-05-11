@@ -130,6 +130,18 @@ class BootstrapConfigError(Exception):
         super().__init__(self.message)
 
 
+class BootstrapValidationError(Exception):
+    """Exception raised for config validation
+
+    Attributes:
+        message -- explanation of the error
+    """
+
+    def __init__(self, message: str):
+        self.message = message
+        super().__init__(self.message)
+
+
 acl_all_scope_only_types = set(
     [
         "projects",
@@ -211,7 +223,8 @@ class BootstrapCore:
         if command == CommandMode.DELETE:
             self.config: BootstrapDeleteConfig = BootstrapDeleteConfig.from_yaml(configpath)
             self.delete_or_deprecate: Dict[str, Any] = self.config.delete_or_deprecate
-            assert self.config.cognite, "'cognite' section required in configuration"
+            if not self.config.cognite:
+                BootstrapConfigError("'cognite' section required in configuration")
         elif command in (CommandMode.DEPLOY, CommandMode.DIAGRAM, CommandMode.PREPARE):
 
             self.config: BootstrapDeployConfig = BootstrapDeployConfig.from_yaml(configpath)
@@ -221,7 +234,8 @@ class BootstrapCore:
             # CogniteClient is optional for diagram
             if command != CommandMode.DIAGRAM:
                 # mandatory section
-                assert self.config.cognite, "'cognite' section required in configuration"
+                if not self.config.cognite:
+                    BootstrapConfigError("'cognite' section required in configuration")
 
             #
             # load 'bootstrap.features'
@@ -271,7 +285,7 @@ class BootstrapCore:
         # debug new features
         if getattr(self, "bootstrap_config", False):
             # TODO: not available for 'delete' but there must be aa smarter solution
-            _logger.info(
+            _logger.debug(
                 "Features from yaml-config or defaults (can be overridden by cli-parameters!): "
                 f"{self.bootstrap_config.features=}"
             )
@@ -314,10 +328,11 @@ class BootstrapCore:
         #
         # CHECK 1 (availability)
         #
-        assert self.AGGREGATED_LEVEL_NAME, (
-            "Features validation error: 'features.aggregated-level-name' is required, "
-            f"but provided as <{self.AGGREGATED_LEVEL_NAME}>"
-        )
+        if not self.AGGREGATED_LEVEL_NAME:
+            raise BootstrapValidationError(
+                "Features validation error: 'features.aggregated-level-name' is required, "
+                f"but provided as <{self.AGGREGATED_LEVEL_NAME}>"
+            )
 
         #
         # CHECK 2 (length limits)
@@ -364,15 +379,16 @@ class BootstrapCore:
             ]
         )
 
-        assert not errors, (
-            "Features validation error(s):\n"
-            # RAW DB src:002:weather:rawdbiswaytoolongtofit : len(38) > 32
-            f"""{NEWLINE.join(
-                [
-                    f'{scope_type} {scope_error} : len({scope_length}) > {max_length}'
-                    for (scope_type, scope_error, scope_length, max_length) in errors
-                ])}"""
-        )
+        if errors:
+            raise BootstrapValidationError(
+                "Features validation error(s):\n"
+                # RAW DB src:002:weather:rawdbiswaytoolongtofit : len(38) > 32
+                f"""{NEWLINE.join(
+                    [
+                        f'{scope_type} {scope_error} : len({scope_length}) > {max_length}'
+                        for (scope_type, scope_error, scope_length, max_length) in errors
+                    ])}"""
+            )
 
         # return self for chaining
         return self
@@ -382,7 +398,7 @@ class BootstrapCore:
         # check if mapping exists for configured cdf-project
         is_cdf_project_in_mappings = self.cdf_project in [mapping.cdf_project for mapping in self.idp_cdf_mappings]
         if not is_cdf_project_in_mappings:
-            _logger.info(f"No 'idp-cdf-mapping' found for CDF Project <{self.cdf_project}>")
+            _logger.warning(f"No 'idp-cdf-mapping' found for CDF Project <{self.cdf_project}>")
             # log or raise?
             # raise ValueError(f'No mapping for CDF project {self.cdf_project}')
 
@@ -764,7 +780,8 @@ class BootstrapCore:
         if idp_mapping:
             # explicit given
             # TODO: change from tuple to dataclass
-            assert len(idp_mapping) == 2
+            if len(idp_mapping) != 2:
+                raise ValueError(f"Expected a tuple of length 2, got {idp_mapping=} instead")
             idp_source_id, idp_source_name = idp_mapping
         else:
             # check lookup from provided config
@@ -787,8 +804,7 @@ class BootstrapCore:
         # overwrite new_group as it now contains id too
         if self.is_dry_run:
             _logger.info(f"Dry run - Creating group with name: <{new_group.name}>")
-            _logger.info(f"Dry run - Creating group details: <{new_group}>")
-            # _logger.info(f"Dry run - Creating group details: <{new_group}>")
+            _logger.debug(f"Dry run - Creating group details: <{new_group}>")
         else:
             new_group = self.client.iam.groups.create(new_group)
 
