@@ -1,0 +1,191 @@
+bootstrap:
+  # 220426 pa:
+  #  - extended comments explaining options
+  # 220422 pa:
+  #   - new v2-syntax making *all* bootstrap configuration parameters
+  #     available through explicit named properties.
+  #
+  # Motivation for the breaking change:
+  # Compared to v1, which used an extremly sparse syntax, using values as yaml key and values.
+  # The v2 change is required to support loading and validating the configuration through
+  # Python 'dataclasses', which is a best practice and used by most Cognite yaml-based
+  # configurations.
+
+  # bootstrap supports three sections
+  # 1. 'features'
+  #   - making cli parameters and customizable naming-elements available
+  # 2. 'idp-cdf-mappings'
+  #   - providing multi CDF Project support of IdP- to CDF-Group mappings
+  # 3. 'namespaces'
+  #   - a hierarchy of 'namespaces' => 'ns-nodes'
+
+  # Changes can always be checked with 'bootstrap-cli diagram'
+  # - adding 'diagram --with-raw-capability no --cdf-project my-project configs/config-simple-v2-draft.yml'
+  #   to reduce the clutter, focus only on dataset scopes and see you idp-cdf-mappings
+  #   for your cdf-project of interest
+  #   On Windows the mermaid output can be easily copied to clipboard with
+  #      'diagram .. | clip.exe'
+  #   On Mac OSX the same can be done with '| pbcopy'
+  #   The clipboard can then be pasted into webbrowser https://mermaid.live to render.
+  #   - nice trick is, that the URL of the mermaid.live page, contains the full diagram
+  #     and can be shared and bookmarked :)
+
+  features:
+    # v2 adding as features, available as cli paramaters only atm (v1)
+    # allowed values are parsed case-insensitive: [true|yes|YES|..] or [false|no|NO|..]
+    # not as strings in quotes "yes" or 'yes'
+
+    # default and recommended is: false
+    #   in CDF 2022 support for this special-groups is not necessary anymore
+    #   check 'bootstrap-cli deploy --help' for more info
+    with-special-groups: false
+
+    # default and recommended is: true
+    with-raw-capability: true
+
+    # new in v2 to configure prior (v1) hard-coded naming elements
+    # Most of the naming-configurations don't have a functional effect, but affect
+    # naming of Groups, Datasets and RAWDBs only.
+    # All given feature values are reflecting the default values,
+    # to support a smooth v1 migration.
+    #
+    # Recommended values for a new v2-project are given as comments!
+
+
+    # default is: allprojects
+    #   recommended is shorter: 'all'
+    aggregated-level-name: allprojects
+
+    # default and recommended is: cdf
+    #   supports empty-string ''
+    group-prefix: cdf
+
+    # default is: dataset
+    #  recommended is shorter 'ds' or minimal ''
+    #   supports empty-string ''
+    dataset-suffix: dataset
+
+    # default is: rawdb
+    #  recommended is shorter 'db' or minimal ''
+    rawdb-suffix: rawdb
+
+    # default is" ['state']
+    #   meant for separating the statestores from extractors from ingested data
+    #   recommended: keep it or []
+    #   more rawdbs can be configured at a later stage
+    #   supports empty list [] for no additional variants
+    rawdb-additional-variants:
+      # provide more than one rawdb per ns-nodes
+      # atm (v1) hardcoded is one additional rawdb
+      - state
+      # - pump # one more additional variant
+
+  idp-cdf-mappings:
+    # Prior (v1) named 'aad_mappings'.
+    # Values for 'cdf-group' requires knowledge of resulting CDF Group names
+    #
+    # Now supporting multiple CDF Projects, like dev/test/prod
+    # in one config. Optimization, to reduce redundant maintenance.
+    # BOOTSTRAP_CDF_PROJECT env-variable is available and is used to select.
+    - cdf-project: shiny-dev
+      mappings:
+      - cdf-group: cdf:root
+        idp-source-id: 374dc9f6-f3a1-4b34-b897-11111111111
+        idp-source-name: CDF_DEV_ROOT
+      - cdf-group: cdf:allprojects:owner
+        idp-source-id: acd2fe35-aa51-45a7-acef-11111111111
+        idp-source-name: CDF_DEV_ALLPROJECTS_OWNER
+      - cdf-group: cdf:allprojects:read
+        idp-source-id: acd2fe35-aa51-45a7-acef-11111111111
+        idp-source-name: CDF_DEV_ALLPROJECTS_READ
+      - cdf-group: cdf:uc:001:demand:read
+        idp-source-id: 314159-aa51-45a7-acef-11111111111
+        idp-source-name: CDF_DEV_UC001DEMAND_READ
+    - cdf-project: shiny-prod
+      mappings:
+      - cdf-group: cdf:root
+        idp-source-id: 374dc9f6-f3a1-4b34-b897-22222222222
+        idp-source-name: CDF_PROD_ROOT
+      - cdf-group: cdf:allprojects:owner
+        idp-source-id: acd2fe35-aa51-45a7-acef-22222222222
+        idp-source-name: CDF_PROD_ALLPROJECTS_OWNER
+      - cdf-group: cdf:allprojects:read
+        idp-source-id: acd2fe35-aa51-45a7-acef-11111111111
+        idp-source-name: CDF_PROD_ALLPROJECTS_READ
+      - cdf-group: cdf:uc:001:demand:read
+        idp-source-id: 314159-aa51-45a7-acef-22222222222
+        idp-source-name: CDF_PROD_UC001DEMAND_READ
+
+  namespaces:
+    - ns-name: src
+      # the description is not yet implemented in the namespace-level datasets
+      description: Customer source-systems
+
+      ns-nodes:
+        - node-name: src:001:sap
+          description: Sources 001; from SAP
+          # provide 'external-id' explicit for full control (i.e. of length) for the dataset
+          # otherwise it will be autogenerated like the dataset name as '{node-name}[:{features.dataset-suffix}]'
+          # 220425 pa: atm of release we have hard CDF limits for
+          #    dataset.name        50 characters
+          #    dataset.external_id 256 characters
+          # violations will stop configuration loading and are reported on log-level
+          external-id: src:001:sap
+        - node-name: src:002:weather
+          description: Sources 002; from Weather.com
+          # external-id will be auto generated in this case
+
+    - ns-name: in
+      description: End user data-input provided through deployed CDF driven solutions
+      ns-nodes:
+        - node-name: in:001:trade
+          description: Description about user inputs related to name
+          # external_id: in:001:trade
+
+    - ns-name: uc
+      description: Use Cases representing the data-products
+      ns-nodes:
+        - node-name: uc:001:demand
+          description: Use Case 001; Supply and Demand
+
+          # metadata will be merged into 'dataset.metadata'
+          metadata:
+            created: 220427
+            generated: by cdf-config-hub script
+
+          # shared-access is a powerful concept which **only** affects CDF Groups of type ':owner'.
+          # Typically required for use-case groups, which have to read from multiple sources (nodes)
+          # to apply the models and create the higher-value data-products in the uc dataset.
+          #
+          # It allows to grant additional 'read' or 'owner' access to other ns-nodes, across the 'namespaces'.
+          # Allowing to easily maintain complex access-control needs, at the same time allowing a stable IdP mapping.
+          shared-access:
+            read:
+              - node-name: src:001:sap
+              - node-name: src:002:weather
+            owner:
+              - node-name: in:001:trade
+
+# de-facto standards for CDF CogniteClient and logger configuration.
+# Following the same parameter structure as the 'Cognite Python Extractor-Utilities'
+# and 'Cognite DB Extractor' configuration.
+cognite: # kwargs to pass to the CogniteClient, Environment variable format: ${ENVIRONMENT_VARIABLE_NAME}
+  # host: https://${BOOTSTRAP_CDF_CLUSTER}.cognitedata.com/
+  host: ${BOOTSTRAP_CDF_HOST}
+  project: ${BOOTSTRAP_CDF_PROJECT}
+  #
+  # AAD IdP login credentials:
+  #
+  idp-authentication:
+    client-id: ${BOOTSTRAP_IDP_CLIENT_ID}
+    secret: ${BOOTSTRAP_IDP_CLIENT_SECRET}
+    scopes:
+      - ${BOOTSTRAP_IDP_SCOPES}
+    token_url: ${BOOTSTRAP_IDP_TOKEN_URL}
+
+logger:
+  file:
+    path: ./logs/create-dev-logs.log
+    level: INFO
+  console:
+    level: INFO

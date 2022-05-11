@@ -46,8 +46,8 @@
 #     as it now supports dataset scopes too!
 #  * refactor variable names to match the new documentation
 #     1. group_types_dimensions > group_bootstrap_hierarchy
-#     2. group_type > group_ns (namespace: src, ca, uc)
-#     3. group_prefix > group_core (src:001:sap)
+#     2. group_type > ns_name (namespace: src, ca, uc)
+#     3. group_prefix > node_name (src:001:sap)
 # 220406 pa/sd:
 #  * v1.7.0
 #  * added 'diagram' command which creates a Mermaid (diagram as code) output
@@ -62,15 +62,26 @@
 #  * v1.10.0
 #  *  issue #28 possibility to skip creation of RAW DBs
 #  * added '--with-raw-capability' parameter for 'deploy' and 'diagram' commands
+# 220424 pa:
+#  * introduced CommandMode enums to support more detailed BootstrapCore initialization
+#  * started with validation-functions ('validate_config_is_cdf_project_in_mappings')
+#  * for 'diagram' command
+#    - made 'cognite' section optional
+#    - added support for parameter '--cdf-project' to explicit diagram a specific CDF Project
+#    - Added cdf-project name to diagram "IdP Groups for CDF: <>" subgraph title
+#    - renamed mermaid properties from 'name/short' to 'id_name/display'
+#  * documented config-simple-v2-draft.yml
+# 220511 pa: v2.0.0 release :)
 
 import logging
 import time
-from dataclasses import dataclass, field
+
+# from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from itertools import islice
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, TypeVar
+from typing import Any, Dict, List, Optional, Set, Tuple, TypeVar
 
 import click
 import pandas as pd
@@ -78,11 +89,20 @@ import yaml
 from click import Context
 from cognite.client.data_classes import DataSet, Group
 from cognite.client.data_classes.data_sets import DataSetUpdate
-from cognite.extractorutils.configtools import CogniteClient, CogniteConfig, LoggingConfig, load_yaml
+from cognite.extractorutils.configtools import CogniteClient
 from dotenv import load_dotenv
 
 # cli internal
 from incubator.bootstrap_cli import __version__
+from incubator.bootstrap_cli.configuration import (
+    BootstrapConfigError,
+    BootstrapDeleteConfig,
+    BootstrapDeployConfig,
+    BootstrapValidationError,
+    CommandMode,
+    SharedAccess,
+    YesNoType,
+)
 from incubator.bootstrap_cli.mermaid_generator.mermaid import (
     AssymetricNode,
     DottedEdge,
@@ -94,75 +114,23 @@ from incubator.bootstrap_cli.mermaid_generator.mermaid import (
     TrapezNode,
 )
 
-# import getpass
 _logger = logging.getLogger(__name__)
-#
-# LOAD configs
-#
 
+# because within f'' strings no backslash-character is allowed
+NEWLINE = "\n"
 
-# mixin 'str' to 'Enum' to support comparison to string-values
-# https://docs.python.org/3/library/enum.html#others
-# https://stackoverflow.com/a/63028809/1104502
-class YesNoType(str, Enum):
-    yes = "yes"
-    no = "no"
-
-
-@dataclass
-class BootstrapBaseConfig:
-    logger: LoggingConfig
-    cognite: CogniteConfig
-    # token_custom_args: Dict[str, Any]
-    # TODO: ading default_factory value, will break the code
-    # or you have to apply for all *following* fields, default values too
-    # see https://stackoverflow.com/q/51575931/1104502
-    # https://medium.com/@aniscampos/python-dataclass-inheritance-finally-686eaf60fbb5
-    token_custom_args: Dict[str, Any] = field(default_factory=dict)
-
-    @classmethod
-    def from_yaml(cls, filepath):
-        try:
-            with open(filepath) as file:
-                return load_yaml(source=file, config_type=cls)
-        except FileNotFoundError as exc:
-            print("Incorrect file path, error message: ", exc)
-            raise
-
-
-@dataclass
-class BootstrapDeployConfig(BootstrapBaseConfig):
-    """
-    Configuration parameters for CDF Project Bootstrap, deploy(create) & prepare mode
-    """
-
-    bootstrap: Dict[str, Any] = field(default_factory=dict)
-    aad_mappings: Dict[str, Any] = field(default_factory=dict)
-
-
-@dataclass
-class BootstrapDeleteConfig(BootstrapBaseConfig):
-    """
-    Configuration parameters for CDF Project Bootstrap, delete mode
-    """
-
-    delete_or_deprecate: Dict[str, Any] = field(default_factory=dict)
-
-
-class BootstrapConfigError(Exception):
-    """Exception raised for config parser
-
-    Attributes:
-        message -- explanation of the error
-    """
-
-    def __init__(self, message: str):
-        self.message = message
-        super().__init__(self.message)
-
-
-# this acls only support "all": {} scope
-acl_all_scope_only_types = set(["projects", "sessions", "functions", "entitymatching", "types", "threed"])
+# capabilities (acl) which only support  scope: {"all":{}}
+acl_all_scope_only_types = set(
+    [
+        "projects",
+        "sessions",
+        "functions",
+        "entitymatching",
+        "types",
+        "threed",
+    ]
+)
+# lookup of non-default actions per capability (acl) and role (owner/read/admin)
 action_dimensions = {
     # owner datasets might only need READ and OWNER
     "owner": {  # else ["READ","WRITE"]
@@ -177,18 +145,18 @@ action_dimensions = {
         "raw": ["READ", "LIST"],
         "groups": ["LIST"],
         "projects": ["LIST"],
-        "sessions": ["LIST"]
+        "sessions": ["LIST"],
     },
     "admin": {
         "datasets": ["READ", "WRITE", "OWNER"],
         "groups": ["LIST", "READ", "CREATE", "UPDATE", "DELETE"],
         "projects": ["READ", "UPDATE", "LIST"],
     },
-}  # fmt: skip
+}
 
 #
 # GENERIC configurations
-# extend when new capability is available
+# extend when new capability (acl) is available
 # check if action_dimensions must be extended with non-default capabilities:
 #   which are owner: ["READ","WRITE"]
 #   and read: ["READ"])
@@ -224,66 +192,202 @@ T_BootstrapCore = TypeVar("T_BootstrapCore", bound="BootstrapCore")
 
 class BootstrapCore:
 
-    # 210330 pa: all rawdbs come in two variants `:rawdb` and `:rawdb:state`
-    RAW_SUFFIXES = ["", ":state"]
+    # CDF Group prefix, i.e. "cdf:", to make bootstrap created CDF Groups easy recognizable in Fusion
+    GROUP_NAME_PREFIX = ""
 
-    # Mark all auto-generated CDF Group names
-    GROUP_NAME_PREFIX = "cdf:"
-    # TODO: make configurable and switch to 'all' as default
-    AGGREGATED_GROUP_NAME = "allprojects"
+    # mandatory for hierarchical-namespace
+    AGGREGATED_LEVEL_NAME = ""
 
-    def __init__(self, configpath: str, delete: bool = False):
-        if delete:
+    # rawdbs creation support additional variants, for special purposes (like saving statestores)
+    # - default-suffix is ':rawdb' with no variant-suffix (represented by "")
+    # - additional variant-suffixes can be added like this ["", ":state"]
+    RAW_VARIANTS = [""]
+
+    def __init__(self, configpath: str, command: CommandMode):
+        if command == CommandMode.DELETE:
             self.config: BootstrapDeleteConfig = BootstrapDeleteConfig.from_yaml(configpath)
             self.delete_or_deprecate: Dict[str, Any] = self.config.delete_or_deprecate
-        else:
+            if not self.config.cognite:
+                BootstrapConfigError("'cognite' section required in configuration")
+        elif command in (CommandMode.DEPLOY, CommandMode.DIAGRAM, CommandMode.PREPARE):
+
             self.config: BootstrapDeployConfig = BootstrapDeployConfig.from_yaml(configpath)
-            self.group_bootstrap_hierarchy: Dict[str, Any] = self.config.bootstrap
-            self.aad_mapping_lookup: Dict[str, Any] = self.config.aad_mappings
+            self.bootstrap_config: BootstrapDeployConfig = self.config.bootstrap
+            self.idp_cdf_mappings = self.bootstrap_config.idp_cdf_mappings
+
+            # CogniteClient is optional for diagram
+            if command != CommandMode.DIAGRAM:
+                # mandatory section
+                if not self.config.cognite:
+                    BootstrapConfigError("'cognite' section required in configuration")
+
+            #
+            # load 'bootstrap.features'
+            #
+            # unpack and process features
+            features = self.bootstrap_config.features
+
+            # [OPTIONAL] default: False
+            self.with_special_groups: bool = features.with_special_groups
+            # [OPTIONAL] default: True
+            self.with_raw_capability: bool = features.with_raw_capability
+
+            # [OPTIONAL] default: "allprojects"
+            BootstrapCore.AGGREGATED_LEVEL_NAME = features.aggregated_level_name
+            # [OPTIONAL] default: "cdf:"
+            # support for '' empty string
+            BootstrapCore.GROUP_NAME_PREFIX = f"{features.group_prefix}:" if features.group_prefix else ""
+            # [OPTIONAL] default: "dataset"
+            # support for '' empty string
+            BootstrapCore.DATASET_SUFFIX = f":{features.dataset_suffix}" if features.dataset_suffix else ""
+            # [OPTIONAL] default: "rawdb"
+            # support for '' empty string
+            BootstrapCore.RAW_SUFFIX = f":{features.rawdb_suffix}" if features.rawdb_suffix else ""
+            # [OPTIONAL] default: ["", ":"state"]
+            BootstrapCore.RAW_VARIANTS = [""] + [f":{suffix}" for suffix in features.rawdb_additional_variants]
 
         self.deployed: Dict[str, Any] = {}
         self.all_scope_ctx: Dict[str, Any] = {}
         self.is_dry_run: bool = False
-        self.with_raw_capability: bool = True
+        self.client: CogniteClient = None
+        self.cdf_project = None
 
         # TODO debug
         # print(f"self.config= {self.config}")
 
+        # TODO: support 'logger' section optional, provide default config for logger with console only
+        #
+        # Logger initialisation
+        #
         # make sure the optional folders in logger.file.path exists
         # to avoid: FileNotFoundError: [Errno 2] No such file or directory: '/github/workspace/logs/test-deploy.log'
-
         if self.config.logger.file:
             (Path.cwd() / self.config.logger.file.path).parent.mkdir(parents=True, exist_ok=True)
-
         self.config.logger.setup_logging()
-
         _logger.info("Starting CDF Bootstrap configuration")
 
-        self.client: CogniteClient = self.config.cognite.get_cognite_client(  # noqa
-            client_name="inso-bootstrap-cli", token_custom_args=self.config.token_custom_args
-        )
+        # debug new features
+        if getattr(self, "bootstrap_config", False):
+            # TODO: not available for 'delete' but there must be aa smarter solution
+            _logger.debug(
+                "Features from yaml-config or defaults (can be overridden by cli-parameters!): "
+                f"{self.bootstrap_config.features=}"
+            )
 
-        _logger.info("Successful connection to CDF client")
+        #
+        # Cognite initialisation (optional for 'diagram')
+        #
+        if self.config.cognite:
+            self.client: CogniteClient = self.config.cognite.get_cognite_client(  # noqa
+                client_name="inso-bootstrap-cli", token_custom_args=self.config.token_custom_args
+            )
+            self.cdf_project = self.client.config.project
+            _logger.info("Successful connection to CDF client")
 
     @staticmethod
     def acl_template(actions, scope):
         return {"actions": actions, "scope": scope}
 
     @staticmethod
-    def get_allprojects_name_template(group_ns=None):
-        return f"{group_ns}:{BootstrapCore.AGGREGATED_GROUP_NAME}" if group_ns else BootstrapCore.AGGREGATED_GROUP_NAME
+    def get_allprojects_name_template(ns_name=None):
+        return f"{ns_name}:{BootstrapCore.AGGREGATED_LEVEL_NAME}" if ns_name else BootstrapCore.AGGREGATED_LEVEL_NAME
 
     @staticmethod
     def get_dataset_name_template():
-        return "{group_core}:dataset"
+        return "{node_name}" + BootstrapCore.DATASET_SUFFIX
 
     @staticmethod
     def get_raw_dbs_name_template():
-        return "{group_core}:rawdb{raw_suffix}"
+        return "{node_name}" + BootstrapCore.RAW_SUFFIX + "{raw_variant}"
 
     @staticmethod
     def get_timestamp():
         return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    def validate_config_length_limits(self):
+        """
+        Validate features in config
+        """
+
+        #
+        # CHECK 1 (availability)
+        #
+        if not self.AGGREGATED_LEVEL_NAME:
+            raise BootstrapValidationError(
+                "Features validation error: 'features.aggregated-level-name' is required, "
+                f"but provided as <{self.AGGREGATED_LEVEL_NAME}>"
+            )
+
+        #
+        # CHECK 2 (length limits)
+        #
+        # TODO: GROUP_NAME_LENGTH_LIMIT = ??
+        RAWDB_NAME_LENGTH_LIMIT = 32
+        DATASET_NAME_LENGTH_LIMIT = 50
+        DATASET_EXTERNALID_LENGTH_LIMIT = 255
+
+        # create all required scopes to check name lengths
+        all_scopes = {
+            # generate_target_raw_dbs -> returns a Set[str]
+            "raw": self.generate_target_raw_dbs(),  # all raw_dbs
+            # generate_target_datasets -> returns a Dict[str, Any]
+            "datasets": self.generate_target_datasets(),  # all datasets
+        }
+
+        errors = []
+        if self.with_raw_capability:
+            errors.extend(
+                [
+                    ("RAW DB", rawdb_name, len(rawdb_name), RAWDB_NAME_LENGTH_LIMIT)
+                    for rawdb_name in all_scopes["raw"]
+                    if len(rawdb_name) > RAWDB_NAME_LENGTH_LIMIT
+                ]
+            )
+        errors.extend(
+            [
+                ("DATA SET name", dataset_name, len(dataset_name), DATASET_NAME_LENGTH_LIMIT)
+                for dataset_name, dataset_details in all_scopes["datasets"].items()
+                if len(dataset_name) > DATASET_NAME_LENGTH_LIMIT
+            ]
+        )
+        errors.extend(
+            [
+                (
+                    "DATA SET external_id",
+                    dataset_details["external_id"],
+                    len(dataset_name),
+                    DATASET_EXTERNALID_LENGTH_LIMIT,
+                )
+                for dataset_name, dataset_details in all_scopes["datasets"].items()
+                if len(dataset_details["external_id"]) > DATASET_EXTERNALID_LENGTH_LIMIT
+            ]
+        )
+
+        if errors:
+            raise BootstrapValidationError(
+                "Features validation error(s):\n"
+                # RAW DB src:002:weather:rawdbiswaytoolongtofit : len(38) > 32
+                f"""{NEWLINE.join(
+                    [
+                        f'{scope_type} {scope_error} : len({scope_length}) > {max_length}'
+                        for (scope_type, scope_error, scope_length, max_length) in errors
+                    ])}"""
+            )
+
+        # return self for chaining
+        return self
+
+    def validate_config_is_cdf_project_in_mappings(self):
+
+        # check if mapping exists for configured cdf-project
+        is_cdf_project_in_mappings = self.cdf_project in [mapping.cdf_project for mapping in self.idp_cdf_mappings]
+        if not is_cdf_project_in_mappings:
+            _logger.warning(f"No 'idp-cdf-mapping' found for CDF Project <{self.cdf_project}>")
+            # log or raise?
+            # raise ValueError(f'No mapping for CDF project {self.cdf_project}')
+
+        # return self for chaining
+        return self
 
     def generate_default_action(self, action, acl_type):
         return action_dimensions[action].get(acl_type, ["READ", "WRITE"] if action == "owner" else ["READ"])
@@ -291,19 +395,21 @@ class BootstrapCore:
     def generate_admin_action(self, acl_admin_type):
         return action_dimensions["admin"][acl_admin_type]
 
-    def get_group_config_by_name(self, group_core):
-        for group_ns, group_ns_config in self.group_bootstrap_hierarchy.items():
-            if group_core in group_ns_config:
-                return group_ns_config[group_core]
+    def get_ns_node_shared_access_by_name(self, node_name) -> SharedAccess:
+        for ns in self.bootstrap_config.namespaces:
+            for ns_node in ns.ns_nodes:
+                if node_name == ns_node.node_name:
+                    return ns_node.shared_access
+        return SharedAccess([], [])
 
-    def get_group_raw_dbs_groupedby_action(self, action, group_ns, group_core=None):
+    def get_group_raw_dbs_groupedby_action(self, action, ns_name, node_name=None):
         raw_db_names: Dict[str, Any] = {"owner": [], "read": []}
-        if group_core:
+        if node_name:
             raw_db_names[action].extend(
-                # the dataset which belongs directly to this group_core
+                # the dataset which belongs directly to this node_name
                 [
-                    self.get_raw_dbs_name_template().format(group_core=group_core, raw_suffix=raw_suffix)
-                    for raw_suffix in BootstrapCore.RAW_SUFFIXES
+                    self.get_raw_dbs_name_template().format(node_name=node_name, raw_variant=raw_variant)
+                    for raw_variant in BootstrapCore.RAW_VARIANTS
                 ]
             )
 
@@ -311,119 +417,140 @@ class BootstrapCore:
             if action == "owner":
                 raw_db_names["owner"].extend(
                     [
-                        self.get_raw_dbs_name_template().format(group_core=shared_access, raw_suffix=raw_suffix)
+                        self.get_raw_dbs_name_template().format(
+                            node_name=shared_node.node_name, raw_variant=raw_variant
+                        )
                         # find the group_config which matches the name,
                         # and check the "shared_access" groups list (else [])
-                        for shared_access in self.get_group_config_by_name(group_core).get("shared_owner_access", [])
-                        for raw_suffix in BootstrapCore.RAW_SUFFIXES
+                        for shared_node in self.get_ns_node_shared_access_by_name(node_name).owner
+                        for raw_variant in BootstrapCore.RAW_VARIANTS
                     ]
                 )
                 raw_db_names["read"].extend(
                     [
-                        self.get_raw_dbs_name_template().format(group_core=shared_access, raw_suffix=raw_suffix)
+                        self.get_raw_dbs_name_template().format(
+                            node_name=shared_node.node_name, raw_variant=raw_variant
+                        )
                         # find the group_config which matches the name,
                         # and check the "shared_access" groups list (else [])
-                        for shared_access in self.get_group_config_by_name(group_core).get("shared_read_access", [])
-                        for raw_suffix in BootstrapCore.RAW_SUFFIXES
+                        for shared_node in self.get_ns_node_shared_access_by_name(node_name).read
+                        for raw_variant in BootstrapCore.RAW_VARIANTS
                     ]
                 )
 
-        else:  # handling the {group_ns}:{BootstrapCore.AGGREGATED_GROUP_NAME}
+        else:  # handling the {ns_name}:{BootstrapCore.AGGREGATED_GROUP_NAME}
             raw_db_names[action].extend(
                 [
-                    self.get_raw_dbs_name_template().format(group_core=group_core, raw_suffix=raw_suffix)
-                    for group_core, group_config in self.group_bootstrap_hierarchy[group_ns].items()
-                    for raw_suffix in BootstrapCore.RAW_SUFFIXES
+                    self.get_raw_dbs_name_template().format(node_name=ns_node.node_name, raw_variant=raw_variant)
+                    for ns in self.bootstrap_config.namespaces
+                    if ns.ns_name == ns_name
+                    for ns_node in ns.ns_nodes
+                    for raw_variant in BootstrapCore.RAW_VARIANTS
                 ]
-                # adding the {group_ns}:{BootstrapCore.AGGREGATED_GROUP_NAME} rawdbs
+                # adding the {ns_name}:{BootstrapCore.AGGREGATED_GROUP_NAME} rawdbs
                 + [  # noqa
                     self.get_raw_dbs_name_template().format(
-                        group_core=self.get_allprojects_name_template(group_ns=group_ns), raw_suffix=raw_suffix
+                        node_name=self.get_allprojects_name_template(ns_name=ns_name), raw_variant=raw_variant
                     )
-                    for raw_suffix in BootstrapCore.RAW_SUFFIXES
+                    for raw_variant in BootstrapCore.RAW_VARIANTS
                 ]
             )
-            # for owner groups add "shared_owner_access" raw_dbs too
+            # only owner-groups support "shared_access" rawdbs
             if action == "owner":
                 raw_db_names["owner"].extend(
                     [
-                        self.get_raw_dbs_name_template().format(group_core=shared_access, raw_suffix=raw_suffix)
+                        self.get_raw_dbs_name_template().format(
+                            node_name=shared_access_node.node_name, raw_variant=raw_variant
+                        )
                         # and check the "shared_access" groups list (else [])
-                        for _, group_config in self.group_bootstrap_hierarchy[group_ns].items()
-                        for shared_access in group_config.get("shared_owner_access", [])
-                        for raw_suffix in BootstrapCore.RAW_SUFFIXES
+                        for ns in self.bootstrap_config.namespaces
+                        if ns.ns_name == ns_name
+                        for ns_node in ns.ns_nodes
+                        for shared_access_node in ns_node.shared_access.owner
+                        for raw_variant in BootstrapCore.RAW_VARIANTS
                     ]
                 )
                 raw_db_names["read"].extend(
                     [
-                        self.get_raw_dbs_name_template().format(group_core=shared_access, raw_suffix=raw_suffix)
+                        self.get_raw_dbs_name_template().format(
+                            node_name=shared_access_node.node_name, raw_variant=raw_variant
+                        )
                         # and check the "shared_access" groups list (else [])
-                        for _, group_config in self.group_bootstrap_hierarchy[group_ns].items()
-                        for shared_access in group_config.get("shared_read_access", [])
-                        for raw_suffix in BootstrapCore.RAW_SUFFIXES
+                        for ns in self.bootstrap_config.namespaces
+                        if ns.ns_name == ns_name
+                        for ns_node in ns.ns_nodes
+                        for shared_access_node in ns_node.shared_access.read
+                        for raw_variant in BootstrapCore.RAW_VARIANTS
                     ]
                 )
 
         # returns clear names grouped by action
         return raw_db_names
 
-    def get_group_datasets_groupedby_action(self, action, group_ns, group_core=None):
+    def get_group_datasets_groupedby_action(self, action, ns_name, node_name=None):
         dataset_names: Dict[str, Any] = {"owner": [], "read": []}
         # for example fac:001:wasit, uc:002:meg, etc.
-        if group_core:
+        if node_name:
             dataset_names[action].extend(
-                # the dataset which belongs directly to this group_core
-                [self.get_dataset_name_template().format(group_core=group_core)]
+                # the dataset which belongs directly to this node_name
+                [self.get_dataset_name_template().format(node_name=node_name)]
             )
 
             # for owner groups add "shared_access" datasets too
             if action == "owner":
                 dataset_names["owner"].extend(
                     [
-                        self.get_dataset_name_template().format(group_core=shared_access)
+                        self.get_dataset_name_template().format(node_name=shared_node.node_name)
                         # find the group_config which matches the id,
                         # and check the "shared_access" groups list (else [])
-                        for shared_access in self.get_group_config_by_name(group_core).get("shared_owner_access", [])
+                        for shared_node in self.get_ns_node_shared_access_by_name(node_name).owner
                     ]
                 )
                 dataset_names["read"].extend(
                     [
-                        self.get_dataset_name_template().format(group_core=shared_access)
+                        self.get_dataset_name_template().format(node_name=shared_node.node_name)
                         # find the group_config which matches the id,
                         # and check the "shared_access" groups list (else [])
-                        for shared_access in self.get_group_config_by_name(group_core).get("shared_read_access", [])
+                        for shared_node in self.get_ns_node_shared_access_by_name(node_name).read
                     ]
                 )
         # for example src, fac, uc, ca
-        else:  # handling the {group_ns}:{BootstrapCore.AGGREGATED_GROUP_NAME}
+        else:  # handling the {ns_name}:{BootstrapCore.AGGREGATED_GROUP_NAME}
             dataset_names[action].extend(
                 [
-                    self.get_dataset_name_template().format(group_core=group_core)
-                    for group_core, group_config in self.group_bootstrap_hierarchy[group_ns].items()
+                    # all datasets for each of the nodes of the given namespace
+                    self.get_dataset_name_template().format(node_name=ns_node.node_name)
+                    for ns in self.bootstrap_config.namespaces
+                    if ns.ns_name == ns_name
+                    for ns_node in ns.ns_nodes
                 ]
-                # adding the {group_ns}:{BootstrapCore.AGGREGATED_GROUP_NAME} dataset
+                # adding the {ns_name}:{BootstrapCore.AGGREGATED_GROUP_NAME} dataset
                 + [  # noqa
                     self.get_dataset_name_template().format(
-                        group_core=self.get_allprojects_name_template(group_ns=group_ns)
+                        node_name=self.get_allprojects_name_template(ns_name=ns_name)
                     )
                 ]
             )
-            # for owner groups add "shared_access" datasets too
+            # only owner-groups support "shared_access" datasets
             if action == "owner":
                 dataset_names["owner"].extend(
                     [
-                        self.get_dataset_name_template().format(group_core=shared_access)
+                        self.get_dataset_name_template().format(node_name=shared_access_node.node_name)
                         # and check the "shared_access" groups list (else [])
-                        for _, group_config in self.group_bootstrap_hierarchy[group_ns].items()
-                        for shared_access in group_config.get("shared_owner_access", [])
+                        for ns in self.bootstrap_config.namespaces
+                        if ns.ns_name == ns_name
+                        for ns_node in ns.ns_nodes
+                        for shared_access_node in ns_node.shared_access.owner
                     ]
                 )
                 dataset_names["read"].extend(
                     [
-                        self.get_dataset_name_template().format(group_core=shared_access)
+                        self.get_dataset_name_template().format(node_name=shared_access_node.node_name)
                         # and check the "shared_access" groups list (else [])
-                        for _, group_config in self.group_bootstrap_hierarchy[group_ns].items()
-                        for shared_access in group_config.get("shared_read_access", [])
+                        for ns in self.bootstrap_config.namespaces
+                        if ns.ns_name == ns_name
+                        for ns_node in ns.ns_nodes
+                        for shared_access_node in ns_node.shared_access.read
                     ]
                 )
 
@@ -433,9 +560,9 @@ class BootstrapCore:
     def dataset_names_to_ids(self, dataset_names):
         return self.deployed["datasets"].query("name in @dataset_names")["id"].tolist()
 
-    def get_scope_ctx_groupedby_action(self, action, group_ns, group_core=None):
-        ds_by_action = self.get_group_datasets_groupedby_action(action, group_ns, group_core)
-        rawdbs_by_action = self.get_group_raw_dbs_groupedby_action(action, group_ns, group_core)
+    def get_scope_ctx_groupedby_action(self, action, ns_name, node_name=None):
+        ds_by_action = self.get_group_datasets_groupedby_action(action, ns_name, node_name)
+        rawdbs_by_action = self.get_group_raw_dbs_groupedby_action(action, ns_name, node_name)
         return {
             action: {"raw": rawdbs_by_action[action], "datasets": ds_by_action[action]}
             for action in ["owner", "read"]
@@ -459,12 +586,12 @@ class BootstrapCore:
             return {"datasetScope": {"ids": self.dataset_names_to_ids(scope_ctx["datasets"])}}
 
     def generate_group_name_and_capabilities(
-        self, action: str = None, group_ns: str = None, group_core: str = None, root_account: str = None
+        self, action: str = None, ns_name: str = None, node_name: str = None, root_account: str = None
     ) -> Tuple[str, List[Dict[str, Any]]]:
         """Create the group-name and its capabilities.
         The function supports following levels expressed by parameter combinations:
-        - core: {action} + {group_ns} + {group_core}
-        - namespace: {action} + {group_ns}
+        - core: {action} + {ns_name} + {node_name}
+        - namespace: {action} + {ns_name}
         - top-level: {action}
         - root: {root_account}
 
@@ -472,10 +599,10 @@ class BootstrapCore:
             action (str, optional):
                 One of the action_dimensions ["read", "owner"].
                 Defaults to None.
-            group_ns (str, optional):
+            ns_name (str, optional):
                 Namespace like "src" or "uc".
                 Defaults to None.
-            group_core (str, optional):
+            node_name (str, optional):
                 Core group like "src:001:sap" or "uc:003:demand".
                 Defaults to None.
             root_account (str, optional):
@@ -489,9 +616,9 @@ class BootstrapCore:
         capabilities = []
 
         # detail level like cdf:src:001:public:read
-        if action and group_ns and group_core:
+        if action and ns_name and node_name:
             # group for each dedicated group-core id
-            group_name_full_qualified = f"{BootstrapCore.GROUP_NAME_PREFIX}{group_core}:{action}"
+            group_name_full_qualified = f"{BootstrapCore.GROUP_NAME_PREFIX}{node_name}:{action}"
 
             [
                 capabilities.append(  # type: ignore
@@ -504,20 +631,18 @@ class BootstrapCore:
                     }
                 )
                 for acl_type in acl_default_types
-                for shared_action, scope_ctx in self.get_scope_ctx_groupedby_action(
-                    action, group_ns, group_core
-                ).items()
+                for shared_action, scope_ctx in self.get_scope_ctx_groupedby_action(action, ns_name, node_name).items()
                 # don't create empty scopes
                 # enough to check one as they have both same length, but that's more explicit
                 if scope_ctx["raw"] and scope_ctx["datasets"]
             ]
 
         # group-type level like cdf:src:all:read
-        elif action and group_ns:
+        elif action and ns_name:
             # 'all' groups on group-type level
             # (access to all datasets/ raw-dbs which belong to this group-type)
             group_name_full_qualified = (
-                f"{BootstrapCore.GROUP_NAME_PREFIX}{group_ns}:{BootstrapCore.AGGREGATED_GROUP_NAME}:{action}"
+                f"{BootstrapCore.GROUP_NAME_PREFIX}{ns_name}:{BootstrapCore.AGGREGATED_LEVEL_NAME}:{action}"
             )
 
             [
@@ -531,7 +656,7 @@ class BootstrapCore:
                     }
                 )
                 for acl_type in acl_default_types
-                for shared_action, scope_ctx in self.get_scope_ctx_groupedby_action(action, group_ns).items()
+                for shared_action, scope_ctx in self.get_scope_ctx_groupedby_action(action, ns_name).items()
                 # don't create empty scopes
                 # enough to check one as they have both same length, but that's more explicit
                 if scope_ctx["raw"] and scope_ctx["datasets"]
@@ -541,7 +666,7 @@ class BootstrapCore:
         elif action:
             # 'all' groups on action level (no limits to datasets or raw-dbs)
             group_name_full_qualified = (
-                f"{BootstrapCore.GROUP_NAME_PREFIX}{BootstrapCore.AGGREGATED_GROUP_NAME}:{action}"
+                f"{BootstrapCore.GROUP_NAME_PREFIX}{BootstrapCore.AGGREGATED_LEVEL_NAME}:{action}"
             )
 
             [
@@ -615,7 +740,7 @@ class BootstrapCore:
         self,
         group_name: str,
         group_capabilities: Dict[str, Any] = None,
-        aad_mapping: Tuple[str] = None,
+        idp_mapping: Tuple[str] = None,
     ) -> Group:
         """Creating a CDF Group
         - with upsert support the same way Fusion updates CDF Groups
@@ -635,33 +760,35 @@ class BootstrapCore:
             Group: the new created CDF Group
         """
 
-        aad_source_id, aad_source_name = None, None
-        if aad_mapping:
+        idp_source_id, idp_source_name = None, None
+        if idp_mapping:
             # explicit given
             # TODO: change from tuple to dataclass
-            assert len(aad_mapping) == 2
-            aad_source_id, aad_source_name = aad_mapping
+            if len(idp_mapping) != 2:
+                raise ValueError(f"Expected a tuple of length 2, got {idp_mapping=} instead")
+            idp_source_id, idp_source_name = idp_mapping
         else:
             # check lookup from provided config
-            aad_source_id, aad_source_name = self.aad_mapping_lookup.get(group_name, [None, None])
-
-        # print(f"=====  group_name<{group_name}> | aad_source_id<{aad_source_id}>
-        # | aad_source_name<{aad_source_name}> ===")
+            mapping = self.bootstrap_config.get_idp_cdf_mapping_for_group(
+                cdf_project=self.cdf_project, cdf_group=group_name
+            )
+            # unpack
+            idp_source_id, idp_source_name = mapping.idp_source_id, mapping.idp_source_name
 
         # check if group already exists, if yes it will be deleted after a new one is created
         old_group_ids = self.get_group_ids_by_name(group_name)
 
         new_group = Group(name=group_name, capabilities=group_capabilities)
-        if aad_source_id:
+        if idp_source_id:
             # inject (both will be pushed through the API call!)
-            new_group.source_id = aad_source_id  # 'S-314159-1234'
-            new_group.source = aad_source_name  # type: ignore # 'AD Group FooBar' # type: ignore
+            new_group.source_id = idp_source_id  # 'S-314159-1234'
+            new_group.source = idp_source_name  # type: ignore
 
         # print(f"group_create_object:<{group_create_object}>")
         # overwrite new_group as it now contains id too
         if self.is_dry_run:
             _logger.info(f"Dry run - Creating group with name: <{new_group.name}>")
-            _logger.debug(f"Dry run - Creating group: <{new_group}>")
+            _logger.debug(f"Dry run - Creating group details: <{new_group}>")
         else:
             new_group = self.client.iam.groups.create(new_group)
 
@@ -676,58 +803,64 @@ class BootstrapCore:
         return new_group
 
     def process_group(
-        self, action: str = None, group_ns: str = None, group_core: str = None, root_account: str = None
+        self, action: str = None, ns_name: str = None, node_name: str = None, root_account: str = None
     ) -> Group:
         # to avoid complex upsert logic, all groups will be recreated and then the old ones deleted
 
         # to be merged with existing code
-        # print(f"=== START: action<{action}> | group_ns<{group_ns}> | group_core<{group_core}> ===")
+        # print(f"=== START: action<{action}> | ns_name<{ns_name}> | node_name<{node_name}> ===")
 
         group_name, group_capabilities = self.generate_group_name_and_capabilities(
-            action, group_ns, group_core, root_account
+            action, ns_name, node_name, root_account
         )
 
         group: Group = self.create_group(group_name, group_capabilities)
         return group
 
-    def generate_missing_datasets(self) -> Tuple[List[str], List[str]]:
+    def generate_target_datasets(self) -> Dict[str, Any]:
         # list of all targets: autogenerated dataset names
         target_datasets = {
             # dictionary generator
             # dataset_name : {Optional[dataset_description], Optional[dataset_metadata], ..}
             # key:
-            self.get_dataset_name_template().format(group_core=group_core):
+            (fq_ns_name := self.get_dataset_name_template().format(node_name=ns_node.node_name)):
             # value
             {
-                "description": group_core_config.get("description"),
-                "metadata": group_core_config.get("metadata"),
-                "external_id": group_core_config.get("external_id"),
+                "description": ns_node.description,
+                "metadata": ns_node.metadata,
+                # if not explicit provided, same template as name
+                "external_id": ns_node.external_id or fq_ns_name,
             }
-            for group_ns, group_ns_config in self.group_bootstrap_hierarchy.items()
-            for group_core, group_core_config in group_ns_config.items()
+            for ns in self.bootstrap_config.namespaces
+            for ns_node in ns.ns_nodes
         }
 
-        # update target datasets to include 'allproject' and '{group_ns}:{BootstrapCore.AGGREGATED_GROUP_NAME}' datasets
+        # update target datasets to include 'allproject' and '{ns_name}:{BootstrapCore.AGGREGATED_GROUP_NAME}' datasets
         target_datasets.update(
             {  # dictionary generator
                 # key:
                 self.get_dataset_name_template().format(
-                    group_core=f"{group_ns}:{BootstrapCore.AGGREGATED_GROUP_NAME}"
-                    if group_ns
-                    else BootstrapCore.AGGREGATED_GROUP_NAME
+                    node_name=f"{ns_name}:{BootstrapCore.AGGREGATED_LEVEL_NAME}"
+                    if ns_name
+                    else BootstrapCore.AGGREGATED_LEVEL_NAME
                 ):
                 # value
                 {
-                    "description": f"Dataset for '{BootstrapCore.AGGREGATED_GROUP_NAME}' Owner Groups",
+                    "description": f"Dataset for '{BootstrapCore.AGGREGATED_LEVEL_NAME}' Owner Groups",
                     # "metadata": "",
-                    "external_id": f"{group_ns}:{BootstrapCore.AGGREGATED_GROUP_NAME}"
-                    if group_ns
-                    else BootstrapCore.AGGREGATED_GROUP_NAME,
+                    "external_id": f"{ns_name}:{BootstrapCore.AGGREGATED_LEVEL_NAME}"
+                    if ns_name
+                    else BootstrapCore.AGGREGATED_LEVEL_NAME,
                 }
                 # creating 'all' at group type level + top-level
-                for group_ns in list(self.group_bootstrap_hierarchy.keys()) + [""]
+                for ns_name in list([ns.ns_name for ns in self.bootstrap_config.namespaces]) + [""]
             }
         )
+
+        return target_datasets
+
+    def generate_missing_datasets(self) -> Tuple[List[str], List[str]]:
+        target_datasets = self.generate_target_datasets()
 
         # TODO: SDK should do this fine, that was an older me still learning :)
         def chunks(data, SIZE=10000):
@@ -792,34 +925,41 @@ class BootstrapCore:
                     for data_set_to_be_updated in datasets_to_be_updated:
                         _logger.info(f"Dry run - Updating dataset with name: <{data_set_to_be_updated.name}>")
                         _logger.debug(f"Dry run - Updating dataset: <{data_set_to_be_updated}>")
+                        # _logger.info(f"Dry run - Updating dataset: <{data_set_to_be_updated}>")
                 else:
                     self.client.data_sets.update(datasets_to_be_updated)
         return list(target_datasets.keys()), list(missing_datasets.keys())
 
-    def generate_missing_raw_dbs(self) -> Tuple[List[str], List[str]]:
+    def generate_target_raw_dbs(self) -> Set[str]:
         # list of all targets: autogenerated raw_db names
         target_raw_db_names = set(
             [
-                self.get_raw_dbs_name_template().format(group_core=group_core, raw_suffix=raw_suffix)
-                for group_ns, group_ns_config in self.group_bootstrap_hierarchy.items()
-                for group_core, group_core_config in group_ns_config.items()
-                for raw_suffix in BootstrapCore.RAW_SUFFIXES
+                self.get_raw_dbs_name_template().format(node_name=ns_node.node_name, raw_variant=raw_variant)
+                for ns in self.bootstrap_config.namespaces
+                for ns_node in ns.ns_nodes
+                for raw_variant in BootstrapCore.RAW_VARIANTS
             ]
         )
         target_raw_db_names.update(
             # add RAW DBs for 'all' users
             [
                 self.get_raw_dbs_name_template().format(
-                    group_core=f"{group_ns}:{BootstrapCore.AGGREGATED_GROUP_NAME}"
-                    if group_ns
-                    else BootstrapCore.AGGREGATED_GROUP_NAME,
-                    raw_suffix=raw_suffix,
+                    node_name=f"{ns_name}:{BootstrapCore.AGGREGATED_LEVEL_NAME}"
+                    if ns_name
+                    else BootstrapCore.AGGREGATED_LEVEL_NAME,
+                    raw_variant=raw_variant,
                 )
                 # creating allprojects at group type level + top-level
-                for group_ns in list(self.group_bootstrap_hierarchy.keys()) + [""]
-                for raw_suffix in BootstrapCore.RAW_SUFFIXES
+                for ns_name in list([ns.ns_name for ns in self.bootstrap_config.namespaces]) + [""]
+                for raw_variant in BootstrapCore.RAW_VARIANTS
             ]
         )
+
+        return target_raw_db_names
+
+    def generate_missing_raw_dbs(self) -> Tuple[List[str], List[str]]:
+        target_raw_db_names = self.generate_target_raw_dbs()
+
         try:
             # which targets are not already deployed?
             missing_rawdbs = target_raw_db_names - set(self.deployed["raw_dbs"]["name"])
@@ -844,6 +984,7 @@ class BootstrapCore:
 
     Both of them are about getting deprecated in the near future (time of writing: Q4 '21).
     - 'transformations' can already be replaced with dedicated 'transformationsAcl' capabilities
+    - 'extractors' only used to grant access to extractor-download page
     """
 
     def generate_special_groups(self):
@@ -854,22 +995,20 @@ class BootstrapCore:
         for special_group_name in special_group_names:
             self.create_group(group_name=special_group_name)
 
-    # generate all groups
+    # generate all groups - iterating through the 3-level hierarchy
     def generate_groups(self):
         # permutate the combinations
         for action in ["read", "owner"]:  # action_dimensions w/o 'admin'
-            for group_ns, group_configs in self.group_bootstrap_hierarchy.items():
-                for group_core, group_config in group_configs.items():
+            for ns in self.bootstrap_config.namespaces:
+                for ns_node in ns.ns_nodes:
                     # group for each dedicated group-type id
-                    self.process_group(action, group_ns, group_core)
+                    self.process_group(action, ns.ns_name, ns_node.node_name)
                 # 'all' groups on group-type level
                 # (access to all datasets/ raw-dbs which belong to this group-type)
-                self.process_group(action, group_ns)
+                self.process_group(action, ns.ns_name)
             # 'all' groups on action level (no limits to datasets or raw-dbs)
             self.process_group(action)
-        # all (no limits + admin)
-        # 211013 pa: for AAD root:client and root:user can be merged into 'root'
-        # for root_account in ["root:client", "root:user"]:
+        # creating CDF Group for root_account (highest admin-level)
         for root_account in ["root"]:
             self.process_group(root_account=root_account)
 
@@ -940,9 +1079,13 @@ class BootstrapCore:
                 },
                 "latest_deployment": {
                     "raw_dbs": sorted(self.deployed["raw_dbs"].sort_values(["name"])["name"].tolist()),
-                    "datasets": sorted(self.deployed["datasets"].sort_values(["name"])["name"].tolist()),
-                    "groups": sorted(self.deployed["groups"].sort_values(["name"])["name"].tolist()),
+                    # fillna('') because dataset names can be empty (NaN value)
+                    "datasets": sorted(self.deployed["datasets"].fillna("").sort_values(["name"])["name"].tolist()),
+                    # fillna('') because group names can be empty (NaN value)
+                    "groups": sorted(self.deployed["groups"].fillna("").sort_values(["name"])["name"].tolist()),
                 },
+                # TODO: 220509 pa: this dict cannot support (possible) duplicate dataset names
+                #   and why is this dumped anyway? Is this just for info?
                 "dataset_ids": {
                     row["name"]: row["id"] for i, row in sorted(self.deployed["datasets"][["name", "id"]].iterrows())
                 },
@@ -963,7 +1106,7 @@ class BootstrapCore:
         # return self for command chaining
         return self
 
-    def prepare(self, aad_source_id: str) -> None:
+    def prepare(self, idp_source_id: str) -> None:
         group_name = "cdf:bootstrap"
         # group_name = f"{create_config.environment}:bootstrap"
 
@@ -975,11 +1118,11 @@ class BootstrapCore:
         ]
 
         # TODO: replace with dataclass
-        aad_mapping = [
+        idp_mapping = [
             # sourceId
-            aad_source_id,
+            idp_source_id,
             # sourceName
-            f"AAD Server Application: {aad_source_id}",
+            f"IdP Group ID: {idp_source_id}",
         ]
 
         # load deployed groups with their ids and metadata
@@ -988,7 +1131,7 @@ class BootstrapCore:
         _logger.debug(f"GROUPS in CDF:\n{self.deployed['groups']}")
 
         # allows idempotent creates, as it cleans up old groups with same names after creation
-        self.create_group(group_name=group_name, group_capabilities=group_capabilities, aad_mapping=aad_mapping)
+        self.create_group(group_name=group_name, group_capabilities=group_capabilities, idp_mapping=idp_mapping)
         if not self.is_dry_run:
             _logger.info(f"Created CDF Group {group_name}")
         _logger.info("Finished CDF Project Bootstrapper in 'prepare' mode ")
@@ -1055,14 +1198,20 @@ class BootstrapCore:
         # dump all configs to yaml, as cope/paste template for delete_or_deprecate step
         self.dump_delete_template_to_yaml()
         # TODO: write to file or standard output
-        _logger.info("Finished creating CDF Groups, Datasets and RAW Databases")
+        _logger.info("Finished deleting CDF Groups, Datasets and RAW Databases")
 
-    def deploy(
-        self, with_special_groups: YesNoType = YesNoType.no, with_raw_capability: YesNoType = YesNoType.yes
-    ) -> None:
+    def deploy(self, with_special_groups: YesNoType, with_raw_capability: YesNoType) -> None:
 
-        # store parameter as bool flag
-        self.with_raw_capability = with_raw_capability == YesNoType.yes
+        # store parameter as bool
+        # if provided they override configuration or defaults from yaml-config
+        if with_special_groups:
+            self.with_special_groups = with_special_groups == YesNoType.yes
+        if with_raw_capability:
+            self.with_raw_capability = with_raw_capability == YesNoType.yes
+
+        # debug new features and override with cli-parameters
+        _logger.info(f"From cli: {with_special_groups=} / {with_raw_capability=}")
+        _logger.info(f"Effective: {self.with_special_groups=} / {self.with_raw_capability=}")
 
         # load deployed groups, datasets, raw_dbs with their ids and metadata
         self.load_deployed_config_from_cdf()
@@ -1115,12 +1264,60 @@ class BootstrapCore:
 
         # _logger.info(f'Bootstrap Pipelines: created: {len(created)}, deleted: {len(delete_ids)}')
 
-    def diagram(self, to_markdown: YesNoType = YesNoType.no, with_raw_capability: YesNoType = YesNoType.yes):
+    def diagram(
+        self,
+        to_markdown: YesNoType = YesNoType.no,
+        with_raw_capability: YesNoType = YesNoType.yes,
+        cdf_project: str = None,
+    ) -> None:
+        """Diagram mode used to document the given configuration as a Mermaid diagram.
 
-        """➟  poetry run bootstrap-cli diagram .local/config-deploy-bootstrap.yml | clip.exe"""
+        Args:
+            to_markdown (YesNoType, optional):
+              - Encapsulate Mermaid diagram in Markdown syntax.
+              - Defaults to 'YesNoType.no'.
+            with_raw_capability (YesNoType, optional):
+              - Create RAW DBs and 'rawAcl' capability. Defaults to 'YesNoType.tes'.
+            cdf_project (str, optional):
+              - Provide the CDF Project to use for the diagram 'idp-cdf-mappings'.
+
+        Example:
+            # requires a 'cognite' configuration section
+            ➟  poetry run bootstrap-cli diagram configs/config-simple-v2-draft.yml | clip.exe
+            # precedence over 'cognite.project' which CDF Project to diagram 'bootstrap.idp-cdf-mappings'
+            # making a 'cognite' section optional
+            ➟  poetry run bootstrap-cli diagram --cdf-project shiny-dev configs/config-simple-v2-draft.yml | clip.exe
+            # precedence over configuration 'bootstrap.features.with-raw-capability'
+            ➟  poetry run bootstrap-cli diagram --with-raw-capability no --cdf-project shiny-prod configs/config-simple-v2-draft.yml
+        """  # noqa
+
+        diagram_cdf_project = cdf_project if cdf_project else self.cdf_project
+        # same handling as in 'deploy' command
+        # store parameter as bool
+        # if available it overrides configuration or defaults from yaml-config
+        if with_raw_capability:
+            self.with_raw_capability = with_raw_capability == YesNoType.yes
+
+        # debug new features and override with cli-parameters
+        _logger.info(f"From cli: {with_raw_capability=}")
+        _logger.info(f"Effective: {self.with_raw_capability=}")
+
+        # store all raw_dbs and datasets in scope of this configuration
+        self.all_scope_ctx = {
+            "owner": (
+                all_scopes := {
+                    # generate_target_raw_dbs -> returns a Set[str]
+                    "raw": list(self.generate_target_raw_dbs()),  # all raw_dbs
+                    # generate_target_datasets -> returns a Dict[str, Any]
+                    "datasets": list(self.generate_target_datasets().keys()),  # all datasets
+                }
+            ),
+            # and copy the same to 'read'
+            "read": all_scopes,
+        }
 
         def get_group_name_and_scopes(
-            action: str = None, group_ns: str = None, group_core: str = None, root_account: str = None
+            action: str = None, ns_name: str = None, node_name: str = None, root_account: str = None
         ) -> Tuple[str, Dict[str, Any]]:
             """Adopted generate_group_name_and_capabilities() and get_scope_ctx_groupedby_action()
             to respond with
@@ -1133,10 +1330,10 @@ class BootstrapCore:
                 action (str, optional):
                     One of the action_dimensions ["read", "owner"].
                     Defaults to None.
-                group_ns (str, optional):
+                ns_name (str, optional):
                     Namespace like "src" or "uc".
                     Defaults to None.
-                group_core (str, optional):
+                node_name (str, optional):
                     Core group like "src:001:sap" or "uc:003:demand".
                     Defaults to None.
                 root_account (str, optional):
@@ -1159,26 +1356,27 @@ class BootstrapCore:
             group_name_full_qualified, scope_ctx_by_action = None, None
 
             # detail level like cdf:src:001:public:read
-            if action and group_ns and group_core:
-                group_name_full_qualified = f"{BootstrapCore.GROUP_NAME_PREFIX}{group_core}:{action}"
-                scope_ctx_by_action = self.get_scope_ctx_groupedby_action(action, group_ns, group_core)
+            if action and ns_name and node_name:
+                group_name_full_qualified = f"{BootstrapCore.GROUP_NAME_PREFIX}{node_name}:{action}"
+                scope_ctx_by_action = self.get_scope_ctx_groupedby_action(action, ns_name, node_name)
+
             # group-type level like cdf:src:all:read
-            elif action and group_ns:
+            elif action and ns_name:
                 # 'all' groups on group-type level
                 # (access to all datasets/ raw-dbs which belong to this group-type)
                 group_name_full_qualified = (
-                    f"{BootstrapCore.GROUP_NAME_PREFIX}{group_ns}:{BootstrapCore.AGGREGATED_GROUP_NAME}:{action}"
+                    f"{BootstrapCore.GROUP_NAME_PREFIX}{ns_name}:{BootstrapCore.AGGREGATED_LEVEL_NAME}:{action}"
                 )
-                scope_ctx_by_action = self.get_scope_ctx_groupedby_action(action, group_ns)
+                scope_ctx_by_action = self.get_scope_ctx_groupedby_action(action, ns_name)
+
             # top level like cdf:all:read
             elif action:
                 # 'all' groups on action level (no limits to datasets or raw-dbs)
                 group_name_full_qualified = (
-                    f"{BootstrapCore.GROUP_NAME_PREFIX}{BootstrapCore.AGGREGATED_GROUP_NAME}:{action}"
+                    f"{BootstrapCore.GROUP_NAME_PREFIX}{BootstrapCore.AGGREGATED_LEVEL_NAME}:{action}"
                 )
-                # scope_ctx_by_action =  self.get_scope_ctx_groupedby_action(
-                #     action, self.all_scope_ctx
-                # )
+                # limit all_scopes to 'action'
+                scope_ctx_by_action = {action: self.all_scope_ctx[action]}
             # root level like cdf:root
             elif root_account:  # no parameters
                 # all (no limits)
@@ -1187,51 +1385,64 @@ class BootstrapCore:
             return group_name_full_qualified, scope_ctx_by_action
 
         class SubgraphTypes(str, Enum):
-            aad = "AAD Groups"
+            idp = "IdP Groups"
             owner = "'Owner' Groups"
             read = "'Read' Groups"
             # OWNER
-            core_cdf_owner = "Core Level (Owner)"
+            core_cdf_owner = "Node Level (Owner)"
             ns_cdf_owner = "Namespace Level (Owner)"
             scope_owner = "Scopes (Owner)"
             # READ
-            core_cdf_read = "Core Level (Read)"
+            core_cdf_read = "Node Level (Read)"
             ns_cdf_read = "Namespace Level (Read)"
             scope_read = "Scopes (Read)"
 
+        # TODO: refactoring required
         def group_to_graph(
             graph: GraphRegistry,
             action: str = None,
-            group_ns: str = None,
-            group_core: str = None,
+            ns_name: str = None,
+            node_name: str = None,
             root_account: str = None,
         ) -> None:
 
             if root_account:
                 return
 
-            group_name, scope_ctx_by_action = get_group_name_and_scopes(action, group_ns, group_core, root_account)
-            aad_source_id, aad_source_name = self.aad_mapping_lookup.get(group_name, [None, None])
+            group_name, scope_ctx_by_action = get_group_name_and_scopes(action, ns_name, node_name, root_account)
 
-            _logger.info(f"{group_name=} : {scope_ctx_by_action=} [{aad_source_name=}]")
+            # check lookup from provided config
+            mapping = self.bootstrap_config.get_idp_cdf_mapping_for_group(
+                # diagram explicit given cdf_project, or configured in 'cognite' configuration section
+                cdf_project=diagram_cdf_project,
+                cdf_group=group_name,
+            )
+            # unpack
+            # idp_source_id, idp_source_name = self.aad_mapping_lookup.get(node_name, [None, None])
+            idp_source_id, idp_source_name = mapping.idp_source_id, mapping.idp_source_name
+
+            _logger.info(f"{ns_name=} : {group_name=} : {scope_ctx_by_action=} [{idp_source_name=}]")
 
             # preload master subgraphs
             core_cdf = graph.get_or_create(getattr(SubgraphTypes, f"core_cdf_{action}"))
             ns_cdf_graph = graph.get_or_create(getattr(SubgraphTypes, f"ns_cdf_{action}"))
             scope_graph = graph.get_or_create(getattr(SubgraphTypes, f"scope_{action}"))
 
-            aad = graph.get_or_create(SubgraphTypes.aad)
-            if aad_source_name and (aad_source_name not in aad):
-                aad.elements.append(
+            #
+            # NODE - IDP GROUP
+            #
+            idp = graph.get_or_create(SubgraphTypes.idp)
+            if idp_source_name and (idp_source_name not in idp):
+                idp.elements.append(
                     TrapezNode(
-                        name=aad_source_name,
-                        short=aad_source_name,
-                        comments=[f'AAD objId: {aad_source_id}']
+                        id_name=idp_source_name,
+                        display=idp_source_name,
+                        comments=[f'IdP objectId: {idp_source_id}']
                         )
                     )  # fmt: skip
                 graph.edges.append(
                     Edge(
-                        name=aad_source_name,
+                        id_name=idp_source_name,
                         dest=group_name,
                         annotation=None,
                         comments=[]
@@ -1242,25 +1453,30 @@ class BootstrapCore:
             #       'datasets': ['src:002:weather:dataset']},
             # 'read': {'raw': [], 'datasets': []}}
 
-            # core-level like cdf:src:001:public:read
-            if action and group_ns and group_core:
+            #
+            # NODE - CORE LEVEL
+            #   'cdf:src:001:public:read'
+            #
+            if action and ns_name and node_name:
                 core_cdf.elements.append(
                     RoundedNode(
-                        name=group_name,
-                        short=group_name,
+                        id_name=group_name,
+                        display=group_name,
                         comments=""
                         )
                     )  # fmt: skip
 
-                # link from 'src:all' to 'src:001:sap'
+                #
+                # EDGE FROM PARENT 'src:all' to 'src:001:sap'
+                #
                 edge_type_cls = Edge if action == "owner" else DottedEdge
                 graph.edges.append(
                     edge_type_cls(
                         # link from all:{ns}
                         # multiline f-string split as it got too long
                         # TODO: refactor into string-templates
-                        name=f"{BootstrapCore.GROUP_NAME_PREFIX}{group_ns}:"
-                        f"{BootstrapCore.AGGREGATED_GROUP_NAME}:{action}",
+                        id_name=f"{BootstrapCore.GROUP_NAME_PREFIX}{ns_name}:"
+                        f"{BootstrapCore.AGGREGATED_LEVEL_NAME}:{action}",
                         dest=group_name,
                         annotation="",
                         comments=[],
@@ -1279,63 +1495,172 @@ class BootstrapCore:
 
                         for scope_name in scopes:
 
+                            #
+                            # NODE DATASET or RAW scope
+                            #    'src:001:sap:rawdb'
+                            #
                             if scope_name not in scope_graph:
                                 node_type_cls = SubroutineNode if scope_type == "raw" else AssymetricNode
                                 scope_graph.elements.append(
                                     node_type_cls(
-                                        name=f"{scope_name}:{action}",
-                                        short=scope_name,
+                                        id_name=f"{scope_name}__{action}__{scope_type}",
+                                        display=scope_name,
                                         comments=""
                                         )
                                 )  # fmt: skip
-                            # link from src:001:sap to 'src:001:sap:rawdb'
+
+                            #
+                            # EDGE FROM actual processed group-node to added scope
+                            #   cdf:src:001:sap:read to 'src:001:sap:rawdb'
+                            #
                             edge_type_cls = Edge if shared_action == "owner" else DottedEdge
                             graph.edges.append(
                                 edge_type_cls(
-                                    name=group_name,
-                                    dest=f"{scope_name}:{action}",
+                                    id_name=group_name,
+                                    dest=f"{scope_name}__{action}__{scope_type}",
                                     annotation=shared_action,
                                     comments=[],
                                 )
                             )  # fmt: skip
 
-            # namespace-level like cdf:src:all:read
-            elif action and group_ns:
+            #
+            # NODE - NAMESPACE LEVEL
+            #   'src:all:read' or 'src:all:owner'
+            elif action and ns_name:
                 ns_cdf_graph.elements.append(
                     Node(
-                        name=group_name,
-                        short=group_name,
+                        id_name=group_name,
+                        display=group_name,
                         comments=""
                         )
                     )  # fmt: skip
 
-                # link from 'all' to 'src:all'
+                #
+                # EDGE FROM PARENT top LEVEL to NAMESPACE LEVEL
+                #   'all' to 'src:all'
+                #
                 edge_type_cls = Edge if action == "owner" else DottedEdge
                 graph.edges.append(
                     edge_type_cls(
-                        name=f"{BootstrapCore.GROUP_NAME_PREFIX}{BootstrapCore.AGGREGATED_GROUP_NAME}:{action}",
+                        id_name=f"{BootstrapCore.GROUP_NAME_PREFIX}{BootstrapCore.AGGREGATED_LEVEL_NAME}:{action}",
                         dest=group_name,
                         annotation="",
                         comments=[],
                     )
                 )  # fmt: skip
 
-            # top-level like cdf:all:read
+                # add namespace-node and all scopes
+                # shared_action: [read|owner]
+                for shared_action, scope_ctx in scope_ctx_by_action.items():
+                    # scope_type: [raw|datasets]
+                    # scopes: List[str]
+                    for scope_type, scopes in scope_ctx.items():
+
+                        if not self.with_raw_capability and scope_type == "raw":
+                            continue  # SKIP RAW
+
+                        for scope_name in scopes:
+
+                            # LIMIT only to direct scopes for readability
+                            # which have for example 'src:all:' as prefix
+                            if not scope_name.startswith(f"{ns_name}:{BootstrapCore.AGGREGATED_LEVEL_NAME}:"):
+                                continue
+
+                            #
+                            # NODE DATASET or RAW scope
+                            #    'src:all:rawdb'
+                            #
+                            if scope_name not in scope_graph:
+
+                                node_type_cls = SubroutineNode if scope_type == "raw" else AssymetricNode
+                                scope_graph.elements.append(
+                                    node_type_cls(
+                                        id_name=f"{scope_name}__{action}__{scope_type}",
+                                        display=scope_name,
+                                        comments=""
+                                        )
+                                )  # fmt: skip
+
+                            #
+                            # EDGE FROM actual processed group-node to added scope
+                            #   cdf:src:all:read to 'src:all:rawdb'
+                            #
+                            edge_type_cls = Edge if shared_action == "owner" else DottedEdge
+                            graph.edges.append(
+                                edge_type_cls(
+                                    id_name=group_name,
+                                    dest=f"{scope_name}__{action}__{scope_type}",
+                                    annotation=shared_action,
+                                    comments=[],
+                                )
+                            )  # fmt: skip
+
+            #
+            # NODE - TOP LEVEL
+            #   like `cdf:all:read`
+            #
             elif action:
                 ns_cdf_graph.elements.append(
                     Node(
-                        name=group_name,
-                        short=group_name,
+                        id_name=group_name,
+                        display=group_name,
                         comments=""
                         )
                     )  # fmt: skip
+
+                # add namespace-node and all scopes
+                # shared_action: [read|owner]
+                for shared_action, scope_ctx in scope_ctx_by_action.items():
+                    # scope_type: [raw|datasets]
+                    # scopes: List[str]
+                    for scope_type, scopes in scope_ctx.items():
+
+                        if not self.with_raw_capability and scope_type == "raw":
+                            continue  # SKIP RAW
+
+                        for scope_name in scopes:
+
+                            # LIMIT only to direct scopes for readability
+                            # which have for example 'src:all:' as prefix
+                            if not scope_name.startswith(f"{BootstrapCore.AGGREGATED_LEVEL_NAME}:"):
+                                continue
+
+                            # _logger.info(f"> {action=} {shared_action=} process {scope_name=} : all {scopes=}")
+                            #
+                            # NODE DATASET or RAW scope
+                            #    'all:rawdb'
+                            #
+                            if scope_name not in scope_graph:
+
+                                # _logger.info(f">> add {scope_name=}__{action=}")
+
+                                node_type_cls = SubroutineNode if scope_type == "raw" else AssymetricNode
+                                scope_graph.elements.append(
+                                    node_type_cls(
+                                        id_name=f"{scope_name}__{action}__{scope_type}",
+                                        display=scope_name,
+                                        comments=""
+                                        )
+                                )  # fmt: skip
+
+                            #
+                            # EDGE FROM actual processed group-node to added scope
+                            #   cdf:all:read to 'all:rawdb'
+                            #
+                            edge_type_cls = Edge if shared_action == "owner" else DottedEdge
+                            graph.edges.append(
+                                edge_type_cls(
+                                    id_name=group_name,
+                                    dest=f"{scope_name}__{action}__{scope_type}",
+                                    annotation=shared_action,
+                                    comments=[],
+                                )
+                            )  # fmt: skip
 
         #
         # finished inline helper-methods
         # starting diagram logic
         #
-        # store parameter as bool flag
-        self.with_raw_capability = with_raw_capability == YesNoType.yes
 
         if not self.with_raw_capability:
             # no RAW DBs means no access to RAW at all
@@ -1347,28 +1672,32 @@ class BootstrapCore:
         # sorting relationship output into potential subgraphs
         graph = GraphRegistry()
         # top subgraphs (three columns layout)
-        aad_group = graph.get_or_create(SubgraphTypes.aad)
-        owner = graph.get_or_create(SubgraphTypes.owner)
-        read = graph.get_or_create(SubgraphTypes.read)
+        # provide Subgraphs with a 'subgraph_name' and a 'subgraph_short_name'
+        # using the SubgraphTypes enum 'name' (default) and 'value' properties
+        idp_group = graph.get_or_create(
+            SubgraphTypes.idp, f"{SubgraphTypes.idp.value} for CDF: '{diagram_cdf_project}'"
+        )
+        owner = graph.get_or_create(SubgraphTypes.owner, SubgraphTypes.owner.value)
+        read = graph.get_or_create(SubgraphTypes.read, SubgraphTypes.read.value)
 
         # nested subgraphs
-        core_cdf_owner = graph.get_or_create(SubgraphTypes.core_cdf_owner)
-        ns_cdf_owner = graph.get_or_create(SubgraphTypes.ns_cdf_owner)
-        core_cdf_read = graph.get_or_create(SubgraphTypes.core_cdf_read)
-        ns_cdf_read = graph.get_or_create(SubgraphTypes.ns_cdf_read)
-        scope_owner = graph.get_or_create(SubgraphTypes.scope_owner)
-        scope_read = graph.get_or_create(SubgraphTypes.scope_read)
+        core_cdf_owner = graph.get_or_create(SubgraphTypes.core_cdf_owner, SubgraphTypes.core_cdf_owner.value)
+        ns_cdf_owner = graph.get_or_create(SubgraphTypes.ns_cdf_owner, SubgraphTypes.ns_cdf_owner.value)
+        core_cdf_read = graph.get_or_create(SubgraphTypes.core_cdf_read, SubgraphTypes.core_cdf_read.value)
+        ns_cdf_read = graph.get_or_create(SubgraphTypes.ns_cdf_read, SubgraphTypes.ns_cdf_read.value)
+        scope_owner = graph.get_or_create(SubgraphTypes.scope_owner, SubgraphTypes.scope_owner.value)
+        scope_read = graph.get_or_create(SubgraphTypes.scope_read, SubgraphTypes.scope_read.value)
 
         # add the three top level groups to our graph
         graph.elements.extend(
             [
-                aad_group,
+                idp_group,
                 owner,
                 read,
                 # doc_group
             ]
         )
-        # add the owner-subgraphs to its parent
+        # add/nest the owner-subgraphs to its parent subgraph
         owner.elements.extend(
             [
                 core_cdf_owner,
@@ -1376,7 +1705,7 @@ class BootstrapCore:
                 scope_owner,
             ]
         )
-        # add the read-subgraphs to its parent
+        # add/nest the read-subgraphs to its parent subgraph
         read.elements.extend(
             [
                 core_cdf_read,
@@ -1387,13 +1716,13 @@ class BootstrapCore:
 
         # permutate the combinations
         for action in ["read", "owner"]:  # action_dimensions w/o 'admin'
-            for group_ns, group_configs in self.group_bootstrap_hierarchy.items():
-                for group_core, group_config in group_configs.items():
+            for ns in self.bootstrap_config.namespaces:
+                for ns_node in ns.ns_nodes:
                     # group for each dedicated group-type id
-                    group_to_graph(graph, action, group_ns, group_core)
+                    group_to_graph(graph, action, ns.ns_name, ns_node.node_name)
                 # 'all' groups on group-type level
                 # (access to all datasets/ raw-dbs which belong to this group-type)
-                group_to_graph(graph, action, group_ns)
+                group_to_graph(graph, action, ns.ns_name)
             # 'all' groups on action level (no limits to datasets or raw-dbs)
             group_to_graph(graph, action)
         # all (no limits + admin)
@@ -1423,57 +1752,60 @@ class BootstrapCore:
 @click.version_option(prog_name="bootstrap_cli", version=__version__)
 @click.option(
     "--cdf-project-name",
-    help="Project to interact with transformations API, 'BOOTSTRAP_CDF_PROJECT',"
+    help="CDF Project to interact with CDF API, 'BOOTSTRAP_CDF_PROJECT',"
     "environment variable can be used instead. Required for OAuth2 and optional for api-keys.",
     envvar="BOOTSTRAP_CDF_PROJECT",
 )
+# TODO: is cluster and alternative for host?
 @click.option(
     "--cluster",
     default="westeurope-1",
-    help="The CDF cluster where Transformations is hosted (e.g. greenfield, europe-west1-1),"
-    "Provide this or make sure to set 'BOOTSTRAP_CDF_CLUSTER' environment variable.",
+    help="The CDF cluster where CDF Project is hosted (e.g. greenfield, europe-west1-1),"
+    "Provide this or make sure to set 'BOOTSTRAP_CDF_CLUSTER' environment variable. "
+    "Default: westeurope-1",
     envvar="BOOTSTRAP_CDF_CLUSTER",
 )
 @click.option(
     "--host",
-    default="bluefield",
-    help="The CDF cluster where Bootstrap-Pipelines are hosted (e.g. https://bluefield.cognitedata.com),"
-    "Provide this or make sure to set 'BOOTSTRAP_CDF_HOST' environment variable.",
+    default="https://bluefield.cognitedata.com/",
+    help="The CDF host where CDF Project is hosted (e.g. https://bluefield.cognitedata.com),"
+    "Provide this or make sure to set 'BOOTSTRAP_CDF_HOST' environment variable."
+    "Default: https://bluefield.cognitedata.com/",
     envvar="BOOTSTRAP_CDF_HOST",
 )
 @click.option(
     "--api-key",
-    help="API key to interact with transformations API. Provide this or make sure to set 'BOOTSTRAP_CDF_API_KEY',"
+    help="API key to interact with CDF API. Provide this or make sure to set 'BOOTSTRAP_CDF_API_KEY',"
     "environment variable if you want to authenticate with API keys.",
     envvar="BOOTSTRAP_CDF_API_KEY",
 )
 @click.option(
     "--client-id",
-    help="Client ID to interact with transformations API. Provide this or make sure to set,"
+    help="IdP Client ID to interact with CDF API. Provide this or make sure to set,"
     "'BOOTSTRAP_IDP_CLIENT_ID' environment variable if you want to authenticate with OAuth2.",
     envvar="BOOTSTRAP_IDP_CLIENT_ID",
 )
 @click.option(
     "--client-secret",
-    help="Client secret to interact with transformations API. Provide this or make sure to set,"
+    help="IdP Client secret to interact with CDF API. Provide this or make sure to set,"
     "'BOOTSTRAP_IDP_CLIENT_SECRET' environment variable if you want to authenticate with OAuth2.",
     envvar="BOOTSTRAP_IDP_CLIENT_SECRET",
 )
 @click.option(
     "--token-url",
-    help="Token URL to interact with transformations API. Provide this or make sure to set,"
+    help="IdP Token URL to interact with CDF API. Provide this or make sure to set,"
     "'BOOTSTRAP_IDP_TOKEN_URL' environment variable if you want to authenticate with OAuth2.",
     envvar="BOOTSTRAP_IDP_TOKEN_URL",
 )
 @click.option(
     "--scopes",
-    help="Scopes to interact with transformations API, relevant for OAuth2 authentication method,"
+    help="IdP Scopes to interact with CDF API, relevant for OAuth2 authentication method,"
     "'BOOTSTRAP_IDP_SCOPES' environment variable can be used instead.",
     envvar="BOOTSTRAP_IDP_SCOPES",
 )
 @click.option(
     "--audience",
-    help="Audience to interact with transformations API, relevant for OAuth2 authentication method,"
+    help="IdP Audience to interact with CDF API, relevant for OAuth2 authentication method,"
     "'BOOTSTRAP_IDP_AUDIENCE' environment variable can be used instead.",
     envvar="BOOTSTRAP_IDP_AUDIENCE",
 )
@@ -1546,18 +1878,15 @@ def bootstrap_cli(
     # having this as a flag is not working for gh-action 'actions.yml' manifest
     # instead using explicit choice options
     # is_flag=True,
-    default="no",
+    # default="no",
     type=click.Choice(["yes", "no"], case_sensitive=False),
-    help="Create special CDF Groups, which don't have capabilities (extractions, transformations). " "Defaults to 'no'",
+    help="Create special CDF Groups, which don't have capabilities (extractions, transformations). Defaults to 'no'",
 )
 @click.option(
     "--with-raw-capability",
-    # having this as a flag is not working for gh-action 'actions.yml' manifest
-    # instead using explicit choice options
-    # is_flag=True,
-    default="yes",
+    # default="yes", # default defined in 'configuration.BootstrapFeatures'
     type=click.Choice(["yes", "no"], case_sensitive=False),
-    help="Create RAW DBs and 'rawAcl' capability. " "Defaults to 'yes'",
+    help="Create RAW DBs and 'rawAcl' capability. Defaults to 'yes'",
 )
 @click.pass_obj
 def deploy(
@@ -1570,18 +1899,15 @@ def deploy(
 
     click.echo(click.style("Deploying CDF Project bootstrap...", fg="red"))
 
-    # debug new yes/no flag
-    click.echo(click.style(f"{with_special_groups=} / {with_special_groups == YesNoType.yes}"))
-    click.echo(click.style(f"{with_raw_capability=} / {with_raw_capability == YesNoType.yes}"))
-
     if obj["debug"]:
         # TODO not working yet :/
         _logger.setLevel("DEBUG")  # INFO/DEBUG
 
     try:
         (
-            BootstrapCore(config_file)
-            # .validate_config() # TODO
+            BootstrapCore(config_file, command=CommandMode.DEPLOY)
+            .validate_config_length_limits()
+            .validate_config_is_cdf_project_in_mappings()
             .dry_run(obj["dry_run"])
             .deploy(
                 with_special_groups=with_special_groups,
@@ -1605,18 +1931,23 @@ def deploy(
     "config_file",
     default="./config-bootstrap.yml",
 )
+# TODO: support '--idp-source-id' as an option too, to match v2 naming changes?
 @click.option(
     "--aad-source-id",
+    "--idp-source-id",
+    "idp_source_id",  # explicit named variable for alternatives
     required=True,
-    help="[required] Provide the AAD Source ID to use for the 'cdf:bootstrap' Group. "
-    "Typically for a new project its the one configured for the CDF Group named 'oidc-admin-group'.",
+    help="Provide the IdP Source ID to use for the 'cdf:bootstrap' Group. "
+    "Typically for a new project its the same configured for the initial provided "
+    "CDF Group named 'oidc-admin-group'. "
+    "The parameter option '--aad-source-id' will be deprecated in next major release",
 )
 @click.pass_obj
 def prepare(
     # click.core.Context obj
     obj: Dict,
     config_file: str,
-    aad_source_id: str,
+    idp_source_id: str,
     dry_run: YesNoType = YesNoType.no,
 ) -> None:
 
@@ -1627,12 +1958,12 @@ def prepare(
         _logger.setLevel("DEBUG")  # INFO/DEBUG
 
     try:
-
         (
-            BootstrapCore(config_file)
+            BootstrapCore(config_file, command=CommandMode.PREPARE)
             # .validate_config() # TODO
-            .dry_run(obj["dry_run"]).prepare(aad_source_id=aad_source_id)
-        )
+            .dry_run(obj["dry_run"])
+            .prepare(idp_source_id=idp_source_id)
+        )  # fmt:skip
 
         click.echo(click.style("CDF Project bootstrap prepared for running 'deploy' command next.", fg="blue"))
 
@@ -1641,8 +1972,9 @@ def prepare(
 
 
 @click.command(
-    help="Delete mode used to delete CDF Groups, Datasets and Raw Databases,"
-    "CDF Groups and RAW Databases will be deleted, while Datasets will be archived and deprecated, not deleted"
+    help="Delete mode used to delete CDF Groups, Datasets and Raw Databases, "
+    "CDF Groups and RAW Databases will be deleted, while Datasets will be archived "
+    "and deprecated (as they cannot be deleted)."
 )
 @click.argument(
     "config_file",
@@ -1663,7 +1995,7 @@ def delete(
 
     try:
         (
-            BootstrapCore(config_file, delete=True)
+            BootstrapCore(config_file, command=CommandMode.DELETE)
             # .validate_config() # TODO
             .dry_run(obj["dry_run"]).delete()
         )
@@ -1692,12 +2024,12 @@ def delete(
 )
 @click.option(
     "--with-raw-capability",
-    # having this as a flag is not working for gh-action 'actions.yml' manifest
-    # instead using explicit choice options
-    # is_flag=True,
-    default="yes",
     type=click.Choice(["yes", "no"], case_sensitive=False),
     help="Create RAW DBs and 'rawAcl' capability. " "Defaults to 'yes'",
+)
+@click.option(
+    "--cdf-project",
+    help="[optional] Provide the CDF Project name to use for the diagram 'idp-cdf-mappings'.",
 )
 @click.pass_obj
 def diagram(
@@ -1706,6 +2038,7 @@ def diagram(
     config_file: str,
     markdown: YesNoType,
     with_raw_capability: YesNoType,
+    cdf_project: str,
 ) -> None:
 
     # click.echo(click.style("Diagram CDF Project ...", fg="red"))
@@ -1716,12 +2049,14 @@ def diagram(
 
     try:
         (
-            BootstrapCore(config_file)
-            # .validate_config() # TODO
+            BootstrapCore(config_file, command=CommandMode.DIAGRAM)
+            .validate_config_length_limits()
+            .validate_config_is_cdf_project_in_mappings()
             # .dry_run(obj['dry_run'])
             .diagram(
                 to_markdown=markdown,
                 with_raw_capability=with_raw_capability,
+                cdf_project=cdf_project,
                 )
         )  # fmt:skip
 
