@@ -54,7 +54,7 @@ bootstrap:
 
     # default is: allprojects
     #   recommended is shorter: 'all'
-    aggregated-level-name: allprojects
+    aggregated-level-name: all
 
     # default and recommended is: cdf
     #   supports empty-string ''
@@ -63,11 +63,11 @@ bootstrap:
     # default is: dataset
     #  recommended is shorter 'ds' or minimal ''
     #   supports empty-string ''
-    dataset-suffix: dataset
+    dataset-suffix: ds
 
     # default is: rawdb
     #  recommended is shorter 'db' or minimal ''
-    rawdb-suffix: rawdb
+    rawdb-suffix: db
 
     # default is" ['state']
     #   meant for separating the statestores from extractors from ingested data
@@ -92,12 +92,12 @@ bootstrap:
       - cdf-group: cdf:root
         idp-source-id: 374dc9f6-f3a1-4b34-b897-11111111111
         idp-source-name: CDF_DEV_ROOT
-      - cdf-group: cdf:allprojects:owner
+      - cdf-group: cdf:all:owner
         idp-source-id: acd2fe35-aa51-45a7-acef-11111111111
-        idp-source-name: CDF_DEV_ALLPROJECTS_OWNER
-      - cdf-group: cdf:allprojects:read
+        idp-source-name: CDF_DEV_all_OWNER
+      - cdf-group: cdf:all:read
         idp-source-id: acd2fe35-aa51-45a7-acef-11111111111
-        idp-source-name: CDF_DEV_ALLPROJECTS_READ
+        idp-source-name: CDF_DEV_all_READ
       - cdf-group: cdf:uc:001:demand:read
         idp-source-id: 314159-aa51-45a7-acef-11111111111
         idp-source-name: CDF_DEV_UC001DEMAND_READ
@@ -106,12 +106,12 @@ bootstrap:
       - cdf-group: cdf:root
         idp-source-id: 374dc9f6-f3a1-4b34-b897-22222222222
         idp-source-name: CDF_PROD_ROOT
-      - cdf-group: cdf:allprojects:owner
+      - cdf-group: cdf:all:owner
         idp-source-id: acd2fe35-aa51-45a7-acef-22222222222
-        idp-source-name: CDF_PROD_ALLPROJECTS_OWNER
-      - cdf-group: cdf:allprojects:read
+        idp-source-name: CDF_PROD_all_OWNER
+      - cdf-group: cdf:all:read
         idp-source-id: acd2fe35-aa51-45a7-acef-11111111111
-        idp-source-name: CDF_PROD_ALLPROJECTS_READ
+        idp-source-name: CDF_PROD_all_READ
       - cdf-group: cdf:uc:001:demand:read
         idp-source-id: 314159-aa51-45a7-acef-22222222222
         idp-source-name: CDF_PROD_UC001DEMAND_READ

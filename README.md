@@ -22,6 +22,7 @@ Purpose:
 - [InSo Bootstrap CLI](#inso-bootstrap-cli)
   - [Scope of Work](#scope-of-work)
   - [Table of Content](#table-of-content)
+  - [How to get started](#how-to-get-started)
   - [Bootstrap CLI concept](#bootstrap-cli-concept)
     - [Secure access management](#secure-access-management)
     - [Data Sets](#data-sets)
@@ -52,6 +53,121 @@ Purpose:
   - [run local with Python](#run-local-with-python)
   - [run local with Docker](#run-local-with-docker)
   - [run as github action](#run-as-github-action)
+
+
+## How to get started
+
+The recommended way to run this is using poetry, but other methods are supported.
+For more details on other methods or native windows usage, check out [How to run](#how-to-run).
+To start you have to install Poetry, a tool to manage python dependencies and virtual environments. It is recommended running this on Linux, WSL2 or Mac. 
+
+```
+curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/install-poetry.py | python -
+```
+
+Once poetry has been install, the local python environment can be installed and set up using poetry.
+
+```
+poetry build
+poetry install
+poetry update
+```
+
+
+### Minimal Configuration
+Before running the cli, you have to set up your config file. A goo start is to take a look at the following config file. 
+
+- `config/config-simple-v2-draft.yml` 
+
+This config has extensive comments explaining the syntax with examples for all the important features. More explanation can also be found in the [Configuration](#configuration)-section
+
+This tool has four main commands:
+
+- `diagram`
+  - Diagram mode used to document the given configuration as a mermaid diagram
+- `prepare`
+  - Prepare an elevated CDF Group 'cdf:bootstrap' and link it to an idp-group
+- `deploy `
+  - Deploy a set of bootstrap from a config-file
+- `delete` 
+  - Delete mode used to delete CDF Groups, Datasets and Raw Databases
+
+To test the tool out without connecting to a CDF-project, comment out the cognite-section of the config an run the `diagram` command (on WSL):
+
+```
+ poetry run bootstrap-cli --debug diagram --cdf-project=shiny-dev configs/config-simple-v2-draft.yml | clip.exe
+``` 
+
+alternativly on Mac/Linux
+
+```
+ poetry run bootstrap-cli --debug diagram --cdf-project=shiny-dev configs/config-simple-v2-draft.yml > diagram.txt
+``` 
+
+No you can go to [Mermaid Live](https://mermaid.live/) and paste the content of the clipboard/file and see a diagram of the Groups, Data Sets and Raw-DBs the tool would create based on this config file.
+
+#### Authentication 
+
+The easies way to set up authentication is to copy the `.env_example` file to `.env` and fill out the environment variables needed. For informations on the fields see  the [Environment variables](#environment-variables)-section.
+
+Once the `.env` file is set up, you can check that the tool can connect to CDF by uncommenting the cognite-part of the config file and re-running the `diagram` command from above. 
+
+
+### Running locally
+
+With To set create a group with the proper access-rights for the bootstrap-cli to do it's job you can run the `prepare`-command. this creates a group and links it to a group the app-registration is in. 
+
+PS. It is possible to run all of commands in dry-run mode by specifying `--dry-run=yes` before the command. This wil log the intended API-actions.
+
+```
+poetry run bootstrap-cli --debug prepare --aad-source-id <idb-source-id>
+```
+For more information, see the [Prepare command](#prepare-command)-section.
+
+Once the prepare command has been run, the cli should have the rights it needs and you are ready to run the deploy command. 
+
+```
+poetry run bootstrap-cli --debug deploy --cdf-project=shiny-dev configs/config-simple-v2-draft.yml
+```
+
+This will deploy and create all the groups, data sets and raw dbs shown in the diagram created above. 
+If they alreay exist, the tool will update/recreate them based on the config file. 
+
+### Github Action
+
+To run this on GitHub-Actions here is an example workflow for deploying using github actions:
+
+```yaml
+jobs:
+  deploy:
+    name: Deploy Bootstrap Pipelines
+    environment: dev
+    runs-on: ubuntu-latest
+    # environment variables
+    env:
+      CDF_PROJECT: yourcdfproject
+      CDF_CLUSTER: yourcdfcluster
+      IDP_TENANT: your-idf-cliend-id
+      CDF_HOST: https://yourcdfcluster.cognitedata.com/
+      # use a tagged release like @v2.0.0
+      # - uses: cognitedata/inso-bootstrap-cli@v2.0.0
+      # or use the latest release available using @main
+      - uses: cognitedata/inso-bootstrap-cli@main
+        env:
+            BOOTSTRAP_IDP_CLIENT_ID: ${{ secrets.CLIENT_ID }}
+            BOOTSTRAP_IDP_CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
+            BOOTSTRAP_CDF_HOST: ${{ env.CDF_HOST }}
+            BOOTSTRAP_CDF_PROJECT: ${{ env.CDF_PROJECT }}
+            BOOTSTRAP_IDP_TOKEN_URL: https://login.microsoftonline.com/${{ env.IDP_TENANT }}/oauth2/v2.0/token
+            BOOTSTRAP_IDP_SCOPES: ${{ env.CDF_HOST }}.default
+        # additional parameters for running the action
+        with:
+          config_file: ./configs/config-simple-v2-draft.yml
+          # "yes"|"no" deploy with special groups and aad_mappings
+          with_special_groups: "yes"
+```
+
+
 
 <!-- /code_chunk_output -->
 ## Bootstrap CLI concept
@@ -94,7 +210,7 @@ CDF **Scopes** related configuration targets:
 
 ## Bootstrap CLI makes Access-Control and Data Lineage manageable
 
-CDF Groups allows with capabilities (~30), actions (2-5) and scopes (x) to create very complex configurations. To establish a **manageable** and **understandable** access-control & data-lineage, the `bootstrap-cli` uses an approach to reduce the complexity by templating and packaging. In addition namespaces help add operational semantic (meaning).
+CDF Groups allows creation of very complex configurations the many different capabilities (~30), actions (2-5) and scopes (x). To establish a **manageable** and **understandable** access-control & data-lineage, the `bootstrap-cli` uses an approach to reduce the complexity by templating and packaging. In addition namespaces help add operational semantic (meaning).
 
 ### Namespaces
 
@@ -137,180 +253,257 @@ Good style is to keep the names short and add long names and details to the `des
      3. allowing data-lineage from sources through use-case model to data-products
 
 ### Bootstrap CLI example
-An example config with the main abilities of the CLI. Shared owner access is also possible, but omitted here for simplicity.
+Here is an extract from the example config `config-simple-v2-draft.yml` wich uses the main abilities of the CLI. 
+
 ```yaml
 bootstrap:
-  src:
-    src:001:ifsdb:
-      description: Data from IFSDB
-      external_id: src:001:ifsdb
-    src:002:sens:
-      description: Information on sensors
-      external_id: src:002:sen
-    src:003:s_val:
-      description: Sensor values
-      external_id: src:003:s_val
+  features:
+    aggregated-level-name: all
+    dataset-suffix: ds
+    rawdb-suffix: db
+  idp-cdf-mappings:
+    - cdf-project: shiny-dev
+      - cdf-group: cdf:all:owner
+          idp-source-id: acd2fe35-aa51-45a7-acef-11111111111
+          idp-source-name: CDF_DEV_ALLPROJECTS_OWNER
+      - cdf-group: .....
+        ...    
+  namespaces:
+    - ns-name: src
+      description: Customer source-systems
+      ns-nodes:
+        - node-name: src:001:sap
+          description: Sources 001; from SAP
+          external-id: src:001:sap
+        - node-name: src:002:weather
+          description: Sources 002; from Weather.com
+          # external-id will be auto generated in this case
 
-  uc:
-    uc:001:timeseries:
-      description: Contextualised sensorvalues
-      external_id: uc:001:timeseries
-      metadata:
-        created: 220328
-        generated: by CDF Bootstrap script
-      shared_read_access:
-        - src:001:ifsdb
-        - src:002:sens
-        - src:003:s_val
+    - ns-name: in 
+      description: End user data-input provided through deployed CDF driven solutions
+      ns-nodes:
+        - node-name: in:001:trade
+          description: Description about user inputs related to name
+          # external_id: in:001:trade
+
+    - ns-name: uc
+      description: Use Cases representing the data-products
+      ns-nodes:
+        - node-name: uc:001:demand
+          description: Use Case 001; Supply and Demand
+          metadata:
+            created: 220427
+            generated: by cdf-config-hub script
+          shared-access:
+            read:
+              - node-name: src:001:sap
+              - node-name: src:002:weather
+            owner:
+              - node-name: in:001:trade
 ```
 
-Using the diagram functionalty of the CLI we can produce the following chart of the example config.
+Using the diagram functionalty of the CLI we can produce the following chart of the example config `config-simple-v2-draft.yml`. The stipulated lines show read-access and the solid ones write.
 
 ```mermaid
 graph LR
-%% 2022-04-06 21:46:26 - Script generated Mermaid diagram
+%% 2022-05-16 14:08:18 - Script generated Mermaid diagram
 
-subgraph "AAD Groups"
-  %% AAD objId: 0b4d537c-208d-4993-8dc8-6a41f114d72c
-CDF_ALL_READ[\"CDF_ALL_READ"/]
-  %% AAD objId: 0b4d537c-208d-4993-8dc8-6a41f114d72c
-CDF_ALL_OWNER[\"CDF_ALL_OWNER"/]
+subgraph "idp" ["IdP Groups for CDF: 'shiny-dev'"]
+  %% IdP objectId: 314159-aa51-45a7-acef-11111111111
+CDF_DEV_UC001DEMAND_READ[\"CDF_DEV_UC001DEMAND_READ"/]
+  %% IdP objectId: acd2fe35-aa51-45a7-acef-11111111111
+CDF_DEV_all_READ[\"CDF_DEV_all_READ"/]
+  %% IdP objectId: acd2fe35-aa51-45a7-acef-11111111111
+CDF_DEV_all_OWNER[\"CDF_DEV_all_OWNER"/]
 end
 
 
-subgraph "'Owner' Groups"
-
-subgraph "Core Level (Owner)"
-  cdf:src:001:ifsdb:owner("cdf:src:001:ifsdb:owner")
-  cdf:src:002::sens:owner("cdf:src:002::sens:owner")
-  cdf:src:003:s_val:owner("cdf:src:003:s_val:owner")
-  cdf:uc:001:timeseries:owner("cdf:uc:001:timeseries:owner")
+subgraph "owner" ["'Owner' Groups"]
+  
+subgraph "core_cdf_owner" ["Node Level (Owner)"]
+  cdf:src:001:sap:owner("cdf:src:001:sap:owner")
+  cdf:src:002:weather:owner("cdf:src:002:weather:owner")
+  cdf:in:001:trade:owner("cdf:in:001:trade:owner")
+  cdf:uc:001:demand:owner("cdf:uc:001:demand:owner")
 end
 
-
-subgraph "Namespace Level (Owner)"
+  
+subgraph "ns_cdf_owner" ["Namespace Level (Owner)"]
   cdf:src:all:owner["cdf:src:all:owner"]
+  cdf:in:all:owner["cdf:in:all:owner"]
   cdf:uc:all:owner["cdf:uc:all:owner"]
   cdf:all:owner["cdf:all:owner"]
 end
 
-
-subgraph "Scopes (Owner)"
-  src:001:ifsdb:rawdb:owner[["src:001:ifsdb:rawdb"]]
-  src:001:ifsdb:rawdb:state:owner[["src:001:ifsdb:rawdb:state"]]
-  src:001:ifsdb:dataset:owner>"src:001:ifsdb:dataset"]
-  src:002::sens:rawdb:owner[["src:002::sens:rawdb"]]
-  src:002::sens:rawdb:state:owner[["src:002::sens:rawdb:state"]]
-  src:002::sens:dataset:owner>"src:002::sens:dataset"]
-  src:003:s_val:rawdb:owner[["src:003:s_val:rawdb"]]
-  src:003:s_val:rawdb:state:owner[["src:003:s_val:rawdb:state"]]
-  src:003:s_val:dataset:owner>"src:003:s_val:dataset"]
-  uc:001:timeseries:rawdb:owner[["uc:001:timeseries:rawdb"]]
-  uc:001:timeseries:rawdb:state:owner[["uc:001:timeseries:rawdb:state"]]
-  uc:001:timeseries:dataset:owner>"uc:001:timeseries:dataset"]
-  src:001:ifsdb:rawdb:owner[["src:001:ifsdb:rawdb"]]
-  src:001:ifsdb:rawdb:state:owner[["src:001:ifsdb:rawdb:state"]]
-  src:002::sens:rawdb:owner[["src:002::sens:rawdb"]]
-  src:002::sens:rawdb:state:owner[["src:002::sens:rawdb:state"]]
-  src:003:s_val:rawdb:owner[["src:003:s_val:rawdb"]]
-  src:003:s_val:rawdb:state:owner[["src:003:s_val:rawdb:state"]]
-  src:001:ifsdb:dataset:owner>"src:001:ifsdb:dataset"]
-  src:002::sens:dataset:owner>"src:002::sens:dataset"]
-  src:003:s_val:dataset:owner>"src:003:s_val:dataset"]
+  
+subgraph "scope_owner" ["Scopes (Owner)"]
+  src:001:sap:db__owner__raw[["src:001:sap:db"]]
+  src:001:sap:db:state__owner__raw[["src:001:sap:db:state"]]
+  src:001:sap:ds__owner__datasets>"src:001:sap:ds"]
+  src:002:weather:db__owner__raw[["src:002:weather:db"]]
+  src:002:weather:db:state__owner__raw[["src:002:weather:db:state"]]
+  src:002:weather:ds__owner__datasets>"src:002:weather:ds"]
+  src:all:db__owner__raw[["src:all:db"]]
+  src:all:db:state__owner__raw[["src:all:db:state"]]
+  src:all:ds__owner__datasets>"src:all:ds"]
+  in:001:trade:db__owner__raw[["in:001:trade:db"]]
+  in:001:trade:db:state__owner__raw[["in:001:trade:db:state"]]
+  in:001:trade:ds__owner__datasets>"in:001:trade:ds"]
+  in:all:db__owner__raw[["in:all:db"]]
+  in:all:db:state__owner__raw[["in:all:db:state"]]
+  in:all:ds__owner__datasets>"in:all:ds"]
+  uc:001:demand:db__owner__raw[["uc:001:demand:db"]]
+  uc:001:demand:db:state__owner__raw[["uc:001:demand:db:state"]]
+  in:001:trade:db__owner__raw[["in:001:trade:db"]]
+  in:001:trade:db:state__owner__raw[["in:001:trade:db:state"]]
+  uc:001:demand:ds__owner__datasets>"uc:001:demand:ds"]
+  in:001:trade:ds__owner__datasets>"in:001:trade:ds"]
+  src:001:sap:db__owner__raw[["src:001:sap:db"]]
+  src:001:sap:db:state__owner__raw[["src:001:sap:db:state"]]
+  src:002:weather:db__owner__raw[["src:002:weather:db"]]
+  src:002:weather:db:state__owner__raw[["src:002:weather:db:state"]]
+  src:001:sap:ds__owner__datasets>"src:001:sap:ds"]
+  src:002:weather:ds__owner__datasets>"src:002:weather:ds"]
+  uc:all:db__owner__raw[["uc:all:db"]]
+  uc:all:db:state__owner__raw[["uc:all:db:state"]]
+  uc:all:ds__owner__datasets>"uc:all:ds"]
+  all:db__owner__raw[["all:db"]]
+  all:db:state__owner__raw[["all:db:state"]]
+  all:ds__owner__datasets>"all:ds"]
 end
 
 end
 
 
-subgraph "'Read' Groups"
-
-subgraph "Core Level (Read)"
-  cdf:src:001:ifsdb:read("cdf:src:001:ifsdb:read")
-  cdf:src:002::sens:read("cdf:src:002::sens:read")
-  cdf:src:003:s_val:read("cdf:src:003:s_val:read")
-  cdf:uc:001:timeseries:read("cdf:uc:001:timeseries:read")
+subgraph "read" ["'Read' Groups"]
+  
+subgraph "core_cdf_read" ["Node Level (Read)"]
+  cdf:src:001:sap:read("cdf:src:001:sap:read")
+  cdf:src:002:weather:read("cdf:src:002:weather:read")
+  cdf:in:001:trade:read("cdf:in:001:trade:read")
+  cdf:uc:001:demand:read("cdf:uc:001:demand:read")
 end
 
-
-subgraph "Namespace Level (Read)"
+  
+subgraph "ns_cdf_read" ["Namespace Level (Read)"]
   cdf:src:all:read["cdf:src:all:read"]
+  cdf:in:all:read["cdf:in:all:read"]
   cdf:uc:all:read["cdf:uc:all:read"]
   cdf:all:read["cdf:all:read"]
 end
 
-
-subgraph "Scopes (Read)"
-  src:001:ifsdb:rawdb:read[["src:001:ifsdb:rawdb"]]
-  src:001:ifsdb:rawdb:state:read[["src:001:ifsdb:rawdb:state"]]
-  src:001:ifsdb:dataset:read>"src:001:ifsdb:dataset"]
-  src:002::sens:rawdb:read[["src:002::sens:rawdb"]]
-  src:002::sens:rawdb:state:read[["src:002::sens:rawdb:state"]]
-  src:002::sens:dataset:read>"src:002::sens:dataset"]
-  src:003:s_val:rawdb:read[["src:003:s_val:rawdb"]]
-  src:003:s_val:rawdb:state:read[["src:003:s_val:rawdb:state"]]
-  src:003:s_val:dataset:read>"src:003:s_val:dataset"]
-  uc:001:timeseries:rawdb:read[["uc:001:timeseries:rawdb"]]
-  uc:001:timeseries:rawdb:state:read[["uc:001:timeseries:rawdb:state"]]
-  uc:001:timeseries:dataset:read>"uc:001:timeseries:dataset"]
+  
+subgraph "scope_read" ["Scopes (Read)"]
+  src:001:sap:db__read__raw[["src:001:sap:db"]]
+  src:001:sap:db:state__read__raw[["src:001:sap:db:state"]]
+  src:001:sap:ds__read__datasets>"src:001:sap:ds"]
+  src:002:weather:db__read__raw[["src:002:weather:db"]]
+  src:002:weather:db:state__read__raw[["src:002:weather:db:state"]]
+  src:002:weather:ds__read__datasets>"src:002:weather:ds"]
+  src:all:db__read__raw[["src:all:db"]]
+  src:all:db:state__read__raw[["src:all:db:state"]]
+  src:all:ds__read__datasets>"src:all:ds"]
+  in:001:trade:db__read__raw[["in:001:trade:db"]]
+  in:001:trade:db:state__read__raw[["in:001:trade:db:state"]]
+  in:001:trade:ds__read__datasets>"in:001:trade:ds"]
+  in:all:db__read__raw[["in:all:db"]]
+  in:all:db:state__read__raw[["in:all:db:state"]]
+  in:all:ds__read__datasets>"in:all:ds"]
+  uc:001:demand:db__read__raw[["uc:001:demand:db"]]
+  uc:001:demand:db:state__read__raw[["uc:001:demand:db:state"]]
+  uc:001:demand:ds__read__datasets>"uc:001:demand:ds"]
+  uc:all:db__read__raw[["uc:all:db"]]
+  uc:all:db:state__read__raw[["uc:all:db:state"]]
+  uc:all:ds__read__datasets>"uc:all:ds"]
+  all:db__read__raw[["all:db"]]
+  all:db:state__read__raw[["all:db:state"]]
+  all:ds__read__datasets>"all:ds"]
 end
 
 end
 
-%% all 47 links connecting the above nodes
-cdf:src:all:read-.->cdf:src:001:ifsdb:read
-cdf:src:001:ifsdb:read-.->src:001:ifsdb:rawdb:read
-cdf:src:001:ifsdb:read-.->src:001:ifsdb:rawdb:state:read
-cdf:src:001:ifsdb:read-.->src:001:ifsdb:dataset:read
-cdf:src:all:read-.->cdf:src:002::sens:read
-cdf:src:002::sens:read-.->src:002::sens:rawdb:read
-cdf:src:002::sens:read-.->src:002::sens:rawdb:state:read
-cdf:src:002::sens:read-.->src:002::sens:dataset:read
-cdf:src:all:read-.->cdf:src:003:s_val:read
-cdf:src:003:s_val:read-.->src:003:s_val:rawdb:read
-cdf:src:003:s_val:read-.->src:003:s_val:rawdb:state:read
-cdf:src:003:s_val:read-.->src:003:s_val:dataset:read
+%% all 74 links connecting the above nodes
+cdf:src:all:read-.->cdf:src:001:sap:read
+cdf:src:001:sap:read-.->src:001:sap:db__read__raw
+cdf:src:001:sap:read-.->src:001:sap:db:state__read__raw
+cdf:src:001:sap:read-.->src:001:sap:ds__read__datasets
+cdf:src:all:read-.->cdf:src:002:weather:read
+cdf:src:002:weather:read-.->src:002:weather:db__read__raw
+cdf:src:002:weather:read-.->src:002:weather:db:state__read__raw
+cdf:src:002:weather:read-.->src:002:weather:ds__read__datasets
 cdf:all:read-.->cdf:src:all:read
-cdf:uc:all:read-.->cdf:uc:001:timeseries:read
-cdf:uc:001:timeseries:read-.->uc:001:timeseries:rawdb:read
-cdf:uc:001:timeseries:read-.->uc:001:timeseries:rawdb:state:read
-cdf:uc:001:timeseries:read-.->uc:001:timeseries:dataset:read
+cdf:src:all:read-.->src:all:db__read__raw
+cdf:src:all:read-.->src:all:db:state__read__raw
+cdf:src:all:read-.->src:all:ds__read__datasets
+cdf:in:all:read-.->cdf:in:001:trade:read
+cdf:in:001:trade:read-.->in:001:trade:db__read__raw
+cdf:in:001:trade:read-.->in:001:trade:db:state__read__raw
+cdf:in:001:trade:read-.->in:001:trade:ds__read__datasets
+cdf:all:read-.->cdf:in:all:read
+cdf:in:all:read-.->in:all:db__read__raw
+cdf:in:all:read-.->in:all:db:state__read__raw
+cdf:in:all:read-.->in:all:ds__read__datasets
+CDF_DEV_UC001DEMAND_READ-->cdf:uc:001:demand:read
+cdf:uc:all:read-.->cdf:uc:001:demand:read
+cdf:uc:001:demand:read-.->uc:001:demand:db__read__raw
+cdf:uc:001:demand:read-.->uc:001:demand:db:state__read__raw
+cdf:uc:001:demand:read-.->uc:001:demand:ds__read__datasets
 cdf:all:read-.->cdf:uc:all:read
-CDF_ALL_READ-->cdf:all:read
-cdf:src:all:owner-->cdf:src:001:ifsdb:owner
-cdf:src:001:ifsdb:owner-->src:001:ifsdb:rawdb:owner
-cdf:src:001:ifsdb:owner-->src:001:ifsdb:rawdb:state:owner
-cdf:src:001:ifsdb:owner-->src:001:ifsdb:dataset:owner
-cdf:src:all:owner-->cdf:src:002::sens:owner
-cdf:src:002::sens:owner-->src:002::sens:rawdb:owner
-cdf:src:002::sens:owner-->src:002::sens:rawdb:state:owner
-cdf:src:002::sens:owner-->src:002::sens:dataset:owner
-cdf:src:all:owner-->cdf:src:003:s_val:owner
-cdf:src:003:s_val:owner-->src:003:s_val:rawdb:owner
-cdf:src:003:s_val:owner-->src:003:s_val:rawdb:state:owner
-cdf:src:003:s_val:owner-->src:003:s_val:dataset:owner
+cdf:uc:all:read-.->uc:all:db__read__raw
+cdf:uc:all:read-.->uc:all:db:state__read__raw
+cdf:uc:all:read-.->uc:all:ds__read__datasets
+CDF_DEV_all_READ-->cdf:all:read
+cdf:all:read-.->all:db__read__raw
+cdf:all:read-.->all:db:state__read__raw
+cdf:all:read-.->all:ds__read__datasets
+cdf:src:all:owner-->cdf:src:001:sap:owner
+cdf:src:001:sap:owner-->src:001:sap:db__owner__raw
+cdf:src:001:sap:owner-->src:001:sap:db:state__owner__raw
+cdf:src:001:sap:owner-->src:001:sap:ds__owner__datasets
+cdf:src:all:owner-->cdf:src:002:weather:owner
+cdf:src:002:weather:owner-->src:002:weather:db__owner__raw
+cdf:src:002:weather:owner-->src:002:weather:db:state__owner__raw
+cdf:src:002:weather:owner-->src:002:weather:ds__owner__datasets
 cdf:all:owner-->cdf:src:all:owner
-cdf:uc:all:owner-->cdf:uc:001:timeseries:owner
-cdf:uc:001:timeseries:owner-->uc:001:timeseries:rawdb:owner
-cdf:uc:001:timeseries:owner-->uc:001:timeseries:rawdb:state:owner
-cdf:uc:001:timeseries:owner-->uc:001:timeseries:dataset:owner
-cdf:uc:001:timeseries:owner-.->src:001:ifsdb:rawdb:owner
-cdf:uc:001:timeseries:owner-.->src:001:ifsdb:rawdb:state:owner
-cdf:uc:001:timeseries:owner-.->src:002::sens:rawdb:owner
-cdf:uc:001:timeseries:owner-.->src:002::sens:rawdb:state:owner
-cdf:uc:001:timeseries:owner-.->src:003:s_val:rawdb:owner
-cdf:uc:001:timeseries:owner-.->src:003:s_val:rawdb:state:owner
-cdf:uc:001:timeseries:owner-.->src:001:ifsdb:dataset:owner
-cdf:uc:001:timeseries:owner-.->src:002::sens:dataset:owner
-cdf:uc:001:timeseries:owner-.->src:003:s_val:dataset:owner
+cdf:src:all:owner-->src:all:db__owner__raw
+cdf:src:all:owner-->src:all:db:state__owner__raw
+cdf:src:all:owner-->src:all:ds__owner__datasets
+cdf:in:all:owner-->cdf:in:001:trade:owner
+cdf:in:001:trade:owner-->in:001:trade:db__owner__raw
+cdf:in:001:trade:owner-->in:001:trade:db:state__owner__raw
+cdf:in:001:trade:owner-->in:001:trade:ds__owner__datasets
+cdf:all:owner-->cdf:in:all:owner
+cdf:in:all:owner-->in:all:db__owner__raw
+cdf:in:all:owner-->in:all:db:state__owner__raw
+cdf:in:all:owner-->in:all:ds__owner__datasets
+cdf:uc:all:owner-->cdf:uc:001:demand:owner
+cdf:uc:001:demand:owner-->uc:001:demand:db__owner__raw
+cdf:uc:001:demand:owner-->uc:001:demand:db:state__owner__raw
+cdf:uc:001:demand:owner-->in:001:trade:db__owner__raw
+cdf:uc:001:demand:owner-->in:001:trade:db:state__owner__raw
+cdf:uc:001:demand:owner-->uc:001:demand:ds__owner__datasets
+cdf:uc:001:demand:owner-->in:001:trade:ds__owner__datasets
+cdf:uc:001:demand:owner-.->src:001:sap:db__owner__raw
+cdf:uc:001:demand:owner-.->src:001:sap:db:state__owner__raw
+cdf:uc:001:demand:owner-.->src:002:weather:db__owner__raw
+cdf:uc:001:demand:owner-.->src:002:weather:db:state__owner__raw
+cdf:uc:001:demand:owner-.->src:001:sap:ds__owner__datasets
+cdf:uc:001:demand:owner-.->src:002:weather:ds__owner__datasets
 cdf:all:owner-->cdf:uc:all:owner
-CDF_ALL_OWNER-->cdf:all:owner
+cdf:uc:all:owner-->uc:all:db__owner__raw
+cdf:uc:all:owner-->uc:all:db:state__owner__raw
+cdf:uc:all:owner-->uc:all:ds__owner__datasets
+CDF_DEV_all_OWNER-->cdf:all:owner
+cdf:all:owner-->all:db__owner__raw
+cdf:all:owner-->all:db:state__owner__raw
+cdf:all:owner-->all:ds__owner__datasets
 ```
 
-As one can see, even for this simple use case, the cli creates quite a lot of resources. There reason for this is to both provide the outward simplicity of a DAY1 setup like it is shown here, but with the possibility to add more granular group control later on. In this DAY1 setup, only the two top groups are mapped to actual AAD-groups.
+As one can see, even for this simple use case, the cli creates quite a lot of resources. The reason for this is to both provide the outward simplicity of a DAY1 setup like it is shown here, but with the possibility to add more granular group control later on. In this DAY1 setup, only the two top groups and one use-case group are mapped to actual AAD-groups.
 
-If we take a closer look at only one namespace element.
+If we take a closer look at only the first namespace node.
 ```
-src:001:ifsdb
+src:001:sap
 ```
 For this element the cli creates/updates the following resources:
 #### Groups
@@ -321,23 +514,24 @@ cdf:all:read
 cdf:src:all:owner
 cdf:src:all:read
 
-cdf:src:001:ifsdb:owner
-cdf:src:001:ifsdb:read
+cdf:src:001:sap:owner
+cdf:src:001:sap:read
 ```
 #### Scopes
 ```
 all:dataset
-all:rawdb
-all:rawdb:state
+all:db
+all:db:state
 
-src:all:dataset
-src:all:rawdb
-src:all:rawdb:state
+src:all:ds
+src:all:db
+src:all:db:state
 
-src:001:ifsdb:dataset
-src:001:ifsdb:rawdb
-src:001:ifsdb:rawdb:state
+src:001:sap:ds
+src:001:sap:db
+src:001:sap:db:state
 ```
+
 This allows us to give access to for example all sources or just to a specific one like src:001 while forcing data to always be written into datasets.
 
 
@@ -530,7 +724,26 @@ logger:
     level: INFO
 ```
 
-#### Configuration for `deploy` command
+
+#### Environment variables
+
+Some more detail on the variables:
+
+- BOOTSTRAP_CDF_HOST
+  - The url to your cdf cluster. 
+  - Example: ```https://westeurope-1.cognitedata.com```
+- BOOTSTRAP_CDF_PROJECT
+  - The CDF Project. 
+- BOOTSTRAP_IDP_CLIENT_ID
+  - Client id of the App Registration you have created for the CLI
+- BOOTSTRAP_IDP_CLIENT_SECRET
+  - Client secret created for the App registration
+- BOOTSTRAP_IDP_TOKEN_URL= ```https://login.microsoftonline.com/<tenant id>/oauth2/v2.0/token``` 
+  - In case you use Azure AD Replace ```<tenant id>``` with your Azure Tenant ID.
+- BOOTSTRAP_IDP_SCOPES
+  - Usually: ```https://<cluster-name>.cognitedata.com/.default```
+
+### Configuration for `deploy` command
 
 In addition to the sections described above, the configuration file for `deploy` command requires two more sections:
 
@@ -591,7 +804,7 @@ bootstrap:
 
 For a complete example of the `deploy` configuration, see `configs/test-bootstrap-deploy-example.yml`.
 
-#### Configuration for `delete` command
+### Configuration for `delete` command
 
 In addition to the `config` and `logger` sections described above, the configuration file for delete mode
 should include one more section:
@@ -639,37 +852,34 @@ For a complete example of the delete configuration, see the `configs/test-bootst
     poetry run pre-commit install #Only needed if not installed
     poetry run pre-commit run --all-files
     ```
-## semantic versioning
+
+## Inspiration
+
+Templates (blueprints) used for implementation are
+  - `cognitedata/transformation-cli`
+  - `cognitedata/python-extratcion-utils`
+    - using `CogniteConfig` and `LoggingConfig`
+    - and extended with custom `dataclass` driven configuration
+
+## Semantic versioning
 - Uses `semantic-release` to create version tags.
 - The rules for commit messages are conventional commits, see [conventionalcommits](https://www.conventionalcommits.org/en/v1.0.0-beta.4/#summary%3E)
 - Remark: If version needs change, before merge, make sure commit title has elements mentioned on `conventionalcommits`
 - Remark: with new version change, bump will update the version on `pyproject.toml` so no need to change version there.
 - Remark: version in `incubator/bootstrap_cli/__init__` is used in main to add version on metadata.
   This is not a part of semantic release but needs to be updated to upcoming version before version update.
-## to be done
 
-- [x] `.pre-commit-config.yaml` hook support
-- [x] `.dockerignore` (pycache)
-- [x] logs folder handling (docker volume mount)
-- [x] logger.info() or print() or click.echo(click.style(..))
-    - logger debug support
-- [ ] compile as EXE (when Python is not available on customer server)
-  - code-signed exe required for Windows
 
-# how to run
+# Other ways of running
 - it provides a configuration driven deployment for Cognite Bootstrap Pipelines (named `bootstrap` in short)
   - support to run it
-    - from `poetry run`
+    - from `poetry run` (explained in [Getting Started](#how-to-get-started))
     - from `python -m`
-    - from `docker run`
-    - as GitHub Action
+    - from `docker run` 
+    - as GitHub Action (explained in [Getting Started](#how-to-get-started))
     - as Windows Executable (planned as feature-request)
 
-- templates (blueprints) used for implementation are
-  - `cognitedata/transformation-cli`
-  - `cognitedata/python-extratcion-utils`
-    - using `CogniteConfig` and `LoggingConfig`
-    - and extended with custom `dataclass` driven configuration
+
 
 Follow the initial setup first
 1. Fill out relevant configurations from `configs`
@@ -736,34 +946,3 @@ Debug the Docker container
 ➟  docker run --volume ${PWD}/configs:/configs --volume ${PWD}/logs:/logs  --env-file=.env -it --entrypoint /bin/bash incubator/bootstrap-cli:debug
 ```
 
-## run as github action
-
-```yaml
-jobs:
-  deploy:
-    name: Deploy Bootstrap Pipelines
-    environment: dev
-    runs-on: ubuntu-latest
-    # environment variables
-    env:
-      CDF_PROJECT: yourcdfproject
-      CDF_CLUSTER: bluefield
-      IDP_TENANT: abcde-12345
-      CDF_HOST: https://bluefield.cognitedata.com/
-      # use a tagged release like @v1.2.1
-      # - uses: cognitedata/inso-bootstrap-cli@v1.2.1
-      # or use the latest release available using @main
-      - uses: cognitedata/inso-bootstrap-cli@main
-        env:
-            BOOTSTRAP_IDP_CLIENT_ID: ${{ secrets.CLIENT_ID }}
-            BOOTSTRAP_IDP_CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
-            BOOTSTRAP_CDF_HOST: ${{ env.CDF_HOST }}
-            BOOTSTRAP_CDF_PROJECT: ${{ env.CDF_PROJECT }}
-            BOOTSTRAP_IDP_TOKEN_URL: https://login.microsoftonline.com/${{ env.IDP_TENANT }}/oauth2/v2.0/token
-            BOOTSTRAP_IDP_SCOPES: ${{ env.CDF_HOST }}.default
-        # additional parameters for running the action
-        with:
-          config_file: ./configs/test-bootstrap-deploy-example.yml
-          # "yes"|"no" deploy with special groups and aad_mappings
-          with_special_groups: "yes"
-```
