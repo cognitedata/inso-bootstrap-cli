@@ -1033,6 +1033,9 @@ class BootstrapCore:
         ]  # fmt: skip
 
         if groups_only:
+            #
+            # early exit
+            #
             self.deployed = {"groups": groups_df[available_group_columns]}
             return
 
@@ -1041,7 +1044,7 @@ class BootstrapCore:
         #
         datasets_df = self.client.data_sets.list(limit=NOLIMIT).to_pandas()
         if len(datasets_df) == 0:
-            # overwrite with an empty dataframe with columns
+            # create an empty dataframe with columns, as SDK responded with no columns
             datasets_df = pd.DataFrame(columns=["name", "id"])
         else:
             datasets_df = datasets_df[["name", "id"]]
@@ -1050,18 +1053,18 @@ class BootstrapCore:
         # RAW DBs
         #
         rawdbs_df = self.client.raw.databases.list(limit=NOLIMIT).to_pandas()
-        available_raw_columns = [
-            column
-            for column in rawdbs_df.columns
-            if column in ["name"]
-            ]  # fmt: skip
+        if len(rawdbs_df) == 0:
+            # create an empty dataframe with columns, as SDK responded with no columns
+            rawdbs_df = pd.DataFrame(columns=["name"])
+        else:
+            rawdbs_df = rawdbs_df[["name"]]
 
         # store DataFrames
         # deployed: Dict[str, pd.DataFrame]
         self.deployed = {
             "groups": groups_df[available_group_columns],
             "datasets": datasets_df,
-            "raw_dbs": rawdbs_df[available_raw_columns],
+            "raw_dbs": rawdbs_df,
         }
 
     # prepare a yaml for "delete" job
