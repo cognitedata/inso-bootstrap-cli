@@ -75,7 +75,7 @@ poetry update
 
 
 ### Minimal Configuration
-Before running the cli, you have to set up your config file. A goo start is to take a look at the following config file. 
+Before running the cli, you have to set up your config file. A good start is to take a look at the following config file. 
 
 - `config/config-simple-v2-draft.yml` 
 
@@ -92,7 +92,7 @@ This tool has four main commands:
 - `delete` 
   - Delete mode used to delete CDF Groups, Datasets and Raw Databases
 
-To test the tool out without connecting to a CDF-project, comment out the cognite-section of the config an run the `diagram` command (on WSL):
+To test the tool out without connecting to a CDF-project, comment out the cognite-section of the config and run the `diagram` command (on WSL):
 
 ```
  poetry run bootstrap-cli --debug diagram --cdf-project=shiny-dev configs/config-simple-v2-draft.yml | clip.exe
@@ -138,35 +138,59 @@ If they alreay exist, the tool will update/recreate them based on the config fil
 To run this on GitHub-Actions here is an example workflow for deploying using github actions:
 
 ```yaml
+name: actions
+
+on:
+  push:
+    branches:
+      - main
+
 jobs:
-  deploy:
-    name: Deploy Bootstrap Pipelines
+  cdf-bootstrap:
+    name: Deploy Bootstrap Pipeline
     environment: dev
     runs-on: ubuntu-latest
-    # environment variables
+
+    # Environment variables
     env:
       CDF_PROJECT: yourcdfproject
       CDF_CLUSTER: yourcdfcluster
       IDP_TENANT: your-idf-cliend-id
       CDF_HOST: https://yourcdfcluster.cognitedata.com/
-      # use a tagged release like @v2.0.0
-      # - uses: cognitedata/inso-bootstrap-cli@v2.0.0
-      # or use the latest release available using @main
-      - uses: cognitedata/inso-bootstrap-cli@main
+
+    steps:
+      # Checkout repository
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          submodules: false
+
+      # Bootstrap_cli 
+      - name: bootstrap
+        # use a tagged release like @v2.0.0
+        # uses: cognitedata/inso-bootstrap-cli@v2.0.0
+        # or use the latest release available using @main
+        uses: cognitedata/inso-bootstrap-cli@main
         env:
-            BOOTSTRAP_IDP_CLIENT_ID: ${{ secrets.CLIENT_ID }}
-            BOOTSTRAP_IDP_CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
-            BOOTSTRAP_CDF_HOST: ${{ env.CDF_HOST }}
-            BOOTSTRAP_CDF_PROJECT: ${{ env.CDF_PROJECT }}
-            BOOTSTRAP_IDP_TOKEN_URL: https://login.microsoftonline.com/${{ env.IDP_TENANT }}/oauth2/v2.0/token
-            BOOTSTRAP_IDP_SCOPES: ${{ env.CDF_HOST }}.default
+          BOOTSTRAP_IDP_CLIENT_ID: ${{ secrets.CLIENT_ID }}
+          BOOTSTRAP_IDP_CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
+          BOOTSTRAP_CDF_HOST: ${{ env.CDF_HOST }}
+          BOOTSTRAP_CDF_PROJECT: ${{ env.CDF_PROJECT }}
+          BOOTSTRAP_IDP_TOKEN_URL: https://login.microsoftonline.com/${{ env.IDP_TENANT }}/oauth2/v2.0/token
+          BOOTSTRAP_IDP_SCOPES: ${{ env.CDF_HOST }}.default
         # additional parameters for running the action
         with:
-          config_file: ./configs/config-simple-v2-draft.yml
+          config_file: ./config/cpe-dev-bootstrap.yml
           # "yes"|"no" deploy with special groups and aad_mappings
           with_special_groups: "yes"
 ```
 
+### Azure setup
+For using azure as IdP, some configurations need to be performed in azure.
+- Register application in AAD (Azure Active Directory). 
+  - Ensure the application is member of the AAD group assigned as oidc-admin-group.
+  - Create a secret to be in the .env variable BOOTSTRAP_IDP_CLIENT_SECRET.
+  - The application id  to be used in the .env variable BOOTSTRAP_IDP_CLIENT_ID
 
 
 <!-- /code_chunk_output -->
