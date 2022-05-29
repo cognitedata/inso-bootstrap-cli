@@ -59,7 +59,7 @@ Purpose:
 
 The recommended way to run this is using poetry, but other methods are supported.
 For more details on other methods or native windows usage, check out [How to run](#how-to-run).
-To start you have to install Poetry, a tool to manage python dependencies and virtual environments. It is recommended running this on Linux, WSL2 or Mac. 
+To start you have to install Poetry, a tool to manage python dependencies and virtual environments. It is recommended running this on Linux, WSL2 or Mac.
 
 ```
 curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/install-poetry.py | python -
@@ -75,9 +75,9 @@ poetry update
 
 
 ### Minimal Configuration
-Before running the cli, you have to set up your config file. A good start is to take a look at the following config file. 
+Before running the cli, you have to set up your config file. A good start is to take a look at the following config file.
 
-- `config/config-simple-v2-draft.yml` 
+- `config/config-simple-v2-draft.yml`
 
 This config has extensive comments explaining the syntax with examples for all the important features. More explanation can also be found in the [Configuration](#configuration)-section
 
@@ -89,33 +89,33 @@ This tool has four main commands:
   - Prepare an elevated CDF Group 'cdf:bootstrap' and link it to an idp-group
 - `deploy `
   - Deploy a set of bootstrap from a config-file
-- `delete` 
+- `delete`
   - Delete mode used to delete CDF Groups, Datasets and Raw Databases
 
 To test the tool out without connecting to a CDF-project, comment out the cognite-section of the config and run the `diagram` command (on WSL):
 
 ```
  poetry run bootstrap-cli --debug diagram --cdf-project=shiny-dev configs/config-simple-v2-draft.yml | clip.exe
-``` 
+```
 
 alternativly on Mac/Linux
 
 ```
  poetry run bootstrap-cli --debug diagram --cdf-project=shiny-dev configs/config-simple-v2-draft.yml > diagram.txt
-``` 
+```
 
 No you can go to [Mermaid Live](https://mermaid.live/) and paste the content of the clipboard/file and see a diagram of the Groups, Data Sets and Raw-DBs the tool would create based on this config file.
 
-#### Authentication 
+#### Authentication
 
 The easies way to set up authentication is to copy the `.env_example` file to `.env` and fill out the environment variables needed. For informations on the fields see  the [Environment variables](#environment-variables)-section.
 
-Once the `.env` file is set up, you can check that the tool can connect to CDF by uncommenting the cognite-part of the config file and re-running the `diagram` command from above. 
+Once the `.env` file is set up, you can check that the tool can connect to CDF by uncommenting the cognite-part of the config file and re-running the `diagram` command from above.
 
 
 ### Running locally
 
-With To set create a group with the proper access-rights for the bootstrap-cli to do it's job you can run the `prepare`-command. this creates a group and links it to a group the app-registration is in. 
+With To set create a group with the proper access-rights for the bootstrap-cli to do it's job you can run the `prepare`-command. this creates a group and links it to a group the app-registration is in.
 
 PS. It is possible to run all of commands in dry-run mode by specifying `--dry-run=yes` before the command. This wil log the intended API-actions.
 
@@ -124,14 +124,14 @@ poetry run bootstrap-cli --debug prepare --aad-source-id <idb-source-id>
 ```
 For more information, see the [Prepare command](#prepare-command)-section.
 
-Once the prepare command has been run, the cli should have the rights it needs and you are ready to run the deploy command. 
+Once the prepare command has been run, the cli should have the rights it needs and you are ready to run the deploy command.
 
 ```
 poetry run bootstrap-cli --debug deploy --cdf-project=shiny-dev configs/config-simple-v2-draft.yml
 ```
 
-This will deploy and create all the groups, data sets and raw dbs shown in the diagram created above. 
-If they alreay exist, the tool will update/recreate them based on the config file. 
+This will deploy and create all the groups, data sets and raw dbs shown in the diagram created above.
+If they alreay exist, the tool will update/recreate them based on the config file.
 
 ### Github Action
 
@@ -165,7 +165,7 @@ jobs:
         with:
           submodules: false
 
-      # Bootstrap_cli 
+      # Bootstrap_cli
       - name: bootstrap
         # use a tagged release like @v2.0.0
         # uses: cognitedata/inso-bootstrap-cli@v2.0.0
@@ -187,7 +187,7 @@ jobs:
 
 ### Azure setup
 For using Azure as IdP, some configurations need to be performed in azure.
-- Create an app registration in AAD (Azure Active Directory). 
+- Create an app registration in AAD (Azure Active Directory).
   - Ensure the application is member of the AAD group assigned as oidc-admin-group.
   - Create a secret for the app registration to be used in the .env variable BOOTSTRAP_IDP_CLIENT_SECRET.
   - The application id is to be used in the .env variable BOOTSTRAP_IDP_CLIENT_ID
@@ -277,7 +277,7 @@ Good style is to keep the names short and add long names and details to the `des
      3. allowing data-lineage from sources through use-case model to data-products
 
 ### Bootstrap CLI example
-Here is an extract from the example config `config-simple-v2-draft.yml` wich uses the main abilities of the CLI. 
+Here is an extract from the example config `config-simple-v2-draft.yml` wich uses the main abilities of the CLI.
 
 ```yaml
 bootstrap:
@@ -291,7 +291,7 @@ bootstrap:
           idp-source-id: acd2fe35-aa51-45a7-acef-11111111111
           idp-source-name: CDF_DEV_ALLPROJECTS_OWNER
       - cdf-group: .....
-        ...    
+        ...
   namespaces:
     - ns-name: src
       description: Customer source-systems
@@ -303,7 +303,7 @@ bootstrap:
           description: Sources 002; from Weather.com
           # external-id will be auto generated in this case
 
-    - ns-name: in 
+    - ns-name: in
       description: End user data-input provided through deployed CDF driven solutions
       ns-nodes:
         - node-name: in:001:trade
@@ -343,7 +343,7 @@ end
 
 
 subgraph "owner" ["'Owner' Groups"]
-  
+
 subgraph "core_cdf_owner" ["Node Level (Owner)"]
   cdf:src:001:sap:owner("cdf:src:001:sap:owner")
   cdf:src:002:weather:owner("cdf:src:002:weather:owner")
@@ -351,7 +351,7 @@ subgraph "core_cdf_owner" ["Node Level (Owner)"]
   cdf:uc:001:demand:owner("cdf:uc:001:demand:owner")
 end
 
-  
+
 subgraph "ns_cdf_owner" ["Namespace Level (Owner)"]
   cdf:src:all:owner["cdf:src:all:owner"]
   cdf:in:all:owner["cdf:in:all:owner"]
@@ -359,7 +359,7 @@ subgraph "ns_cdf_owner" ["Namespace Level (Owner)"]
   cdf:all:owner["cdf:all:owner"]
 end
 
-  
+
 subgraph "scope_owner" ["Scopes (Owner)"]
   src:001:sap:db__owner__raw[["src:001:sap:db"]]
   src:001:sap:db:state__owner__raw[["src:001:sap:db:state"]]
@@ -400,7 +400,7 @@ end
 
 
 subgraph "read" ["'Read' Groups"]
-  
+
 subgraph "core_cdf_read" ["Node Level (Read)"]
   cdf:src:001:sap:read("cdf:src:001:sap:read")
   cdf:src:002:weather:read("cdf:src:002:weather:read")
@@ -408,7 +408,7 @@ subgraph "core_cdf_read" ["Node Level (Read)"]
   cdf:uc:001:demand:read("cdf:uc:001:demand:read")
 end
 
-  
+
 subgraph "ns_cdf_read" ["Namespace Level (Read)"]
   cdf:src:all:read["cdf:src:all:read"]
   cdf:in:all:read["cdf:in:all:read"]
@@ -416,7 +416,7 @@ subgraph "ns_cdf_read" ["Namespace Level (Read)"]
   cdf:all:read["cdf:all:read"]
 end
 
-  
+
 subgraph "scope_read" ["Scopes (Read)"]
   src:001:sap:db__read__raw[["src:001:sap:db"]]
   src:001:sap:db:state__read__raw[["src:001:sap:db:state"]]
@@ -754,15 +754,15 @@ logger:
 Some more detail on the variables:
 
 - BOOTSTRAP_CDF_HOST
-  - The url to your cdf cluster. 
+  - The url to your cdf cluster.
   - Example: ```https://westeurope-1.cognitedata.com```
 - BOOTSTRAP_CDF_PROJECT
-  - The CDF Project. 
+  - The CDF Project.
 - BOOTSTRAP_IDP_CLIENT_ID
   - Client id of the App Registration you have created for the CLI
 - BOOTSTRAP_IDP_CLIENT_SECRET
   - Client secret created for the App registration
-- BOOTSTRAP_IDP_TOKEN_URL= ```https://login.microsoftonline.com/<tenant id>/oauth2/v2.0/token``` 
+- BOOTSTRAP_IDP_TOKEN_URL= ```https://login.microsoftonline.com/<tenant id>/oauth2/v2.0/token```
   - In case you use Azure AD Replace ```<tenant id>``` with your Azure Tenant ID.
 - BOOTSTRAP_IDP_SCOPES
   - Usually: ```https://<cluster-name>.cognitedata.com/.default```
@@ -899,7 +899,7 @@ Templates (blueprints) used for implementation are
   - support to run it
     - from `poetry run` (explained in [Getting Started](#how-to-get-started))
     - from `python -m`
-    - from `docker run` 
+    - from `docker run`
     - as GitHub Action (explained in [Getting Started](#how-to-get-started))
     - as Windows Executable (planned as feature-request)
 
@@ -969,4 +969,3 @@ Debug the Docker container
 
 ➟  docker run --volume ${PWD}/configs:/configs --volume ${PWD}/logs:/logs  --env-file=.env -it --entrypoint /bin/bash incubator/bootstrap-cli:debug
 ```
-
