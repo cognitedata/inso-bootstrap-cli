@@ -180,17 +180,17 @@ jobs:
           BOOTSTRAP_IDP_SCOPES: ${{ env.CDF_HOST }}.default
         # additional parameters for running the action
         with:
-          config_file: ./config/cpe-dev-bootstrap.yml
+          config_file: ./config/config-simple-v2-draft.yml
           # "yes"|"no" deploy with special groups and aad_mappings
           with_special_groups: "yes"
 ```
 
 ### Azure setup
-For using azure as IdP, some configurations need to be performed in azure.
-- Register application in AAD (Azure Active Directory). 
+For using Azure as IdP, some configurations need to be performed in azure.
+- Create an app registration in AAD (Azure Active Directory). 
   - Ensure the application is member of the AAD group assigned as oidc-admin-group.
-  - Create a secret to be in the .env variable BOOTSTRAP_IDP_CLIENT_SECRET.
-  - The application id  to be used in the .env variable BOOTSTRAP_IDP_CLIENT_ID
+  - Create a secret for the app registration to be used in the .env variable BOOTSTRAP_IDP_CLIENT_SECRET.
+  - The application id is to be used in the .env variable BOOTSTRAP_IDP_CLIENT_ID
 
 
 <!-- /code_chunk_output -->
