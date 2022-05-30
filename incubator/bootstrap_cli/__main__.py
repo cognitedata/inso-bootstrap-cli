@@ -1753,7 +1753,7 @@ class BootstrapCore:
 @click.version_option(prog_name="bootstrap_cli", version=__version__)
 @click.option(
     "--cdf-project-name",
-    help="CDF Project to interact with CDF API, 'BOOTSTRAP_CDF_PROJECT',"
+    help="CDF Project to interact with CDF API, the 'BOOTSTRAP_CDF_PROJECT',"
     "environment variable can be used instead. Required for OAuth2 and optional for api-keys.",
     envvar="BOOTSTRAP_CDF_PROJECT",
 )
@@ -1762,7 +1762,7 @@ class BootstrapCore:
     "--cluster",
     default="westeurope-1",
     help="The CDF cluster where CDF Project is hosted (e.g. greenfield, europe-west1-1),"
-    "Provide this or make sure to set 'BOOTSTRAP_CDF_CLUSTER' environment variable. "
+    "Provide this or make sure to set the 'BOOTSTRAP_CDF_CLUSTER' environment variable. "
     "Default: westeurope-1",
     envvar="BOOTSTRAP_CDF_CLUSTER",
 )
@@ -1770,44 +1770,44 @@ class BootstrapCore:
     "--host",
     default="https://bluefield.cognitedata.com/",
     help="The CDF host where CDF Project is hosted (e.g. https://bluefield.cognitedata.com),"
-    "Provide this or make sure to set 'BOOTSTRAP_CDF_HOST' environment variable."
+    "Provide this or make sure to set the 'BOOTSTRAP_CDF_HOST' environment variable."
     "Default: https://bluefield.cognitedata.com/",
     envvar="BOOTSTRAP_CDF_HOST",
 )
 @click.option(
     "--api-key",
-    help="API key to interact with CDF API. Provide this or make sure to set 'BOOTSTRAP_CDF_API_KEY',"
+    help="API key to interact with CDF API. Provide this or make sure to set the 'BOOTSTRAP_CDF_API_KEY',"
     "environment variable if you want to authenticate with API keys.",
     envvar="BOOTSTRAP_CDF_API_KEY",
 )
 @click.option(
     "--client-id",
-    help="IdP Client ID to interact with CDF API. Provide this or make sure to set,"
+    help="IdP Client ID to interact with CDF API. Provide this or make sure to set the "
     "'BOOTSTRAP_IDP_CLIENT_ID' environment variable if you want to authenticate with OAuth2.",
     envvar="BOOTSTRAP_IDP_CLIENT_ID",
 )
 @click.option(
     "--client-secret",
-    help="IdP Client secret to interact with CDF API. Provide this or make sure to set,"
+    help="IdP Client secret to interact with CDF API. Provide this or make sure to set the "
     "'BOOTSTRAP_IDP_CLIENT_SECRET' environment variable if you want to authenticate with OAuth2.",
     envvar="BOOTSTRAP_IDP_CLIENT_SECRET",
 )
 @click.option(
     "--token-url",
-    help="IdP Token URL to interact with CDF API. Provide this or make sure to set,"
+    help="IdP Token URL to interact with CDF API. Provide this or make sure to set the "
     "'BOOTSTRAP_IDP_TOKEN_URL' environment variable if you want to authenticate with OAuth2.",
     envvar="BOOTSTRAP_IDP_TOKEN_URL",
 )
 @click.option(
     "--scopes",
-    help="IdP Scopes to interact with CDF API, relevant for OAuth2 authentication method,"
-    "'BOOTSTRAP_IDP_SCOPES' environment variable can be used instead.",
+    help="IdP Scopes to interact with CDF API, relevant for OAuth2 authentication method. "
+    "The 'BOOTSTRAP_IDP_SCOPES' environment variable can be used instead.",
     envvar="BOOTSTRAP_IDP_SCOPES",
 )
 @click.option(
     "--audience",
-    help="IdP Audience to interact with CDF API, relevant for OAuth2 authentication method,"
-    "'BOOTSTRAP_IDP_AUDIENCE' environment variable can be used instead.",
+    help="IdP Audience to interact with CDF API, relevant for OAuth2 authentication method. "
+    "The 'BOOTSTRAP_IDP_AUDIENCE' environment variable can be used instead.",
     envvar="BOOTSTRAP_IDP_AUDIENCE",
 )
 @click.option(
@@ -1925,7 +1925,7 @@ def deploy(
 @click.command(
     help="Prepare an elevated CDF Group 'cdf:bootstrap', using the same AAD Group link "
     "as your initially provided 'oidc-admin-group'. "
-    "With additional capabilities to to run the 'deploy' and 'delete' commands next. "
+    "With additional capabilities to run the 'deploy' and 'delete' commands next. "
     "The 'prepare' command is only required once per CDF Project."
 )
 @click.argument(
