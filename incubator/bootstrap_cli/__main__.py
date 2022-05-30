@@ -70,7 +70,7 @@
 #    - added support for parameter '--cdf-project' to explicit diagram a specific CDF Project
 #    - Added cdf-project name to diagram "IdP Groups for CDF: <>" subgraph title
 #    - renamed mermaid properties from 'name/short' to 'id_name/display'
-#  * documented config-simple-v2-draft.yml
+#  * documented config-deploy-example-v2.yml
 # 220511 pa: v2.0.0 release :)
 
 
@@ -1284,12 +1284,12 @@ class BootstrapCore:
 
         Example:
             # requires a 'cognite' configuration section
-            ➟  poetry run bootstrap-cli diagram configs/config-simple-v2-draft.yml | clip.exe
+            ➟  poetry run bootstrap-cli diagram configs/config-deploy-example-v2.yml | clip.exe
             # precedence over 'cognite.project' which CDF Project to diagram 'bootstrap.idp-cdf-mappings'
             # making a 'cognite' section optional
-            ➟  poetry run bootstrap-cli diagram --cdf-project shiny-dev configs/config-simple-v2-draft.yml | clip.exe
+            ➟  poetry run bootstrap-cli diagram --cdf-project shiny-dev configs/config-deploy-example-v2.yml | clip.exe
             # precedence over configuration 'bootstrap.features.with-raw-capability'
-            ➟  poetry run bootstrap-cli diagram --with-raw-capability no --cdf-project shiny-prod configs/config-simple-v2-draft.yml
+            ➟  poetry run bootstrap-cli diagram --with-raw-capability no --cdf-project shiny-prod configs/config-deploy-example-v2.yml
         """  # noqa
 
         diagram_cdf_project = cdf_project if cdf_project else self.cdf_project

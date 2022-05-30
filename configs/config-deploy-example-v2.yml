@@ -20,7 +20,7 @@ bootstrap:
   #   - a hierarchy of 'namespaces' => 'ns-nodes'
 
   # Changes can always be checked with 'bootstrap-cli diagram'
-  # - adding 'diagram --with-raw-capability no --cdf-project my-project configs/config-simple-v2-draft.yml'
+  # - adding 'diagram --with-raw-capability no --cdf-project my-project configs/config-deploy-example-v2.yml'
   #   to reduce the clutter, focus only on dataset scopes and see you idp-cdf-mappings
   #   for your cdf-project of interest
   #   On Windows the mermaid output can be easily copied to clipboard with
@@ -146,7 +146,7 @@ bootstrap:
       description: Use Cases representing the data-products
       ns-nodes:
         - node-name: uc:001:demand
-          description: Use Case 001; Supply and Demand
+          description: Use Case 001; Demand Side
 
           # metadata will be merged into 'dataset.metadata'
           metadata:

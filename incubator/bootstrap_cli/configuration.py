@@ -239,6 +239,7 @@ class BootstrapDeleteConfig(BootstrapBaseConfig):
 
 
 if __name__ == "__main__":
+    # only used for local testing / debugging
     load_dotenv()
-    config = BootstrapDeployConfig.from_yaml("configs/config-simple-v2-draft.yml")
+    config = BootstrapDeployConfig.from_yaml("configs/config-deploy-example-v2.yml")
     print(config.bootstrap.namespaces)

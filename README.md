@@ -22,12 +22,6 @@ Purpose:
 - [InSo Bootstrap CLI](#inso-bootstrap-cli)
   - [Scope of Work](#scope-of-work)
   - [Table of Content](#table-of-content)
-  - [How to get started](#how-to-get-started)
-    - [Minimal Configuration](#minimal-configuration)
-      - [Authentication](#authentication)
-    - [Running locally](#running-locally)
-    - [Github Action](#github-action)
-    - [Azure setup](#azure-setup)
   - [Bootstrap CLI concept](#bootstrap-cli-concept)
     - [Secure access management](#secure-access-management)
     - [Data Sets](#data-sets)
@@ -59,144 +53,6 @@ Purpose:
   - [run local with poetry](#run-local-with-poetry)
   - [run local with Python](#run-local-with-python)
   - [run local with Docker](#run-local-with-docker)
-
-
-## How to get started
-
-The recommended way to run this is using poetry, but other methods are supported.
-For more details on other methods or native windows usage, check out [How to run](#how-to-run).
-To start you must install Poetry, a tool to manage python dependencies and virtual environments. It is recommended running this on Linux, WSL2 or Mac.
-
-Follow the official [poetry install guide](https://python-poetry.org/docs/#installation) and set it up.
-
-
-Once poetry has been installed, the local python environment can be installed and set up using poetry.
-
-```
-poetry build
-poetry install
-poetry update
-```
-
-
-### Minimal Configuration
-Before running the cli, the next step is to set up your config file. A good start is to  look at the following config file.
-
-- `config/config-simple-v2-draft.yml`
-
-This config has extensive comments explaining the syntax with examples for all the important features. More explanation can also be found in the [Configuration](#configuration)-section
-
-This tool has four main commands:
-
-- `diagram`
-  - Diagram mode used to document the given configuration as a mermaid diagram
-- `prepare`
-  - Prepare an elevated CDF Group 'cdf:bootstrap' and link it to an idp-group
-- `deploy `
-  - Deploy a set of bootstrap from a config-file
-- `delete`
-  - Delete mode used to delete CDF Groups, Datasets and Raw Databases
-
-To test the tool out without connecting to a CDF-project, comment out the cognite-section of the config and run the `diagram` command (on WSL):
-
-```
- poetry run bootstrap-cli --debug diagram --cdf-project=shiny-dev configs/config-simple-v2-draft.yml | clip.exe
-```
-
-alternatively on Mac/Linux
-
-```
- poetry run bootstrap-cli --debug diagram --cdf-project=shiny-dev configs/config-simple-v2-draft.yml > diagram.txt
-```
-
-No you can go to [Mermaid Live](https://mermaid.live/) and paste the content of the clipboard/file and see a diagram of the Groups, Data Sets and Raw-DBs the tool would create based on this config file.
-
-#### Authentication
-
-The easiest way to set up authentication is to copy the `.env_example` file to `.env` and fill out the environment variables needed. For information on the fields see the [Environment variables](#environment-variables)-section.
-
-Once the `.env` file is set up, you can check that the tool can connect to CDF by uncommenting the cognite-part of the config file and re-running the `diagram` command from above.
-
-
-### Running locally
-
-With To set create a group with the proper access-rights for the bootstrap-cli to do its job you can run the `prepare`-command. this creates a group and links it to a group the app-registration is in.
-
-PS. It is possible to run all of commands in dry-run mode by specifying `--dry-run=yes` before the command. This will log the intended API-actions.
-
-```
-poetry run bootstrap-cli prepare --idp-source-id <idp-source-id>
-```
-For more information, see the [Prepare command](#prepare-command)-section.
-
-Once the prepare command has been run, the cli should have the rights it needs and you are ready to run the deploy command.
-
-```
-poetry run bootstrap-cli --debug deploy --cdf-project=shiny-dev configs/config-simple-v2-draft.yml
-```
-
-This will deploy and create all the groups, data sets and RAW DBs shown in the diagram created above.
-If they already exist, the tool will update/recreate them based on the config file.
-
-### Github Action
-
-To run this on GitHub-Actions here is an example workflow for deploying using github actions:
-
-```yaml
-name: actions
-
-on:
-  push:
-    branches:
-      - main
-
-jobs:
-  cdf-bootstrap:
-    name: Deploy Bootstrap Pipeline
-    environment: dev
-    runs-on: ubuntu-latest
-
-    # Environment variables
-    env:
-      CDF_PROJECT: yourcdfproject
-      CDF_CLUSTER: yourcdfcluster
-      IDP_TENANT: your-idf-client-id
-      CDF_HOST: https://yourcdfcluster.cognitedata.com/
-
-    steps:
-      # Checkout repository
-      - name: Checkout
-        uses: actions/checkout@v3
-        with:
-          submodules: false
-
-      # Bootstrap_cli
-      - name: bootstrap
-        # use a tagged release like @v2.0.0
-        # uses: cognitedata/inso-bootstrap-cli@v2.0.0
-        # or use the latest release available using @main
-        uses: cognitedata/inso-bootstrap-cli@main
-        env:
-          BOOTSTRAP_IDP_CLIENT_ID: ${{ secrets.CLIENT_ID }}
-          BOOTSTRAP_IDP_CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
-          BOOTSTRAP_CDF_HOST: ${{ env.CDF_HOST }}
-          BOOTSTRAP_CDF_PROJECT: ${{ env.CDF_PROJECT }}
-          BOOTSTRAP_IDP_TOKEN_URL: https://login.microsoftonline.com/${{ env.IDP_TENANT }}/oauth2/v2.0/token
-          BOOTSTRAP_IDP_SCOPES: ${{ env.CDF_HOST }}.default
-        # additional parameters for running the action
-        with:
-          config_file: ./config/config-simple-v2-draft.yml
-          # "yes"|"no" deploy with special groups
-          with_special_groups: "yes"
-```
-
-### Azure setup
-For using Azure as IdP, some configurations need to be performed in azure.
-- Create an app registration in AAD (Azure Active Directory).
-  - Ensure the application is member of the AAD group assigned as oidc-admin-group.
-  - Create a secret for the app registration to be used in the .env variable BOOTSTRAP_IDP_CLIENT_SECRET.
-  - The application id is to be used in the .env variable BOOTSTRAP_IDP_CLIENT_ID
-
 
 <!-- /code_chunk_output -->
 ## Bootstrap CLI concept
@@ -282,7 +138,8 @@ Good style is to keep the names short and add long names and details to the `des
      3. allowing data-lineage from sources through use-case model to data-products
 
 ### Bootstrap CLI example
-Here is an extract from the example config `config-simple-v2-draft.yml` which uses the main abilities of the CLI.
+Here is an extract from the example config `config-deploy-example-v2.yml` which uses the main abilities of the CLI.
+(The suffix `-v2` indicates that the configuration is based using the latest v2 release syntax.)
 
 ```yaml
 bootstrap:
@@ -319,7 +176,7 @@ bootstrap:
       description: Use Cases representing the data-products
       ns-nodes:
         - node-name: uc:001:demand
-          description: Use Case 001; Supply and Demand
+          description: Use Case 001; Demand Side
           metadata:
             created: 220427
             generated: by cdf-config-hub script
@@ -331,7 +188,7 @@ bootstrap:
               - node-name: in:001:trade
 ```
 
-Using the diagram functionality of the CLI we can produce the following chart of the example config `config-simple-v2-draft.yml`. The stipulated lines show read-access and the solid ones write.
+Using the diagram functionality of the CLI we can produce the following chart of the example config `config-deploy-example-v2.yml`. The stipulated lines show read-access and the solid ones write.
 
 ```mermaid
 graph LR
@@ -865,7 +722,7 @@ namespaces:
             - node-name: in:001:name
 ```
 
-For a complete example of the `deploy` configuration, see `configs/config-simple-v2-draft.yml`.
+For a complete example of the `deploy` configuration, see `configs/config-deploy-example-v2.yml`.
 
 ### Configuration for `delete` command
 
@@ -900,7 +757,7 @@ If nothing to delete, provide an empty list like this: `[]`.
 
 **Warning**, this template includes **ALL** groups, so please edit carefully before deleting groups like the `oidc-admin-group` that should not be deleted.
 
-For a complete example of the delete configuration, see the `configs/test-bootstrap-delete-example.yml`.
+For a complete example of the delete configuration, see the `configs/config-delete-example.yml`.
 
 Improvement to the delete template and validation of the delete_or_deprecate-configuration is being worked on.
 
@@ -950,8 +807,8 @@ Templates (blueprints) used for implementation are
 
 Follow the initial setup first
 1. Fill out relevant configurations from `configs`
-  - Fill out the `bootstrap`section from `config-simple-v2-draft.yml`, pr
-  - Fill out `delete_or_deprecate` from `test-bootstrap-delete-example.yml`
+  - Fill out the `bootstrap`section from `config-deploy-example-v2.yml`, pr
+  - Fill out `delete_or_deprecate` from `config-delete-example.yml`
 2. For local testing, copy `.env_example` to `.env`
    - complete CDF and IdP configuration in `.env`
 ## run local with poetry
@@ -973,15 +830,15 @@ Follow the initial setup first
 ```
 - Deploy mode:
 ```bash
-  poetry run bootstrap-cli --debug deploy configs/test-bootstrap-deploy-example.yml
+  poetry run bootstrap-cli deploy configs/config-deploy-example.yml
 ```
 - Prepare mode:
 ```bash
-  poetry run bootstrap-cli --debug prepare configs/test-bootstrap-deploy-example.yml
+  poetry run bootstrap-cli prepare configs/config-deploy-example.yml
 ```
 - Delete mode:
 ```bash
-  poetry run bootstrap-cli --debug delete configs/test-bootstrap-delete-example.yml
+  poetry run bootstrap-cli delete configs/config-delete-example.yml
 ```
 
 ## run local with Python
@@ -989,7 +846,7 @@ Follow the initial setup first
 ```bash
 export PYTHONPATH=.
 
-python incubator/bootstrap_cli/__main__.py deploy configs/ test-bootstrap-deploy-example.yml
+python incubator/bootstrap_cli/__main__.py deploy configs/ config-deploy-example.yml
 ```
 
 ## run local with Docker
@@ -1000,7 +857,7 @@ python incubator/bootstrap_cli/__main__.py deploy configs/ test-bootstrap-deploy
 docker build -t incubator/bootstrap-cli:v1.0 -t incubator/bootstrap-cli:latest .
 
 # ${PWD} because only absolute paths can be mounted
-docker run --volume ${PWD}/configs:/configs --volume ${PWD}/logs:/logs  --env-file=.env incubator/bootstrap-cli deploy /configs/test-bootstrap-deploy-example.yml
+docker run --volume ${PWD}/configs:/configs --volume ${PWD}/logs:/logs  --env-file=.env incubator/bootstrap-cli deploy /configs/config-deploy-example.yml
 ```
 
 Debug the Docker container
