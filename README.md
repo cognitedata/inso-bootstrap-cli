@@ -121,7 +121,7 @@ Good style is to keep the names short and add long names and details to the `des
    - **All** capabilities are handled the same, and are applied
      - as either an `OWNWER`-set
      - or as a `READ`-only-set
-   - access-control only works through scopes, but within your scopes you can work w/o limits
+   - access-control only works through scopes, but within your scopes you can work without limits
 2. The CDF Groups can be called "strict-scoped" meaning that access-control to this group only allows reading and writing data to the available scopes
    - no data can exist outside the predefined scopes
    - no user or app can create additional scopes
