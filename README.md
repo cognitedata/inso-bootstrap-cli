@@ -125,7 +125,7 @@ With To set create a group with the proper access-rights for the bootstrap-cli t
 PS. It is possible to run all of commands in dry-run mode by specifying `--dry-run=yes` before the command. This will log the intended API-actions.
 
 ```
-poetry run bootstrap-cli repare --idp-source-id <idb-source-id>
+poetry run bootstrap-cli prepare --idp-source-id <idp-source-id>
 ```
 For more information, see the [Prepare command](#prepare-command)-section.
 
@@ -160,7 +160,7 @@ jobs:
     env:
       CDF_PROJECT: yourcdfproject
       CDF_CLUSTER: yourcdfcluster
-      IDP_TENANT: your-idf-cliend-id
+      IDP_TENANT: your-idf-client-id
       CDF_HOST: https://yourcdfcluster.cognitedata.com/
 
     steps:
@@ -221,13 +221,13 @@ As all of this is connected to each other, and it is spanning customers Identity
 
 ### Secure access management
 
-**Secure access management** requires connection of Azure AD (AAD) Groups to CDF Groups. User or app Authentication is provided by customers AAD and Authorization by CDF Groups. CDF Groups are defined through capabilities and actions (like "Timeseries" capability with "Read/Write" actions).
+**Secure access management** requires connection of IdP Groups (most often Azure AD (AAD) groups) to CDF Groups. User or app Authentication is provided by customers IdP and Authorization by CDF Groups. CDF Groups are defined through capabilities and actions (like "Timeseries" capability with "Read/Write" actions).
 
 **Secure access management** related configuration targets:
-* CDF Groups and links to AAD Groups
-* AAD-owner responsibilities:
-  * AAD Group creation
-  * Service-principal (user and apps) creation and mapping to AAD Groups
+* CDF Groups and links to IdP Groups
+* IdP-owner responsibilities:
+  * IdP Group creation
+  * Service-principal (user and apps) creation and mapping to IdP Groups
 
 ### Data Sets
 
@@ -782,7 +782,7 @@ In addition to the sections described above, the configuration file for `deploy`
 
 - `bootstrap`
   - `features`: declaration of the logical access-control group structure
-  - `idp-cdf-mappings`: mapping AAD Group object-ids with CDF Groups
+  - `idp-cdf-mappings`: mapping IdP Group object-ids with CDF Groups
   - `namespaces`: declaration of the logical access-control group structure
   -
 #### `features` section
@@ -801,7 +801,7 @@ The list of features:
 - `dataset-suffix`
   - Suffix added to all data set names. Recommended value is `ds` while default is `dataset`
 - `rawdb-suffix`
-  - Suffix added to all raw databases. Recommended value is `db` whilde default is `rawdb`
+  - Suffix added to all raw databases. Recommended value is `db` while default is `rawdb`
 - `rawdb-additional-variants`
   - This allows creation for additional rawdbs per node. The additional RAW DBs can for example be used for state stores from extractors to keep these separate from the actual data. Default is one additional variant with suffix `state`
 
@@ -950,7 +950,7 @@ Templates (blueprints) used for implementation are
 
 Follow the initial setup first
 1. Fill out relevant configurations from `configs`
-  - Fill out `aad_mappings` and `bootstrap` from `test-bootstrap-deploy-example.yml`
+  - Fill out the `bootstrap`section from `config-simple-v2-draft.yml`, pr
   - Fill out `delete_or_deprecate` from `test-bootstrap-delete-example.yml`
 2. For local testing, copy `.env_example` to `.env`
    - complete CDF and IdP configuration in `.env`
@@ -958,9 +958,9 @@ Follow the initial setup first
 
 - some more information for running on native Windows / PowerShell / multiple Python versions can be [found here](POETRY_ON_WINDOWS.md)
 
-> **WINDOWS USER:** the provided `pyproject.toml` and `poetry.lock` files are built to support "*nux" (MacOS, WSL2, Linux) first.
+> **WINDOWS USER:** the provided `pyproject.toml` and `poetry.lock` files are built to support "*nix" (MacOS, WSL2, Linux) first.
 >
-> On Windows (native, not WSL2) you have to delete the `poerty.lock` file first before you run `poetry install`.
+> On Windows (native, not WSL2) you have to delete the `poetry.lock` file first before you run `poetry install`.
 >
 > We have plans to support Windows with an executable, which eliminates the need for a Python installed too.
 

@@ -94,10 +94,10 @@ bootstrap:
         idp-source-name: CDF_DEV_ROOT
       - cdf-group: cdf:all:owner
         idp-source-id: acd2fe35-aa51-45a7-acef-11111111111
-        idp-source-name: CDF_DEV_all_OWNER
+        idp-source-name: CDF_DEV_ALL_OWNER
       - cdf-group: cdf:all:read
         idp-source-id: acd2fe35-aa51-45a7-acef-11111111111
-        idp-source-name: CDF_DEV_all_READ
+        idp-source-name: CDF_DEV_ALL_READ
       - cdf-group: cdf:uc:001:demand:read
         idp-source-id: 314159-aa51-45a7-acef-11111111111
         idp-source-name: CDF_DEV_UC001DEMAND_READ
@@ -108,10 +108,10 @@ bootstrap:
         idp-source-name: CDF_PROD_ROOT
       - cdf-group: cdf:all:owner
         idp-source-id: acd2fe35-aa51-45a7-acef-22222222222
-        idp-source-name: CDF_PROD_all_OWNER
+        idp-source-name: CDF_PROD_ALL_OWNER
       - cdf-group: cdf:all:read
         idp-source-id: acd2fe35-aa51-45a7-acef-11111111111
-        idp-source-name: CDF_PROD_all_READ
+        idp-source-name: CDF_PROD_ALL_READ
       - cdf-group: cdf:uc:001:demand:read
         idp-source-id: 314159-aa51-45a7-acef-22222222222
         idp-source-name: CDF_PROD_UC001DEMAND_READ
