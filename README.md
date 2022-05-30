@@ -135,7 +135,7 @@ Once the prepare command has been run, the cli should have the rights it needs a
 poetry run bootstrap-cli --debug deploy --cdf-project=shiny-dev configs/config-simple-v2-draft.yml
 ```
 
-This will deploy and create all the groups, data sets and raw dbs shown in the diagram created above.
+This will deploy and create all the groups, data sets and RAW DBs shown in the diagram created above.
 If they already exist, the tool will update/recreate them based on the config file.
 
 ### Github Action
@@ -668,7 +668,7 @@ Options:
 ### `Deploy` command
 
 The bootstrap-cli `deploy` command will apply the configuration-file to your CDF Project.
-It will create the necessary CDF Groups, Datasets and RAW Databases.
+It will create the necessary CDF Groups, Datasets and RAW DBs.
 This command supports GitHub-Action workflow too. To check what this command is going to do, run it with the flag `--dry-run=yes`.
 
 ```text
@@ -680,21 +680,21 @@ Options:
   --with-special-groups [yes|no]  Create special CDF Groups, which don't have
                                   capabilities (extractions, transformations).
                                   Defaults to 'no'
-  --with-raw-capability [yes|no]  Create RAW DBs and 'rawAcl' capability.
+  --with-raw-capability [yes|no]  Create Ra DBs and 'rawAcl' capability.
                                   Defaults to 'yes'
   -h, --help                      Show this message and exit.
 ```
 
 ### `Delete` command
 
-If it is necessary to revert any changes, the `delete` mode can be used to delete CDF Groups, Datasets and RAW Databases.
-Note that the CDF Groups and RAW Databases will be deleted, while Datasets will be archived and deprecated, not deleted. To check what this command is going to do, run it with the flag `--dry-run=yes`.
+If it is necessary to revert any changes, the `delete` mode can be used to delete CDF Groups, Datasets and RAW DBs.
+Note that the CDF Groups and RAW DBs will be deleted, while Datasets will be archived and deprecated, not deleted. To check what this command is going to do, run it with the flag `--dry-run=yes`.
 
 ```text
 Usage: bootstrap-cli delete [OPTIONS] [CONFIG_FILE]
 
-  Delete mode used to delete CDF Groups, Datasets and Raw Databases, CDF
-  Groups and RAW Databases will be deleted, while Datasets will be archived
+  Delete mode used to delete CDF Groups, Datasets and RAW DBs, CDF
+  Groups and RAW DBs will be deleted, while Datasets will be archived
   and deprecated (as they cannot be deleted).
 
 Options:
@@ -803,7 +803,7 @@ The list of features:
 - `rawdb-suffix`
   - Suffix added to all raw databases. Recommended value is `db` whilde default is `rawdb`
 - `rawdb-additional-variants`
-  - This allows creation for additional rawdbs per node. The additional raw dbs can for example be used for state stores from extractors to keep these separate from the actual data. Default is one additional variant with suffix `state`
+  - This allows creation for additional rawdbs per node. The additional RAW DBs can for example be used for state stores from extractors to keep these separate from the actual data. Default is one additional variant with suffix `state`
 
 #### `idp_mappings` section: IdP Group to CDF Group mapping
 
