@@ -42,7 +42,7 @@ Purpose:
       - [Environment variables](#environment-variables)
     - [Configuration for `deploy` command](#configuration-for-deploy-command)
       - [`features` section](#features-section)
-      - [`idp_mappings` section: IdP Group to CDF Group mapping](#idp_mappings-section-idp-group-to-cdf-group-mapping)
+      - [`idp-cdf-mappings` section: IdP Group to CDF Group mapping](#idp-cdf-mappings-section-idp-group-to-cdf-group-mapping)
         - [`namespaces` section](#namespaces-section)
     - [Configuration for `delete` command](#configuration-for-delete-command)
         - [`delete_or_deprecate` section](#delete_or_deprecate-section)
@@ -662,7 +662,7 @@ The list of features:
 - `rawdb-additional-variants`
   - This allows creation for additional rawdbs per node. The additional RAW DBs can for example be used for state stores from extractors to keep these separate from the actual data. Default is one additional variant with suffix `state`
 
-#### `idp_mappings` section: IdP Group to CDF Group mapping
+#### `idp-cdf-mappings` section: IdP Group to CDF Group mapping
 
 Used to link CDF Groups with IdP Groups. With support for different CDF-projects.
 Defines the name of the CDF Group, with the IdP Group object-id, and for documentation the IdP Group name.
@@ -722,7 +722,7 @@ namespaces:
             - node-name: in:001:name
 ```
 
-For a complete example of the `deploy` configuration, see `configs/config-deploy-example-v2.yml`.
+For a more complete example of a `deploy` configuration, see `configs/config-deploy-example-v2.yml`.
 
 ### Configuration for `delete` command
 
