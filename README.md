@@ -22,6 +22,12 @@ Purpose:
 - [InSo Bootstrap CLI](#inso-bootstrap-cli)
   - [Scope of Work](#scope-of-work)
   - [Table of Content](#table-of-content)
+  - [How to get started](#how-to-get-started)
+    - [Minimal Configuration](#minimal-configuration)
+      - [Authentication](#authentication)
+    - [Running locally](#running-locally)
+    - [Github Action](#github-action)
+    - [Azure setup](#azure-setup)
   - [Bootstrap CLI concept](#bootstrap-cli-concept)
     - [Secure access management](#secure-access-management)
     - [Data Sets](#data-sets)
@@ -55,6 +61,136 @@ Purpose:
   - [run local with Docker](#run-local-with-docker)
 
 <!-- /code_chunk_output -->
+
+## How to get started
+
+The recommended way to run this is using poetry, but other methods are supported.
+For more details on other methods or native windows usage, check out [How to run](#how-to-run).
+To start you must install Poetry, a tool to manage python dependencies and virtual environments. It is recommended running this on Linux, WSL2 or Mac.
+
+Follow the official [poetry install guide](https://python-poetry.org/docs/#installation) and set it up.
+
+
+Once poetry has been installed, the local python environment can be installed and set up using poetry.
+
+```
+poetry build
+poetry install
+poetry update
+```
+
+
+### Minimal Configuration
+Before running the cli, the next step is to set up your config file. A good start is to  look at the following config file.
+
+- `config/config-simple-v2-draft.yml`
+
+This config has extensive comments explaining the syntax with examples for all the important features. More explanation can also be found in the [Configuration](#configuration)-section
+
+This tool has four main commands:
+
+- `diagram`
+  - Diagram mode used to document the given configuration as a mermaid diagram
+- `prepare`
+  - Prepare an elevated CDF Group 'cdf:bootstrap' and link it to an idp-group
+- `deploy `
+  - Deploy a set of bootstrap from a config-file
+- `delete`
+  - Delete mode used to delete CDF Groups, Datasets and Raw Databases
+
+To test the tool out without connecting to a CDF-project, comment out the cognite-section of the config and run the `diagram` command (on WSL):
+
+```
+ poetry run bootstrap-cli --debug diagram --cdf-project=shiny-dev configs/config-simple-v2-draft.yml | clip.exe
+```
+
+alternatively on Mac/Linux
+
+```
+ poetry run bootstrap-cli --debug diagram --cdf-project=shiny-dev configs/config-simple-v2-draft.yml > diagram.txt
+```
+
+No you can go to [Mermaid Live](https://mermaid.live/) and paste the content of the clipboard/file and see a diagram of the Groups, Data Sets and Raw-DBs the tool would create based on this config file.
+
+#### Authentication
+
+The easiest way to set up authentication is to copy the `.env_example` file to `.env` and fill out the environment variables needed. For information on the fields see the [Environment variables](#environment-variables)-section.
+
+Once the `.env` file is set up, you can check that the tool can connect to CDF by uncommenting the cognite-part of the config file and re-running the `diagram` command from above.
+
+
+### Running locally
+
+With To set create a group with the proper access-rights for the bootstrap-cli to do its job you can run the `prepare`-command. this creates a group and links it to a group the app-registration is in.
+
+PS. It is possible to run all of commands in dry-run mode by specifying `--dry-run=yes` before the command. This will log the intended API-actions.
+
+```
+poetry run bootstrap-cli prepare --idp-source-id <idp-source-id>
+```
+For more information, see the [Prepare command](#prepare-command)-section.
+
+Once the prepare command has been run, the cli should have the rights it needs and you are ready to run the deploy command.
+
+```
+poetry run bootstrap-cli --debug deploy --cdf-project=shiny-dev configs/config-simple-v2-draft.yml
+```
+
+This will deploy and create all the groups, data sets and RAW DBs shown in the diagram created above.
+If they already exist, the tool will update/recreate them based on the config file.
+
+### Github Action
+
+To run this on GitHub-Actions here is an example workflow for deployment:
+
+```yaml
+name: actions
+on:
+  push:
+    branches:
+      - main
+jobs:
+  cdf-bootstrap:
+    name: Deploy Bootstrap Pipeline
+    environment: dev
+    runs-on: ubuntu-latest
+    # Environment variables
+    env:
+      CDF_PROJECT: yourcdfproject
+      CDF_CLUSTER: yourcdfcluster
+      IDP_TENANT: your-idf-client-id
+      CDF_HOST: https://yourcdfcluster.cognitedata.com/
+    steps:
+      # Checkout repository
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          submodules: false
+      # Bootstrap_cli
+      - name: bootstrap
+        # use a tagged release like @v2.0.0
+        # uses: cognitedata/inso-bootstrap-cli@v2.0.0
+        # or use the latest release available using @main
+        uses: cognitedata/inso-bootstrap-cli@v2.0.1
+        env:
+          BOOTSTRAP_IDP_CLIENT_ID: ${{ secrets.CLIENT_ID }}
+          BOOTSTRAP_IDP_CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
+          BOOTSTRAP_CDF_HOST: ${{ env.CDF_HOST }}
+          BOOTSTRAP_CDF_PROJECT: ${{ env.CDF_PROJECT }}
+          BOOTSTRAP_IDP_TOKEN_URL: https://login.microsoftonline.com/${{ env.IDP_TENANT }}/oauth2/v2.0/token
+          BOOTSTRAP_IDP_SCOPES: ${{ env.CDF_HOST }}.default
+        # additional parameters for running the action
+        with:
+          config_file: ./config/config-deploy-example-v2.yml
+```
+
+### Azure setup
+For using Azure as IdP, some configurations need to be performed in azure.
+- Create an app registration in AAD (Azure Active Directory).
+  - Ensure the application is member of the AAD group assigned as oidc-admin-group.
+  - Create a secret for the app registration to be used in the .env variable BOOTSTRAP_IDP_CLIENT_SECRET.
+  - The application id is to be used in the .env variable BOOTSTRAP_IDP_CLIENT_ID
+
 ## Bootstrap CLI concept
 
 The Bootstrap CLI aims to tackle both DAY1 and DAY2 activities related to Access Management. This includes:
