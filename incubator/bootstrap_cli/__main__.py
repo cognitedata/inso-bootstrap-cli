@@ -1,4 +1,15 @@
-# Changelog:
+#          888                                          888
+#          888                                          888
+#          888                                          888
+#  .d8888b 88888b.   8888b.  88888b.   .d88b.   .d88b.  888  .d88b.   .d88b.
+# d88P"    888 "88b     "88b 888 "88b d88P"88b d8P  Y8b 888 d88""88b d88P"88b
+# 888      888  888 .d888888 888  888 888  888 88888888 888 888  888 888  888
+# Y88b.    888  888 888  888 888  888 Y88b 888 Y8b.     888 Y88..88P Y88b 888
+#  "Y8888P 888  888 "Y888888 888  888  "Y88888  "Y8888  888  "Y88P"   "Y88888
+#                                          888                            888
+#                                     Y8b d88P                       Y8b d88P
+#                                      "Y88P"                         "Y88P"
+#
 # 210504 mh:
 #  * Adding support for minimum groups and project capabilities for read and owner Groups
 #  * Exception handling for root-groups to avoid duplicate groups and projects capabilities
@@ -115,6 +126,19 @@ from incubator.bootstrap_cli.mermaid_generator.mermaid import (
     TrapezNode,
 )
 
+# '''
+#           888          888               888                               .d888 d8b
+#           888          888               888                              d88P"  Y8P
+#           888          888               888                              888
+#   .d88b.  888  .d88b.  88888b.   8888b.  888     .d8888b .d88b.  88888b.  888888 888  .d88b.  .d8888b
+#  d88P"88b 888 d88""88b 888 "88b     "88b 888    d88P"   d88""88b 888 "88b 888    888 d88P"88b 88K
+#  888  888 888 888  888 888  888 .d888888 888    888     888  888 888  888 888    888 888  888 "Y8888b.
+#  Y88b 888 888 Y88..88P 888 d88P 888  888 888    Y88b.   Y88..88P 888  888 888    888 Y88b 888      X88
+#   "Y88888 888  "Y88P"  88888P"  "Y888888 888     "Y8888P "Y88P"  888  888 888    888  "Y88888  88888P'
+#       888                                                                                 888
+#  Y8b d88P                                                                            Y8b d88P
+#   "Y88P"                                                                              "Y88P"
+# '''
 _logger = logging.getLogger(__name__)
 
 # because within f'' strings no backslash-character is allowed
@@ -186,6 +210,21 @@ acl_default_types = [
 
 # give precedence when merging over acl_default_types
 acl_admin_types = list(action_dimensions["admin"].keys())
+
+
+# '''
+#  888888b.                     888             888                              .d8888b.
+#  888  "88b                    888             888                             d88P  Y88b
+#  888  .88P                    888             888                             888    888
+#  8888888K.   .d88b.   .d88b.  888888 .d8888b  888888 888d888 8888b.  88888b.  888         .d88b.  888d888 .d88b.
+#  888  "Y88b d88""88b d88""88b 888    88K      888    888P"      "88b 888 "88b 888        d88""88b 888P"  d8P  Y8b
+#  888    888 888  888 888  888 888    "Y8888b. 888    888    .d888888 888  888 888    888 888  888 888    88888888
+#  888   d88P Y88..88P Y88..88P Y88b.       X88 Y88b.  888    888  888 888 d88P Y88b  d88P Y88..88P 888    Y8b.
+#  8888888P"   "Y88P"   "Y88P"   "Y888  88888P'  "Y888 888    "Y888888 88888P"   "Y8888P"   "Y88P"  888     "Y8888
+#                                                                      888
+#                                                                      888
+#                                                                      888
+# '''
 
 # type-hint for ExtpipesCore instance response
 T_BootstrapCore = TypeVar("T_BootstrapCore", bound="BootstrapCore")
@@ -1110,6 +1149,15 @@ class BootstrapCore:
         # return self for command chaining
         return self
 
+    # '''
+    #  oo.ooooo.  oooo d8b  .ooooo.  oo.ooooo.   .oooo.   oooo d8b  .ooooo.
+    #   888' `88b `888""8P d88' `88b  888' `88b `P  )88b  `888""8P d88' `88b
+    #   888   888  888     888ooo888  888   888  .oP"888   888     888ooo888
+    #   888   888  888     888    .o  888   888 d8(  888   888     888    .o
+    #   888bod8P' d888b    `Y8bod8P'  888bod8P' `Y888""8o d888b    `Y8bod8P'
+    #   888                           888
+    #  o888o                         o888o
+    # '''
     def prepare(self, idp_source_id: str) -> None:
         group_name = "cdf:bootstrap"
         # group_name = f"{create_config.environment}:bootstrap"
@@ -1140,6 +1188,15 @@ class BootstrapCore:
             _logger.info(f"Created CDF Group {group_name}")
         _logger.info("Finished CDF Project Bootstrapper in 'prepare' mode ")
 
+    # '''
+    #        .o8            oooo                .
+    #       "888            `888              .o8
+    #   .oooo888   .ooooo.   888   .ooooo.  .o888oo  .ooooo.
+    #  d88' `888  d88' `88b  888  d88' `88b   888   d88' `88b
+    #  888   888  888ooo888  888  888ooo888   888   888ooo888
+    #  888   888  888    .o  888  888    .o   888 . 888    .o
+    #  `Y8bod88P" `Y8bod8P' o888o `Y8bod8P'   "888" `Y8bod8P'
+    # '''
     def delete(self):
         # load deployed groups, datasets, raw_dbs with their ids and metadata
         self.load_deployed_config_from_cdf()
@@ -1204,6 +1261,17 @@ class BootstrapCore:
         # TODO: write to file or standard output
         _logger.info("Finished deleting CDF Groups, Datasets and RAW Databases")
 
+    # '''
+    #        .o8                       oooo
+    #       "888                       `888
+    #   .oooo888   .ooooo.  oo.ooooo.   888   .ooooo.  oooo    ooo
+    #  d88' `888  d88' `88b  888' `88b  888  d88' `88b  `88.  .8'
+    #  888   888  888ooo888  888   888  888  888   888   `88..8'
+    #  888   888  888    .o  888   888  888  888   888    `888'
+    #  `Y8bod88P" `Y8bod8P'  888bod8P' o888o `Y8bod8P'     .8'
+    #                        888                       .o..P'
+    #                       o888o                      `Y8P'
+    # '''
     def deploy(self, with_special_groups: YesNoType, with_raw_capability: YesNoType) -> None:
 
         # store parameter as bool
@@ -1267,6 +1335,18 @@ class BootstrapCore:
         _logger.info("Finished creating CDF Groups, Datasets and RAW Databases")
 
         # _logger.info(f'Bootstrap Pipelines: created: {len(created)}, deleted: {len(delete_ids)}')
+
+    # '''
+    #        .o8   o8o
+    #       "888   `"'
+    #   .oooo888  oooo   .oooo.    .oooooooo oooo d8b  .oooo.   ooo. .oo.  .oo.
+    #  d88' `888  `888  `P  )88b  888' `88b  `888""8P `P  )88b  `888P"Y88bP"Y88b
+    #  888   888   888   .oP"888  888   888   888      .oP"888   888   888   888
+    #  888   888   888  d8(  888  `88bod8P'   888     d8(  888   888   888   888
+    #  `Y8bod88P" o888o `Y888""8o `8oooooo.  d888b    `Y888""8o o888o o888o o888o
+    #                             d"     YD
+    #                             "Y88888P'
+    # '''
 
     def diagram(
         self,
@@ -1750,6 +1830,18 @@ class BootstrapCore:
             if to_markdown == YesNoType.yes
             else mermaid_code
         )
+
+
+# '''
+#           888 d8b          888
+#           888 Y8P          888
+#           888              888
+#   .d8888b 888 888  .d8888b 888  888
+#  d88P"    888 888 d88P"    888 .88P
+#  888      888 888 888      888888K
+#  Y88b.    888 888 Y88b.    888 "88b
+#   "Y8888P 888 888  "Y8888P 888  888
+# '''
 
 
 @click.group(context_settings={"help_option_names": ["-h", "--help"]})
