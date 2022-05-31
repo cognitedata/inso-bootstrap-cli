@@ -83,7 +83,7 @@ poetry update
 ### Minimal Configuration
 Before running the cli, the next step is to set up your config file. A good start is to  look at the following config file.
 
-- `config/config-simple-v2-draft.yml`
+- `config/config-deploy-example-v2.yml`
 
 This config has extensive comments explaining the syntax with examples for all the important features. More explanation can also be found in the [Configuration](#configuration)-section
 
@@ -101,13 +101,13 @@ This tool has four main commands:
 To test the tool out without connecting to a CDF-project, comment out the cognite-section of the config and run the `diagram` command (on WSL):
 
 ```
- poetry run bootstrap-cli --debug diagram --cdf-project=shiny-dev configs/config-simple-v2-draft.yml | clip.exe
+ poetry run bootstrap-cli diagram --cdf-project=shiny-dev configs/config-deploy-example-v2.yml | clip.exe
 ```
 
 alternatively on Mac/Linux
 
 ```
- poetry run bootstrap-cli --debug diagram --cdf-project=shiny-dev configs/config-simple-v2-draft.yml > diagram.txt
+ poetry run bootstrap-cli diagram --cdf-project=shiny-dev configs/config-deploy-example-v2.yml > diagram.txt
 ```
 
 No you can go to [Mermaid Live](https://mermaid.live/) and paste the content of the clipboard/file and see a diagram of the Groups, Data Sets and Raw-DBs the tool would create based on this config file.
@@ -133,7 +133,7 @@ For more information, see the [Prepare command](#prepare-command)-section.
 Once the prepare command has been run, the cli should have the rights it needs and you are ready to run the deploy command.
 
 ```
-poetry run bootstrap-cli --debug deploy --cdf-project=shiny-dev configs/config-simple-v2-draft.yml
+poetry run bootstrap-cli deploy --cdf-project=shiny-dev configs/config-deploy-example-v2.yml
 ```
 
 This will deploy and create all the groups, data sets and RAW DBs shown in the diagram created above.
