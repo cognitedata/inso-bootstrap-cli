@@ -1,0 +1,194 @@
+graph LR
+%% 2022-06-16 11:34:43 - Script generated Mermaid diagram
+
+subgraph "idp" ["IdP Groups for CDF: 'shiny-dev'"]
+
+end
+
+
+subgraph "owner" ["'Owner' Groups"]
+  
+subgraph "core_cdf_owner" ["Node Level (Owner)"]
+  cdf:src:001:sap:owner("cdf:src:001:sap:owner")
+  cdf:src:002:infor:owner("cdf:src:002:infor:owner")
+  cdf:src:003:opcenter:owner("cdf:src:003:opcenter:owner")
+  cdf:src:004:cmms:owner("cdf:src:004:cmms:owner")
+  cdf:src:005:opcua:owner("cdf:src:005:opcua:owner")
+  cdf:uc:001:oee:owner("cdf:uc:001:oee:owner")
+end
+
+  
+subgraph "ns_cdf_owner" ["Namespace Level (Owner)"]
+  cdf:src:all:owner["cdf:src:all:owner"]
+  cdf:uc:all:owner["cdf:uc:all:owner"]
+  cdf:all:owner["cdf:all:owner"]
+end
+
+  
+subgraph "scope_owner" ["Scopes (Owner)"]
+  src:001:sap:db__owner__raw[["src:001:sap:db"]]
+  src:001:sap:db:state__owner__raw[["src:001:sap:db:state"]]
+  src:001:sap:ds__owner__datasets>"src:001:sap:ds"]
+  src:002:infor:db__owner__raw[["src:002:infor:db"]]
+  src:002:infor:db:state__owner__raw[["src:002:infor:db:state"]]
+  src:002:infor:ds__owner__datasets>"src:002:infor:ds"]
+  src:003:opcenter:db__owner__raw[["src:003:opcenter:db"]]
+  src:003:opcenter:db:state__owner__raw[["src:003:opcenter:db:state"]]
+  src:003:opcenter:ds__owner__datasets>"src:003:opcenter:ds"]
+  src:004:cmms:db__owner__raw[["src:004:cmms:db"]]
+  src:004:cmms:db:state__owner__raw[["src:004:cmms:db:state"]]
+  src:004:cmms:ds__owner__datasets>"src:004:cmms:ds"]
+  src:005:opcua:db__owner__raw[["src:005:opcua:db"]]
+  src:005:opcua:db:state__owner__raw[["src:005:opcua:db:state"]]
+  src:005:opcua:ds__owner__datasets>"src:005:opcua:ds"]
+  src:all:db__owner__raw[["src:all:db"]]
+  src:all:db:state__owner__raw[["src:all:db:state"]]
+  src:all:ds__owner__datasets>"src:all:ds"]
+  uc:001:oee:db__owner__raw[["uc:001:oee:db"]]
+  uc:001:oee:db:state__owner__raw[["uc:001:oee:db:state"]]
+  uc:001:oee:ds__owner__datasets>"uc:001:oee:ds"]
+  src:001:sap:db__owner__raw[["src:001:sap:db"]]
+  src:001:sap:db:state__owner__raw[["src:001:sap:db:state"]]
+  src:005:opcua:db__owner__raw[["src:005:opcua:db"]]
+  src:005:opcua:db:state__owner__raw[["src:005:opcua:db:state"]]
+  src:001:sap:ds__owner__datasets>"src:001:sap:ds"]
+  src:005:opcua:ds__owner__datasets>"src:005:opcua:ds"]
+  uc:all:db__owner__raw[["uc:all:db"]]
+  uc:all:db:state__owner__raw[["uc:all:db:state"]]
+  uc:all:ds__owner__datasets>"uc:all:ds"]
+  all:db:state__owner__raw[["all:db:state"]]
+  all:db__owner__raw[["all:db"]]
+  all:ds__owner__datasets>"all:ds"]
+end
+
+end
+
+
+subgraph "read" ["'Read' Groups"]
+  
+subgraph "core_cdf_read" ["Node Level (Read)"]
+  cdf:src:001:sap:read("cdf:src:001:sap:read")
+  cdf:src:002:infor:read("cdf:src:002:infor:read")
+  cdf:src:003:opcenter:read("cdf:src:003:opcenter:read")
+  cdf:src:004:cmms:read("cdf:src:004:cmms:read")
+  cdf:src:005:opcua:read("cdf:src:005:opcua:read")
+  cdf:uc:001:oee:read("cdf:uc:001:oee:read")
+end
+
+  
+subgraph "ns_cdf_read" ["Namespace Level (Read)"]
+  cdf:src:all:read["cdf:src:all:read"]
+  cdf:uc:all:read["cdf:uc:all:read"]
+  cdf:all:read["cdf:all:read"]
+end
+
+  
+subgraph "scope_read" ["Scopes (Read)"]
+  src:001:sap:db__read__raw[["src:001:sap:db"]]
+  src:001:sap:db:state__read__raw[["src:001:sap:db:state"]]
+  src:001:sap:ds__read__datasets>"src:001:sap:ds"]
+  src:002:infor:db__read__raw[["src:002:infor:db"]]
+  src:002:infor:db:state__read__raw[["src:002:infor:db:state"]]
+  src:002:infor:ds__read__datasets>"src:002:infor:ds"]
+  src:003:opcenter:db__read__raw[["src:003:opcenter:db"]]
+  src:003:opcenter:db:state__read__raw[["src:003:opcenter:db:state"]]
+  src:003:opcenter:ds__read__datasets>"src:003:opcenter:ds"]
+  src:004:cmms:db__read__raw[["src:004:cmms:db"]]
+  src:004:cmms:db:state__read__raw[["src:004:cmms:db:state"]]
+  src:004:cmms:ds__read__datasets>"src:004:cmms:ds"]
+  src:005:opcua:db__read__raw[["src:005:opcua:db"]]
+  src:005:opcua:db:state__read__raw[["src:005:opcua:db:state"]]
+  src:005:opcua:ds__read__datasets>"src:005:opcua:ds"]
+  src:all:db__read__raw[["src:all:db"]]
+  src:all:db:state__read__raw[["src:all:db:state"]]
+  src:all:ds__read__datasets>"src:all:ds"]
+  uc:001:oee:db__read__raw[["uc:001:oee:db"]]
+  uc:001:oee:db:state__read__raw[["uc:001:oee:db:state"]]
+  uc:001:oee:ds__read__datasets>"uc:001:oee:ds"]
+  uc:all:db__read__raw[["uc:all:db"]]
+  uc:all:db:state__read__raw[["uc:all:db:state"]]
+  uc:all:ds__read__datasets>"uc:all:ds"]
+  all:db:state__read__raw[["all:db:state"]]
+  all:db__read__raw[["all:db"]]
+  all:ds__read__datasets>"all:ds"]
+end
+
+end
+
+%% all 76 links connecting the above nodes
+cdf:src:all:read-.->cdf:src:001:sap:read
+cdf:src:001:sap:read-.->src:001:sap:db__read__raw
+cdf:src:001:sap:read-.->src:001:sap:db:state__read__raw
+cdf:src:001:sap:read-.->src:001:sap:ds__read__datasets
+cdf:src:all:read-.->cdf:src:002:infor:read
+cdf:src:002:infor:read-.->src:002:infor:db__read__raw
+cdf:src:002:infor:read-.->src:002:infor:db:state__read__raw
+cdf:src:002:infor:read-.->src:002:infor:ds__read__datasets
+cdf:src:all:read-.->cdf:src:003:opcenter:read
+cdf:src:003:opcenter:read-.->src:003:opcenter:db__read__raw
+cdf:src:003:opcenter:read-.->src:003:opcenter:db:state__read__raw
+cdf:src:003:opcenter:read-.->src:003:opcenter:ds__read__datasets
+cdf:src:all:read-.->cdf:src:004:cmms:read
+cdf:src:004:cmms:read-.->src:004:cmms:db__read__raw
+cdf:src:004:cmms:read-.->src:004:cmms:db:state__read__raw
+cdf:src:004:cmms:read-.->src:004:cmms:ds__read__datasets
+cdf:src:all:read-.->cdf:src:005:opcua:read
+cdf:src:005:opcua:read-.->src:005:opcua:db__read__raw
+cdf:src:005:opcua:read-.->src:005:opcua:db:state__read__raw
+cdf:src:005:opcua:read-.->src:005:opcua:ds__read__datasets
+cdf:all:read-.->cdf:src:all:read
+cdf:src:all:read-.->src:all:db__read__raw
+cdf:src:all:read-.->src:all:db:state__read__raw
+cdf:src:all:read-.->src:all:ds__read__datasets
+cdf:uc:all:read-.->cdf:uc:001:oee:read
+cdf:uc:001:oee:read-.->uc:001:oee:db__read__raw
+cdf:uc:001:oee:read-.->uc:001:oee:db:state__read__raw
+cdf:uc:001:oee:read-.->uc:001:oee:ds__read__datasets
+cdf:all:read-.->cdf:uc:all:read
+cdf:uc:all:read-.->uc:all:db__read__raw
+cdf:uc:all:read-.->uc:all:db:state__read__raw
+cdf:uc:all:read-.->uc:all:ds__read__datasets
+cdf:all:read-.->all:db:state__read__raw
+cdf:all:read-.->all:db__read__raw
+cdf:all:read-.->all:ds__read__datasets
+cdf:src:all:owner-->cdf:src:001:sap:owner
+cdf:src:001:sap:owner-->src:001:sap:db__owner__raw
+cdf:src:001:sap:owner-->src:001:sap:db:state__owner__raw
+cdf:src:001:sap:owner-->src:001:sap:ds__owner__datasets
+cdf:src:all:owner-->cdf:src:002:infor:owner
+cdf:src:002:infor:owner-->src:002:infor:db__owner__raw
+cdf:src:002:infor:owner-->src:002:infor:db:state__owner__raw
+cdf:src:002:infor:owner-->src:002:infor:ds__owner__datasets
+cdf:src:all:owner-->cdf:src:003:opcenter:owner
+cdf:src:003:opcenter:owner-->src:003:opcenter:db__owner__raw
+cdf:src:003:opcenter:owner-->src:003:opcenter:db:state__owner__raw
+cdf:src:003:opcenter:owner-->src:003:opcenter:ds__owner__datasets
+cdf:src:all:owner-->cdf:src:004:cmms:owner
+cdf:src:004:cmms:owner-->src:004:cmms:db__owner__raw
+cdf:src:004:cmms:owner-->src:004:cmms:db:state__owner__raw
+cdf:src:004:cmms:owner-->src:004:cmms:ds__owner__datasets
+cdf:src:all:owner-->cdf:src:005:opcua:owner
+cdf:src:005:opcua:owner-->src:005:opcua:db__owner__raw
+cdf:src:005:opcua:owner-->src:005:opcua:db:state__owner__raw
+cdf:src:005:opcua:owner-->src:005:opcua:ds__owner__datasets
+cdf:all:owner-->cdf:src:all:owner
+cdf:src:all:owner-->src:all:db__owner__raw
+cdf:src:all:owner-->src:all:db:state__owner__raw
+cdf:src:all:owner-->src:all:ds__owner__datasets
+cdf:uc:all:owner-->cdf:uc:001:oee:owner
+cdf:uc:001:oee:owner-->uc:001:oee:db__owner__raw
+cdf:uc:001:oee:owner-->uc:001:oee:db:state__owner__raw
+cdf:uc:001:oee:owner-->uc:001:oee:ds__owner__datasets
+cdf:uc:001:oee:owner-.->src:001:sap:db__owner__raw
+cdf:uc:001:oee:owner-.->src:001:sap:db:state__owner__raw
+cdf:uc:001:oee:owner-.->src:005:opcua:db__owner__raw
+cdf:uc:001:oee:owner-.->src:005:opcua:db:state__owner__raw
+cdf:uc:001:oee:owner-.->src:001:sap:ds__owner__datasets
+cdf:uc:001:oee:owner-.->src:005:opcua:ds__owner__datasets
+cdf:all:owner-->cdf:uc:all:owner
+cdf:uc:all:owner-->uc:all:db__owner__raw
+cdf:uc:all:owner-->uc:all:db:state__owner__raw
+cdf:uc:all:owner-->uc:all:ds__owner__datasets
+cdf:all:owner-->all:db:state__owner__raw
+cdf:all:owner-->all:db__owner__raw
+cdf:all:owner-->all:ds__owner__datasets

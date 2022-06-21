@@ -123,11 +123,31 @@ bootstrap:
       ns-nodes:
         - node-name: src:001:sap
           # asset hierarchy, assets: plants, areas, processes, units, events: production orders
-          description: Sources 001; from SAP
+          description: Sources 001; data from SAP
           external-id: src:001:sap
+          metadata:
+          # TODO: determine what is "good practice" to include
+            consoleOwners:
+              - name: Hunter Back
+                email: hunter.beck@cognitedata.com
+            consoleCreatedBy:
+              - username: inso-bootstrap-cli
+            consoleAdditionalDocs:
+            consoleMetaDataVersion: 1
         - node-name: src:002:infor
           # asset hierarchy, assets: plants, areas, processes, units,
-          description: Sources 002; from Infor EAM
+          description: Sources 002; data from Infor EAM
+          metadata:
+            consoleOwners:
+              - name: Hunter Back
+                email: hunter.beck@cognitedata.com
+            consoleCreatedBy:
+              - username: inso-bootstrap-cli
+            consoleAdditionalDocs: 
+              - type: file
+                id: 1657685287903211
+                name: SAP Integration.png
+            consoleMetaDataVersion: 1
         - node-name: src:003:opcenter
           # events: production steps
           description: Sources 003; from Siemens Opcenter
