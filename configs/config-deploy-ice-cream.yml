@@ -117,6 +117,16 @@ bootstrap:
         idp-source-name: CDF_PROD_UC001DEMAND_READ
 
   namespaces:
+    # Example of how we might set up access management for different countries / sites
+    # TODO: How might we set this up differently? Peter + Joergen
+    # TODO: Store two different alternatives for this config in ice-cream-demo?
+    - ns-name: germany
+      description: Data from Germany
+
+      ns-nodes:
+        - node-name: germany:001:nuremburg
+        - node-name: germany:001:berlin
+    
     - ns-name: src
       description: Customer source-systems
 
@@ -169,6 +179,7 @@ bootstrap:
           shared-access:
             read:
               - node-name: src:001:sap
+              - node-name: src:002:infor
               - node-name: src:005:opcua
         
 
