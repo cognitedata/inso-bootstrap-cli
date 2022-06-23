@@ -1,20 +1,11 @@
 # InSo Bootstrap CLI
 
-## Scope of Work
+> **NOTE:** The Cognite Industry Solution (InSo) team provides the inso-bootstrap CLI as-is. It is not an officially supported Cognite CLI with product-grade SLOs.
 
-Disclaimer:
-> The repository name is prefixed with `inso-`, marking this solution as provided by Cognite Industry Solution (InSo) team, but is not an official supported CLI / GitHub Action from Cognite with product-grade SLOs.
-
-Purpose:
-
-- Providing a configuration driven bootstrap of CDF Groups, Datasets, RAW Databases with data-separation on sources, use-case and user-input level.
-- Aiming for **DAY1**:
-  - the initial-setup phase: your first configuration of a new CDF Project
-- Support for **DAY2**:
-  - the operational phase: running maintenance and change-management against your scaled (multiple) CDF Projects
-
+Use the **inso-bootstrap CLI** to configure and bootstrap a new Cognite Data Fusion (CDF) project with CDF groups, datasets, and RAW databases. The CLI separates data by sources, use-cases, and user-input levels. You can also use the CLI to maintain existing CDF projects.
 
 ## Table of Content
+
 <!-- @import "[TOC]" {cmd="toc" depthFrom=1 depthTo=6 orderedList=false} -->
 
 <!-- code_chunk_output -->
@@ -51,7 +42,7 @@ Purpose:
       - [`idp-cdf-mappings` section: IdP Group to CDF Group mapping](#idp-cdf-mappings-section-idp-group-to-cdf-group-mapping)
         - [`namespaces` section](#namespaces-section)
     - [Configuration for `delete` command](#configuration-for-delete-command)
-        - [`delete_or_deprecate` section](#delete_or_deprecate-section)
+      - [`delete_or_deprecate` section](#delete_or_deprecate-section)
 - [Development / Contribute](#development--contribute)
   - [Inspiration](#inspiration)
   - [Semantic versioning](#semantic-versioning)
@@ -62,86 +53,78 @@ Purpose:
 
 <!-- /code_chunk_output -->
 
-## How to get started
+## Install
 
-The recommended way to run this is using poetry, but other methods are supported.
-For more details on other methods or native windows usage, check out [How to run](#how-to-run).
-To start you must install Poetry, a tool to manage python dependencies and virtual environments. It is recommended running this on Linux, WSL2 or Mac.
+We recommend installing the inso-bootstrap CLI with Poetry on Linux, Windows Subsystem for Linux version 2 (WSL2), or macOS.
 
-Follow the official [poetry install guide](https://python-poetry.org/docs/#installation) and set it up.
+For other installation methods or native Windows use, see [How to run](#how-to-run).
 
+1. Follow the steps in the [Poetry installation guide](https://python-poetry.org/docs/#installation) to install Poetry.
 
-Once poetry has been installed, the local python environment can be installed and set up using poetry.
+2. Install and set up the local Python environment:
 
-```
-poetry build
-poetry install
-poetry update
-```
+   ```
+   poetry build
+   poetry install
+   poetry update
+   ```
 
+### Configure and test
 
-### Minimal Configuration
-Before running the cli, the next step is to set up your config file. A good start is to  look at the following config file.
+Before running the CLI, you need to set up your configuration file. The example configuration file, `config/config-deploy-example-v2.yml` has extensive comments explaining the syntax with examples for all the important features. You can also find more information in the [Configuration](#configuration) section.
 
-- `config/config-deploy-example-v2.yml`
+The CLI has four main commands:
 
-This config has extensive comments explaining the syntax with examples for all the important features. More explanation can also be found in the [Configuration](#configuration)-section
+- `diagram` - documents the current configuration as a Mermaid diagram.
+- `prepare` - prepares an elevated CDF group, `cdf:bootstrap`, and links it to an IdP group.
+- `deploy ` - deploys bootstrap components from a configuration file.
+- `delete` - deletes CDF groups, datasets, and Raw databases
 
-This tool has four main commands:
-
-- `diagram`
-  - Diagram mode used to document the given configuration as a mermaid diagram
-- `prepare`
-  - Prepare an elevated CDF Group 'cdf:bootstrap' and link it to an idp-group
-- `deploy `
-  - Deploy a set of bootstrap from a config-file
-- `delete`
-  - Delete mode used to delete CDF Groups, Datasets and Raw Databases
-
-To test the tool out without connecting to a CDF-project, comment out the cognite-section of the config and run the `diagram` command (on WSL):
+To test the configuration without connecting to a CDF project, comment out the `cognite` section of the configuration file and run the `diagram` command (on WSL):
 
 ```
  poetry run bootstrap-cli diagram --cdf-project=shiny-dev configs/config-deploy-example-v2.yml | clip.exe
 ```
 
-alternatively on Mac/Linux
+On Mac/Linux:
 
 ```
  poetry run bootstrap-cli diagram --cdf-project=shiny-dev configs/config-deploy-example-v2.yml > diagram.txt
 ```
 
-No you can go to [Mermaid Live](https://mermaid.live/) and paste the content of the clipboard/file and see a diagram of the Groups, Data Sets and Raw-DBs the tool would create based on this config file.
+Then navigate to [Mermaid Live](https://mermaid.live/) and paste the content of the clipboard/file to see a diagram of the groups, datasets, and Raw databases the tool will create.
 
-#### Authentication
+### Authenticate
 
-The easiest way to set up authentication is to copy the `.env_example` file to `.env` and fill out the environment variables needed. For information on the fields see the [Environment variables](#environment-variables)-section.
+The easiest way to set up authentication is to copy the `.env_example` file to `.env` and add the necessary environment variables. For information about the variables, see the [Environment variables](#environment-variables) section.
 
-Once the `.env` file is set up, you can check that the tool can connect to CDF by uncommenting the cognite-part of the config file and re-running the `diagram` command from above.
-
+When you have set up the `.env` file, you can check that the tool can connect to CDF by uncommenting the `cognite` section of the configuration file and re-running the `diagram` command above.
 
 ### Running locally
 
-With To set create a group with the proper access-rights for the bootstrap-cli to do its job you can run the `prepare`-command. this creates a group and links it to a group the app-registration is in.
+Run the `prepare` command to create a group with the necessary access rights for the bootstrap-cli. The command creates a CDF group and links it to the IdP group the application is registered in.
 
-PS. It is possible to run all of commands in dry-run mode by specifying `--dry-run=yes` before the command. This will log the intended API-actions.
+**NOTE**: You can run all commands in dry-run mode by specifying `--dry-run=yes` before the command. Running in dry-run mode logs the intended API actions.
 
 ```
 poetry run bootstrap-cli prepare --idp-source-id <idp-source-id>
 ```
-For more information, see the [Prepare command](#prepare-command)-section.
 
-Once the prepare command has been run, the cli should have the rights it needs and you are ready to run the deploy command.
+For more information, see [Prepare command](#prepare-command).
+
+When you have run the `prepare` command, the CLI has the necessary access rights to run the `deploy` command.
 
 ```
 poetry run bootstrap-cli deploy --cdf-project=shiny-dev configs/config-deploy-example-v2.yml
 ```
 
-This will deploy and create all the groups, data sets and RAW DBs shown in the diagram created above.
-If they already exist, the tool will update/recreate them based on the config file.
+This creates the groups, datasets, and Raw databases as defined in your configuration file and illustrated in the diagram you created above.
 
-### Github Action
+If any of the groups, datasets, or Raw databases already exist, the CLI updates/recreates them.
 
-To run this on GitHub-Actions here is an example workflow for deployment:
+### GitHub Actions
+
+Below is an example GitHub Actions workflow:
 
 ```yaml
 name: actions
@@ -185,96 +168,101 @@ jobs:
 ```
 
 ### Azure setup
-For using Azure as IdP, some configurations need to be performed in azure.
-- Create an app registration in AAD (Azure Active Directory).
-  - Ensure the application is member of the AAD group assigned as oidc-admin-group.
-  - Create a secret for the app registration to be used in the .env variable BOOTSTRAP_IDP_CLIENT_SECRET.
-  - The application id is to be used in the .env variable BOOTSTRAP_IDP_CLIENT_ID
 
-## Bootstrap CLI concept
+To use Azure Active Directory (Azure AD) as the IdP, you must first register the CLI as an app in Azure AD.
 
-The Bootstrap CLI aims to tackle both DAY1 and DAY2 activities related to Access Management. This includes:
+1. Create an app registration in Azure AD. Make sure that the application is a member of the Azure AD group assigned as `oidc-admin-group`.
+2. Create a secret for the app registration and add it to the BOOTSTRAP_IDP_CLIENT_SECRET .env variable.
+3. Use the Azure AD application ID in the BOOTSTRAP_IDP_CLIENT_ID .env variable
+
+## Bootstrap CLI concepts
+
+The Bootstrap CLI tackles both DAY1 and DAY2 activities related to access management:
+
 - Groups
 - Scopes
-  - Data Sets
-  - RAW DBs
+  - Data sets
+  - Raw databases
 
+**DAY1** activities relates to the initial setup and configuration before the system can be used.
 
-**DAY1** activities are initial setup and configurations before a system can be used.
-Followed by **DAY2** activities which are the operational use of the system and scaling.
+The **DAY2** activities cover scaling and operating the system.
 
-Cognite provides support for a list of **DAY1** activities, to enable governance best-practices from the start, such as:
+Cognite provides support for a list of **DAY1** activities to enable governance best practices from the start, such as:
 
-* **Secure access management** to control access for users, apps and services to the various types of resources (data sets, assets, files, events, time series, etc.) in CDF
-* **Data Sets** to document and track data lineage
-* **Data quality** like monitoring the data integration pipelines into CDF
+- **Secure access management** to control access for users, apps and services to the various types of resources (data sets, assets, files, events, time series, etc.) in CDF.
+- **Datasets** to document and track data lineage.
+- **Data quality** to monitor the data integration pipelines into CDF.
 
-As all of this is connected to each other, and it is spanning customers Identity Provider (Azure AD) and CDF, this tool utilizes the CDF API for a configuration driven approach for the CDF part.
+These areas are interconnected and span the customers' identity provider (Azure AD) and CDF. The CLI uses the CDF API and a configuration-driven approach for the CDF areas.
 
 ### Secure access management
 
-**Secure access management** requires connection of IdP Groups (most often Azure AD (AAD) groups) to CDF Groups. User or app Authentication is provided by customers IdP and Authorization by CDF Groups. CDF Groups are defined through capabilities and actions (like "Timeseries" capability with "Read/Write" actions).
+**Secure access management** requires IdP groups (most often Azure AD groups) to be linked to CDF groups. Authenticating users and apps is handled by the customer's IdP and authorization is handled by CDF groups. CDF groups are defined by capabilities and actions (for example, a "time series" capability with "read/write" actions).
 
-**Secure access management** related configuration targets:
-* CDF Groups and links to IdP Groups
-* IdP-owner responsibilities:
-  * IdP Group creation
-  * Service-principal (user and apps) creation and mapping to IdP Groups
+**Secure access management** configuration:
 
-### Data Sets
+- Link CDF groups and IdP groups.
+- IdP owner responsibilities:
+  - Create IdP group(s).
+  - Create service principals (users and apps) and map them to IdP groups
 
-CDF **Data Sets** are used to scope CDF Groups capabilities to a set of CDF Resources. This allows fencing future usage, to stay within this scope. Creation of new Data Sets is a governance related action and is executed by a defined process. An exception is CDF RAW data which is scoped through CDF RAW Databases.
+### Data sets
 
-CDF **Scopes** related configuration targets:
-* CDF Data Sets
-* CDF RAW Databases
+CDF **datasets** scope CDF groups' capabilities to a set of CDF resources. This allows you to fence future usage and stay within your scope. Creating new datasets is a governance action to be executed by a defined process. An exception is CDF Raw data which is scoped through CDF Raw databases.
 
-## Bootstrap CLI makes Access-Control and Data Lineage manageable
+CDF **scopes** configuration:
 
-CDF Groups allows creation of very complex configurations the many different capabilities (~30), actions (2-5) and scopes (x). To establish a **manageable** and **understandable** access-control & data-lineage, the `bootstrap-cli` uses an approach to reduce the complexity by templating and packaging. In addition, namespaces help add operational semantic (meaning).
+- CDF datasets
+- CDF Raw databases
+
+## Bootstrap CLI makes access-control and data lineage manageable
+
+CDF groups allow you to create very complex configurations from many different capabilities (~30), actions (2-5), and scopes (x). To establish **manageable** and **understandable** access control and data lineage, the `bootstrap-cli` uses templating and packaging to reduce the complexity. In addition, it uses namespaces to add operational semantics (meaning).
 
 ### Namespaces
 
-A two-layered hierarchy allows organization of a growing list of CDF Groups.
+A two-layered hierarchy allows you to organize a growing list of CDF groups.
 
-The first layer of the hierarchy is a namespace and the second one is individual elements within a namespace. An example of this could be having the following namespaces with explanation for why this could be a good idea:
+The first layer of the hierarchy is a namespace and the second layer is individual elements within a namespace. For example, you can have the following namespaces with explanations:
 
-- **src**: to scope 3rd party sources
-- **fac**: to scope customer facilities by name
-- **ca**: to scope "corporate applications" (SAP, Salesforce, ...)
-- **uc**: to scope your use-cases ("UC:001 - Flow Optimization", "UC:002 - Trading Balances"
-- **in**: to scope user-input from UIs
+- **src**: to scope 3rd party sources.
+- **fac**: to scope customer facilities by name.
+- **ca**: to scope "corporate applications" (SAP, Salesforce, ...).
+- **uc**: to scope your use-cases ("UC:001 - Flow Optimization", "UC:002 - Trading Balances".
+- **in**: to scope user input from UIs.
 
-A namespace allows each project to apply **the** operational semantic, which fits your project and customers terminology.
+A namespace allows each project to apply the operational semantic that fits the project and the customer's terminology.
 
-This is just an example of namespaces used in projects today, but you are free to choose whatever names fit your project.
+The above is an example of namespaces, and you can modify the namespaces to fit your project.
 
-Good style is to keep the names short and add long names and details to the `description` fields.
+Best practice is to keep the names short and add long names and details to the `description` fields.
 
 ### Templating
 
-1. CDF Groups are created in `OWNER` and `READ` pairs
-   - **All** capabilities are handled the same, and are applied
-     - as either an `OWNWER`-set
-     - or as a `READ`-only-set
-   - access-control only works through scopes, but within your scopes you can work without limits
-2. The CDF Groups can be called "strict-scoped" meaning that access-control to this group only allows reading and writing data to the available scopes
-   - no data can exist outside the predefined scopes
-   - no user or app can create additional scopes
+1. CDF groups are created in `OWNER` and `READ` pairs.
+   - **All** capabilities are handled the same and are applied:
+     - as an `OWNER` set.
+     - OR as a `READ`-only set
+   - Access control only works through scopes. Within your scopes, you can work without limits.
+2. The CDF groups can be called "strict-scoped", meaning that access control to the group only allows reading and writing data to the available scopes.
+   - No data can exist outside the predefined scopes.
+   - No user or app can create additional scopes.
 
 ### Packaging
 
-1. Every `OWNER/READ` pair of CDF Groups is configured with the same package of scopes:
-   - two RAW DBs (one for staging, one for state-stores)
-   - one Data Set (for all CDF Resource types, as capabilities are not restricted)
-   -  `OWNER` Groups can be configured with additional shared-access to scopes of other CDF Groups
-   - this allows users (or apps) working on a Use-Case (`uc`)
-     1. to read data from scopes of other Source (`src`) groups and
-     2. to write the processed and value-added data to its own scope
-     3. allowing data-lineage from sources through use-case model to data-products
+1. Every `OWNER/READ` pair of CDF groups is configured with the same package of scopes:
+   - Two Raw DBs (one for staging, one for state-stores).
+   - One data set (for all CDF resource types, as capabilities are not restricted)
+   - `OWNER` groups can be configured with additional shared access to scopes of other CDF groups.
+   - This allows users (or apps) working on a Use-Case (`uc`):
+     1. To read data from scopes of other source (`src`) groups, and
+     2. To write the processed and value-added data to its own scope,
+     3. Allowing data lineage from sources through use-case model to data products.
 
 ### Bootstrap CLI example
-Here is an extract from the example config `config-deploy-example-v2.yml` which uses the main abilities of the CLI.
+
+Below is an extract from the example config `config-deploy-example-v2.yml` which uses the main features of the CLI.
 (The suffix `-v2` indicates that the configuration is based using the latest v2 release syntax.)
 
 ```yaml
@@ -324,7 +312,7 @@ bootstrap:
               - node-name: in:001:trade
 ```
 
-Using the diagram functionality of the CLI we can produce the following chart of the example config `config-deploy-example-v2.yml`. The stipulated lines show read-access and the solid ones write.
+Using the diagram functionality of the CLI, we can produce the following chart of the example config `config-deploy-example-v2.yml`. The dashed lines show `read`-access, and the solid ones `write`.
 
 ```mermaid
 graph LR
@@ -521,14 +509,18 @@ cdf:all:owner-->all:db:state__owner__raw
 cdf:all:owner-->all:ds__owner__datasets
 ```
 
-As one can see, even for this simple use case, the cli creates quite a lot of resources. The reason for this is to both provide the outward simplicity of a DAY1 setup like it is shown here, but with the possibility to add more granular group control later. In this DAY1 setup, only the two top groups and one use-case group are mapped to actual IDP-groups.
+Even for this simple use case, the CLI creates many resources. This is to both provide the outward simplicity of a DAY1 setup as shown here and the possibility to add more granular group control later. In this DAY1 setup, only the two top groups and one use-case group are mapped to actual IdP groups.
 
-If we take a closer look at only the first namespace node.
+Looking closer at only the first namespace node;
+
 ```
 src:001:sap
 ```
-For this element the cli creates/updates the following resources:
+
+For this element, the CLI creates/updates the following resources:
+
 #### Groups
+
 ```
 cdf:all:owner
 cdf:all:read
@@ -539,7 +531,9 @@ cdf:src:all:read
 cdf:src:001:sap:owner
 cdf:src:001:sap:read
 ```
+
 #### Scopes
+
 ```
 all:dataset
 all:db
@@ -554,178 +548,174 @@ src:001:sap:db
 src:001:sap:db:state
 ```
 
-This allows us to give access to for example all sources or just to a specific one like src:001 while forcing data to always be written into datasets.
-
+This allows you to give access to, for example, all sources, or to a specific source, like src:001, while forcing data to always be written into data sets.
 
 ## Bootstrap CLI commands
 
-Common parameters for all commands, which most are typically provided through environment variables (prefixed with `BOOTSTRAP_`):
+Common parameters for all commands. Typically provided through environment variables (prefixed with `BOOTSTRAP_`):
 
 ```text
 Usage: bootstrap-cli [OPTIONS] COMMAND [ARGS]...
 
 Options:
   --version                Show the version and exit.
-  --cdf-project-name TEXT  CDF Project to interact with CDF API,
-                           The 'BOOTSTRAP_CDF_PROJECT' environment variable can be
-                           used instead. Required for OAuth2 and optional for
-                           api-keys.
-  --cluster TEXT           The CDF cluster where CDF Project is hosted (e.g.
-                           greenfield, europe-west1-1), Provide this or make
-                           sure to set the 'BOOTSTRAP_CDF_CLUSTER' environment
-                           variable. Default: westeurope-1
-  --host TEXT              The CDF host where CDF Project is hosted (e.g.
+  --cdf-project-name TEXT  The CDF project to interact with the CDF API.
+                           You can use the 'BOOTSTRAP_CDF_PROJECT' environment variable instead. Required for OAuth2 and optional for
+                           API keys.
+  --cluster TEXT           The CDF cluster where the CDF project is hosted (e.g.
+                           greenfield, europe-west1-1). Provide this or set the 'BOOTSTRAP_CDF_CLUSTER' environment variable.
+                           Default: westeurope-1
+  --host TEXT              The CDF host where CDF project is hosted (e.g.
                            https://bluefield.cognitedata.com). Provide this or
                            make sure to set the 'BOOTSTRAP_CDF_HOST' environment
                            variable. Default:
                            https://bluefield.cognitedata.com/
-  --api-key TEXT           API key to interact with CDF API. Provide this or
+  --api-key TEXT           API key to interact with the CDF API. Provide this or
                            make sure to set the
                            'BOOTSTRAP_CDF_API_KEY' environment variable if you
                            want to authenticate with API keys.
-  --client-id TEXT         IdP Client ID to interact with CDF API. Provide
+  --client-id TEXT         IdP client ID to interact with the CDF API. Provide
                            this or make sure to set the 'BOOTSTRAP_IDP_CLIENT_ID'
                            environment variable if you want to authenticate
                            with OAuth2.
-  --client-secret TEXT     IdP Client secret to interact with CDF API. Provide
-                           this or make sure to
-                           set the 'BOOTSTRAP_IDP_CLIENT_SECRET' environment
+  --client-secret TEXT     IdP client secret to interact with the CDF API. Provide
+                           this or set the 'BOOTSTRAP_IDP_CLIENT_SECRET' environment
                            variable if you want to authenticate with OAuth2.
-  --token-url TEXT         IdP Token URL to interact with CDF API. Provide
+  --token-url TEXT         IdP token URL to interact with the CDF API. Provide
                            this or make sure to set the 'BOOTSTRAP_IDP_TOKEN_URL'
                            environment variable if you want to authenticate
                            with OAuth2.
-  --scopes TEXT            IdP Scopes to interact with CDF API, relevant for
-                           OAuth2 authentication method. The 'BOOTSTRAP_IDP_SCOPES'
-                           environment variable can be used instead.
-  --audience TEXT          IdP Audience to interact with CDF API, relevant for
-                           OAuth2 authentication
-                           method. The 'BOOTSTRAP_IDP_AUDIENCE' environment
-                           variable can be used instead.
+  --scopes TEXT            IdP scopes to interact with the CDF API, relevant for the
+                           OAuth2 authentication method. You can use the  'BOOTSTRAP_IDP_SCOPES' environment variable instead.
+  --audience TEXT          IdP audience to interact with the CDF API, relevant for
+                           the OAuth2 authentication
+                           method. You can use the 'BOOTSTRAP_IDP_AUDIENCE' environment variable.
   --dotenv-path TEXT       Provide a relative or absolute path to an .env file
-                           (for commandline usage only)
-  --debug                  Print debug information
-  --dry-run [yes|no]       Only logging planned CDF API action while doing
-                           nothing. Defaults to 'no'
+                           (for command line usage only).
+  --debug                  Print debug information.
+  --dry-run [yes|no]       Log only planned CDF API actions while doing
+                           nothing. Defaults to 'no'.
   -h, --help               Show this message and exit.
 
 Commands:
-  delete   Delete mode used to delete CDF Groups, Datasets and Raw...
-  deploy   Deploy a set of bootstrap from a config-file
-  diagram  Diagram mode used to document the given configuration as a...
-  prepare  Prepare an elevated CDF Group 'cdf:bootstrap', using the same...
+  delete   Delete mode used to delete CDF groups, datasets and Raw.
+  deploy   Deploy a set of bootstrap from a configuration file.
+  diagram  Diagram mode used to document the configuration as Mermaid diagram.
+  prepare  Prepare an elevated CDF group, 'cdf:bootstrap', and link it to an
+           IdP group.
 ```
+
 ### `Prepare` command
 
-The first time you plan to run `bootstrap-cli` for your new CDF project, the `prepare` is required to create a CDF Group with capabilities which allows it to run the other commands.
+The first time you run `bootstrap-cli` for a new CDF project, you must use the `prepare` command to create a CDF group with the necessary capabilities to allow you to run the other commands.
 
-A new CDF Project is typically only configured with one CDF Group (named `oidc-admin-group`) which grants these capabilities:
-  - `projects:[read,list,update]`
-  - `groups:[create,delete,update,list,read]`
+New CDF projects are typically configured with one CDF group (named `oidc-admin-group`) with these capabilities:
 
-To run bootstrap-cli additional capabilities (and actions) are required:
+- `projects:[read,list,update]`
+- `groups:[create,delete,update,list,read]`
+
+To run `bootstrap-cli` you also need these capabilities and actions:
 
 - `datasets:[read,write,owner]`
 - `raw:[read,write,list]`
 
-The `prepare` command creates a new CDF Group named `cdf:bootstrap` with this capabilities.
-The command requires an IdP Group ID to link to, which typically for a new project is the one configured
-for the CDF Group named `oidc-admin-group`. How to acquire it:
+Running the `prepare` command creates a new CDF group named `cdf:bootstrap` with the necessary capabilities.
 
-1. Login to Fusion
-2. Navigate to Manage Access
-3. filter for `oidc-admin-group`
-4. Edit and copy the value from "Source ID"
-5. provide it as `--idp-source-id=<source-id>` parameter to the `prepare` command and your configuration file
+The command also requires an IdP group ID to link to. For new CDF projects, this is typically the IdP group ID configured for `oidc-admin-group` CDF group. To find and use the IdP group ID:
+
+1. Sign in to your CDF project at fusion.cognite.com.
+2. Navigate to **Manage Access**.
+3. Filter for `oidc-admin-group`.
+4. Edit the group and copy the value from the **Source ID** field.
+5. Use the ID in the `--idp-source-id=<source-id>` parameter to the `prepare` command and in your configuration file.
 
 ```text
 Usage: bootstrap-cli prepare [OPTIONS] [CONFIG_FILE]
 
-  Prepare an elevated CDF Group 'cdf:bootstrap', using the same IdP Group link
-  as your initially provided 'oidc-admin-group'. With additional capabilities
-  to run the 'deploy' and 'delete' commands next. The 'prepare' command is
-  only required once per CDF Project.
+  Prepares an elevated CDF group. 'cdf:bootstrap', using the same IdP group link
+  as used for the initial 'oidc-admin-group' and with additional capabilities
+  to run the 'deploy' and 'delete' commands. You only need to run the 'prepare' command once per CDF project.
 
 Options:
   --aad-source-id, --idp-source-id TEXT
-                                  Provide the IdP Source ID to use for the
-                                  'cdf:bootstrap' Group. Typically for a new
-                                  project its the same configured for the
-                                  initial provided CDF Group named 'oidc-
-                                  admin-group'. The parameter option '--aad-
-                                  source-id' will be deprecated in next major
-                                  release  [required]
+                                  Provide the IdP source ID to use for the
+                                  'cdf:bootstrap' group. Typically for a new
+                                  project it's the same as configured for the
+                                  initial CDF group named 'oidc-admin-group'.
+                                  The '--aad-source-id' parameter option will be deprecated in the next major release [required].
   -h, --help                      Show this message and exit.
 ```
 
 ### `Deploy` command
 
-The bootstrap-cli `deploy` command will apply the configuration-file to your CDF Project.
-It will create the necessary CDF Groups, Datasets and RAW DBs.
-This command supports GitHub-Action workflow too. To check what this command is going to do, run it with the flag `--dry-run=yes`.
+The bootstrap-cli `deploy` command applies the configuration file settings to your CDF project and creates the necessary CDF groups, datasets, and Raw databases.
+The command also supports the GitHub-Action workflow. To see what the command will do before you run it, run it with the `--dry-run=yes` flag .
 
 ```text
 Usage: bootstrap-cli deploy [OPTIONS] [CONFIG_FILE]
 
-  Deploy a set of bootstrap from a config-file
+  Deploy a bootstrap configuration from a configuration file.
 
 Options:
-  --with-special-groups [yes|no]  Create special CDF Groups, which don't have
+  --with-special-groups [yes|no]  Create special CDF groups without any
                                   capabilities (extractions, transformations).
-                                  Defaults to 'no'
-  --with-raw-capability [yes|no]  Create Ra DBs and 'rawAcl' capability.
-                                  Defaults to 'yes'
+                                  Defaults to 'no'.
+  --with-raw-capability [yes|no]  Create Raw databases and 'rawAcl' capability.
+                                  Defaults to 'yes'.
   -h, --help                      Show this message and exit.
 ```
 
 ### `Delete` command
 
-If it is necessary to revert any changes, the `delete` mode can be used to delete CDF Groups, Datasets and RAW DBs.
-Note that the CDF Groups and RAW DBs will be deleted, while Datasets will be archived and deprecated, not deleted. To check what this command is going to do, run it with the flag `--dry-run=yes`.
+If you have to revert any changes, you can use the `delete` mode to delete CDF groups, datasets and Raw databases.
+Note that the CDF groups and Raw databases are deleted, whereas datasets are archived and deprecated, not deleted. To see what the command will do before you run it, run it with the `--dry-run=yes` flag.
 
 ```text
 Usage: bootstrap-cli delete [OPTIONS] [CONFIG_FILE]
 
-  Delete mode used to delete CDF Groups, Datasets and RAW DBs, CDF
-  Groups and RAW DBs will be deleted, while Datasets will be archived
-  and deprecated (as they cannot be deleted).
+  Delete mode to delete CDF groups, datasets and RAW DBs. CDF
+  groups and Raw databases are deleted, while datasets are archived
+  and deprecated (datasets cannot be deleted).
 
 Options:
   -h, --help  Show this message and exit.
 ```
+
 ### `Diagram` command
 
-The diagram command is used to create a mermaid diagram to visualize the end state of a given configuration. This can be used to check the config file and to see if the constructed hierarchy is optimal. It is also very practical for documentation purposes.
+Use the `diagram` command to create a Mermaid diagram to visualize the end state of a configuration. This allows you to check if the configuration file constructs the optimal hierarchy. It is also very efficient for documentation purposes.
 
 ```text
 Usage: bootstrap-cli diagram [OPTIONS] [CONFIG_FILE]
 
-  Diagram mode used to document the given configuration as a Mermaid diagram
+  Diagram mode documents the configuration as a Mermaid diagram.
 
 Options:
-  --markdown [yes|no]             Encapsulate Mermaid diagram in Markdown
-                                  syntax. Defaults to 'no'
-  --with-raw-capability [yes|no]  Create RAW DBs and 'rawAcl' capability.
-                                  Defaults to 'yes'
-  --cdf-project TEXT              [optional] Provide the CDF Project name to
-                                  use for the diagram 'idp-cdf-mappings'.
+  --markdown [yes|no]             Encapsulate the Mermaid diagram in Markdown
+                                  syntax. Defaults to 'no'.
+  --with-raw-capability [yes|no]  Create RAW databases and 'rawAcl' capability.
+                                  Defaults to 'yes'.
+  --cdf-project TEXT              [optional] Provide the CDF project name to
+                                  use for the 'idp-cdf-mappings' diagram.
   -h, --help                      Show this message and exit.
 ```
+
 ## Configuration
 
-A YAML configuration file must be passed as an argument when running the program.
-Different configuration file used for `delete` and `prepare`/`deploy`
+You must pass a YAML configuration file as an argument when running the program.
+You can use different configuration files used for the `delete` and the `prepare`/`deploy` commands.
 
 ### Configuration for all commands
 
-All commands share a `cognite` and a `logger` section in the YAML manifest, which is common to our Cognite Database-Extractor configuration.
+All commands share a `cognite` and a `logger` section in the YAML manifest. The sections are common to our Cognite Database-Extractor configuration.
 
-The configuration file supports variable-expansion (`${BOOTSTRAP_**}`), which are provided either as
-1. environment-variables,
-2. through an `.env` file (ps, this does not overwrite environment variables already in place)
-3. command-line parameters
+The configuration file supports variable-expansion (`${BOOTSTRAP_**}`), which are provided either:
 
-Here is an example:
+1. As environment-variables.
+2. Through an `.env` file (Note: this doesn't overwrite existing environment variables.
+3. As command line parameters.
+
+Below is an example configuration:
 
 ```yaml
 # follows the same parameter structure as the DB extractor configuration
@@ -750,58 +740,58 @@ logger:
     level: INFO
 ```
 
-
 #### Environment variables
 
-Some more detail on the variables:
+Details about the environment variables:
 
 - BOOTSTRAP_CDF_HOST
-  - The url to your cdf cluster.
-  - Example: ```https://westeurope-1.cognitedata.com```
+  - The URL to your CDF cluster.
+  - Example: `https://westeurope-1.cognitedata.com`
 - BOOTSTRAP_CDF_PROJECT
-  - The CDF Project.
+  - The CDF project.
 - BOOTSTRAP_IDP_CLIENT_ID
-  - Client id of the App Registration you have created for the CLI
+  - The client ID of the app registration you have created for the CLI.
 - BOOTSTRAP_IDP_CLIENT_SECRET
-  - Client secret created for the App registration
-- BOOTSTRAP_IDP_TOKEN_URL= ```https://login.microsoftonline.com/<tenant id>/oauth2/v2.0/token```
-  - In case you use Azure AD Replace ```<tenant id>``` with your Azure Tenant ID.
+  - The client secret you have created for the app registration,
+- BOOTSTRAP_IDP_TOKEN_URL= `https://login.microsoftonline.com/<tenant id>/oauth2/v2.0/token`
+  - If you're using Azure AD, replace `<tenant id>` with your Azure tenant ID.
 - BOOTSTRAP_IDP_SCOPES
-  - Usually: ```https://<cluster-name>.cognitedata.com/.default```
+  - Usually: `https://<cluster-name>.cognitedata.com/.default`
 
-### Configuration for `deploy` command
+### Configuration for the `deploy` command
 
-In addition to the sections described above, the configuration file for `deploy` command requires one more main section with three subsections:
+In addition to the sections described above, the configuration file for the `deploy` command requires another main section with three subsections:
 
 - `bootstrap`
-  - `features`: declaration of the logical access-control group structure
-  - `idp-cdf-mappings`: mapping IdP Group object-ids with CDF Groups
-  - `namespaces`: declaration of the logical access-control group structure
-  -
+  - `features`: declaration of general options like prefixes, suffixes, etc.
+  - `idp-cdf-mappings`: mapping IdP group object IDs with CDF groups.
+  - `namespaces`: declaration of the logical access control group structure.
+
 #### `features` section
 
-The `features` section covers general options thing like prefixes, suffixes etc.
+The `features` section covers general options like prefixes, suffixes, etc.
 
 The list of features:
+
 - `with-special-groups`
-  - Create special CDF Groups, which don't have capabilities (extractions, transformations). Defaults to false.
+  - Create special CDF groups without any capabilities (extractions, transformations). Defaults to false.
 - `with-raw-capability`
-  - Create RAW DBs and 'rawAcl' capability. Defaults to 'yes'.
+  - Create RAW databases and 'rawAcl' capability. Defaults to 'yes'.
 - `aggregated-level-name`
-  - Aggregated level name. Example `cdf:`**all**`:read`. Defaults to `allprojects`, recommended is `all`.
+  - The aggregated level name, for example `cdf:`**all**`:read`. Defaults to `allprojects`, recommended is `all`.
 - `group-prefix`
-  - Prefix used in front of all group-names to identify which groups are managed by this tool. Defaults to `all`.
+  - Prefix used in front of all group names to identify which groups are managed by this tool. Defaults to `all`.
 - `dataset-suffix`
-  - Suffix added to all data set names. Recommended value is `ds` while default is `dataset`
+  - Suffix added to all dataset names. The recommended value is `ds`, while the default is `dataset`.
 - `rawdb-suffix`
-  - Suffix added to all raw databases. Recommended value is `db` while default is `rawdb`
+  - Suffix added to all Raw databases. The Recommended value is `db`, while the default is `rawdb`.
 - `rawdb-additional-variants`
-  - This allows creation for additional rawdbs per node. The additional RAW DBs can for example be used for state stores from extractors to keep these separate from the actual data. Default is one additional variant with suffix `state`
+  - Allows you to create additional Raw databases per node. The additional Raw databases can, for example, be used for state stores from extractors to keep them separate from the actual data. The default is one additional variant with the suffix `state`.
 
 #### `idp-cdf-mappings` section: IdP Group to CDF Group mapping
 
-Used to link CDF Groups with IdP Groups. With support for different CDF-projects.
-Defines the name of the CDF Group, with the IdP Group object-id, and for documentation the IdP Group name.
+Used to link CDF groups with IdP groups, supporting different CDF projects.
+Defines the name of the CDF group with the IdP group object ID and, for documentation, the IdP group name.
 
 Example:
 
@@ -809,25 +799,25 @@ Example:
 idp-cdf-mappings:
   - cdf-project: shiny-dev
     mappings:
-    - cdf-group: cdf:all:owner
-    - idp-source-id: 123456-7890-abcd-1234-314159
-    - idp-source-name: CDF_DEV_ALL_OWNER
+      - cdf-group: cdf:all:owner
+      - idp-source-id: 123456-7890-abcd-1234-314159
+      - idp-source-name: CDF_DEV_ALL_OWNER
   - cdf-project: shiny-prod
     mappings:
-    - cdf-group: cdf:all:owner
-    - idp-source-id: 123456-7890-abcd-1234-314159
-    - idp-source-name: CDF_PROD_ALL_OWNER
+      - cdf-group: cdf:all:owner
+      - idp-source-id: 123456-7890-abcd-1234-314159
+      - idp-source-name: CDF_PROD_ALL_OWNER
 ```
 
 ##### `namespaces` section
 
-The `namespaces` section allows a two-level configuration of access-control groups:
+The `namespaces` section allows a two-level configuration of access control groups:
 
-Like for example:
+For example:
 
-- `src` for sources or `ca` for corporate applications,
-- `in` for user-input control,
-- `uc` typically for use-cases (providing the data-product and built on top of the other data-sources)
+- `src` for sources, or `ca` for corporate applications,
+- `in` for user input control,
+- `uc` typically for use cases (providing the data product and built on top of the other data sources).
 
 A minimal configuration extract of the `namespaces` section:
 
@@ -860,16 +850,15 @@ namespaces:
 
 For a more complete example of a `deploy` configuration, see `configs/config-deploy-example-v2.yml`.
 
-### Configuration for `delete` command
+### Configuration for the `delete` command
 
-In addition to the `config` and `logger` sections described above, the configuration file for delete mode
-should include one more section:
+In addition to the `config` and `logger` sections described above, the configuration file for delete mode should include one more section:
 
-* `delete_or_deprecate` - used to define which CDF Datasets, CDF Groups and RAW databases (including tables) should be deleted (CDF Datasets are in-fact only deprecated, as they cannot be deleted)
+- `delete_or_deprecate` - defines which CDF datasets, CDF groups and Raw databases (including tables) to delete (CDF datasets cannot be deleted but are deprecated.)
 
 ##### `delete_or_deprecate` section
 
-This section defines what `datasets` that should be deprecated, and which `groups` and `raw_dbs` that should be deleted.
+This section defines which `datasets` should be deprecated and which `groups` and `raw_dbs` should be deleted.
 
 Example configuration:
 
@@ -887,76 +876,78 @@ delete_or_deprecate:
     - test:fac:001:name:rawdb
 ```
 
-If nothing to delete, provide an empty list like this: `[]`.
+If nothing should be deleted, provide an empty list: `[]`.
 
-**Tip:** After running the bootstrap in `deploy` mode, the final part of the output logs will include a "Delete template" section. This can be used for copy-paste the item names to the `delete` configuration.
+**Tip:** After running the bootstrap in `deploy` mode, the final part of the output logs will include a "Delete template" section. You can use this to copy and paste the item names to the `delete` configuration.
 
-**Warning**, this template includes **ALL** groups, so please edit carefully before deleting groups like the `oidc-admin-group` that should not be deleted.
+**Warning:** the template includes **ALL** groups. Edit carefully before deleting groups. For instance, you should not delete the `oidc-admin-group`.
 
 For a complete example of the delete configuration, see the `configs/config-delete-example.yml`.
 
-Improvement to the delete template and validation of the delete_or_deprecate-configuration is being worked on.
-
 # Development / Contribute
 
-1. Clone the repository and `cd` to the project folder.  Then,
-2. initialize the project environment:
+1. Clone the repository and `cd` to the project folder.
+2. Initialize the project environment:
 
-    ```sh
-    poetry install
-    ```
+   ```sh
+   poetry install
+   ```
 
 3. Install the pre-commit hook:
 
-    ```sh
-    poetry run pre-commit install #Only needed if not installed
-    poetry run pre-commit run --all-files
-    ```
+   ```sh
+   poetry run pre-commit install #Only needed if not installed
+   poetry run pre-commit run --all-files
+   ```
 
 ## Inspiration
 
 Templates (blueprints) used for implementation are
-  - `cognitedata/transformation-cli`
-  - `cognitedata/python-extratcion-utils`
-    - using `CogniteConfig` and `LoggingConfig`
-    - and extended with custom `dataclass` driven configuration
+
+- `cognitedata/transformation-cli`
+- `cognitedata/python-extratcion-utils`
+  - Using `CogniteConfig` and `LoggingConfig`
+  - And extended with custom `dataclass` driven configuration
 
 ## Semantic versioning
+
 - Uses `semantic-release` to create version tags.
 - The rules for commit messages are conventional commits, see [conventionalcommits](https://www.conventionalcommits.org/en/v1.0.0-beta.4/#summary%3E)
-- Remark: If version needs change, before merge, make sure commit title has elements mentioned on `conventionalcommits`
-- Remark: with new version change, bump will update the version on `pyproject.toml` so no need to change version there.
+- Remark: If the version needs to change, before merging make sure the commit title has the elements mentioned on `conventionalcommits`
+- Remark: with a new version change, bump will update the version on `pyproject.toml` so there is no need to change version there.
 - Remark: version in `incubator/bootstrap_cli/__init__` is used in main to add version on metadata.
-  This is not a part of semantic release but needs to be updated to upcoming version before version update.
-
+  This is not a part of semantic release but needs to be updated to the upcoming version before the version update.
 
 # Other ways of running
-- it provides a configuration driven deployment for Cognite Bootstrap Pipelines (named `bootstrap` in short)
-  - support to run it
-    - from `poetry run` (explained in [Getting Started](#how-to-get-started))
-    - from `python -m`
-    - from `docker run`
-    - as GitHub Action (explained in [Getting Started](#how-to-get-started))
-    - as Windows Executable (planned as feature-request)
 
+- It provides a configuration-driven deployment for Cognite Bootstrap Pipelines (named `bootstrap` in short)
+  - Support to run it:
+    - From `poetry run` (explained in [Getting Started](#how-to-get-started))
+    - From `python -m`
+    - From `docker run`
+    - As GitHub Action (explained in [Getting Started](#how-to-get-started))
+    - As Windows Executable (planned as feature request)
 
+Follow the initial setup first.
 
-Follow the initial setup first
-1. Fill out relevant configurations from `configs`
-  - Fill out the `bootstrap`section from `config-deploy-example-v2.yml`, pr
-  - Fill out `delete_or_deprecate` from `config-delete-example.yml`
-2. For local testing, copy `.env_example` to `.env`
-   - complete CDF and IdP configuration in `.env`
-## run local with poetry
+1. Fill out relevant configurations from `configs`:
 
-- some more information for running on native Windows / PowerShell / multiple Python versions can be [found here](POETRY_ON_WINDOWS.md)
+   - Fill out the `bootstrap`section from `config-deploy-example-v2.yml`, pr
+   - Fill out `delete_or_deprecate` from `config-delete-example.yml`.
 
-> **WINDOWS USER:** the provided `pyproject.toml` and `poetry.lock` files are built to support "*nix" (MacOS, WSL2, Linux) first.
+2. For local testing, copy `.env_example` to `.env`.
+
+   - Complete CDF and IdP configuration in `.env`.
+
+## Run locally with Poetry
+
+- You can find more information about running on native Windows / PowerShell / multiple Python versions [here](POETRY_ON_WINDOWS.md).
+
+> **WINDOWS USER:** the provided `pyproject.toml` and `poetry.lock` files are built to support "\*nix" (MacOS, WSL2, Linux) first.
 >
 > On Windows (native, not WSL2) you have to delete the `poetry.lock` file first before you run `poetry install`.
 >
 > We have plans to support Windows with an executable, which eliminates the need for a Python installed too.
-
 
 ```bash
   # typical commands
@@ -964,20 +955,26 @@ Follow the initial setup first
   poetry install
   poetry update
 ```
+
 - Deploy mode:
+
 ```bash
   poetry run bootstrap-cli deploy configs/config-deploy-example.yml
 ```
+
 - Prepare mode:
+
 ```bash
   poetry run bootstrap-cli prepare configs/config-deploy-example.yml
 ```
+
 - Delete mode:
+
 ```bash
   poetry run bootstrap-cli delete configs/config-delete-example.yml
 ```
 
-## run local with Python
+## Run locally with Python
 
 ```bash
 export PYTHONPATH=.
@@ -985,7 +982,8 @@ export PYTHONPATH=.
 python incubator/bootstrap_cli/__main__.py deploy configs/ config-deploy-example.yml
 ```
 
-## run local with Docker
+## Run locally with Docker
+
 - `.dockerignore` file
 - volumes for `configs` (to read) and `logs` folder (to write)
 
@@ -997,6 +995,7 @@ docker run --volume ${PWD}/configs:/configs --volume ${PWD}/logs:/logs  --env-fi
 ```
 
 Debug the Docker container
+
 - requires override of `ENTRYPOINT`
 - to get full functional `bash` a `Dockerfile.debug` is provided
 
