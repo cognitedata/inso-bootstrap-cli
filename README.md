@@ -1,8 +1,10 @@
 # InSo Bootstrap CLI
 
-> **NOTE:** The Cognite Industry Solution (InSo) team provides the inso-bootstrap CLI as-is. It is not an officially supported Cognite CLI with product-grade SLOs.
+> **NOTE:** The Cognite Strategic Customer Services (SCS) team provides the inso-bootstrap CLI as-is. It is not an officially supported Cognite CLI with product-grade SLOs.
 
-Use the **inso-bootstrap CLI** to configure and bootstrap a new Cognite Data Fusion (CDF) project with CDF groups, datasets, and RAW databases. The CLI separates data by sources, use-cases, and user-input levels. You can also use the CLI to maintain existing CDF projects.
+Use the **inso-bootstrap CLI** to configure and bootstrap a new Cognite Data Fusion (CDF) project with CDF groups, datasets, and Raw databases. You can use the CLI to separate data by different levels or groupings of data. For example, you can separate data by data sources, use cases, user input, location, site, etc.
+
+The CLI restricts the structure of the datasets and the groups it supports, and you may or may not be able to use the CLI to maintain existing CDF projects.
 
 ## Table of Content
 
@@ -21,7 +23,7 @@ Use the **inso-bootstrap CLI** to configure and bootstrap a new Cognite Data Fus
     - [Azure setup](#azure-setup)
   - [Bootstrap CLI concept](#bootstrap-cli-concept)
     - [Secure access management](#secure-access-management)
-    - [Data Sets](#data-sets)
+    - [Datasets](#data-sets)
   - [Bootstrap CLI makes Access-Control and Data Lineage manageable](#bootstrap-cli-makes-access-control-and-data-lineage-manageable)
     - [Namespaces](#namespaces)
     - [Templating](#templating)
@@ -71,7 +73,7 @@ For other installation methods or native Windows use, see [How to run](#how-to-r
 
 ### Configure and test
 
-Before running the CLI, you need to set up your configuration file. The example configuration file, `config/config-deploy-example-v2.yml` has extensive comments explaining the syntax with examples for all the important features. You can also find more information in the [Configuration](#configuration) section.
+Before running the CLI, you need to set up your configuration file. The example configuration file, `config/config-deploy-example-v2.yml`, has extensive comments explaining the syntax with examples for all the important features. You can also find more information in the [Configuration](#configuration) section.
 
 The CLI has four main commands:
 
@@ -181,7 +183,7 @@ The Bootstrap CLI tackles both DAY1 and DAY2 activities related to access manage
 
 - Groups
 - Scopes
-  - Data sets
+  - Datasets
   - Raw databases
 
 **DAY1** activities relates to the initial setup and configuration before the system can be used.
@@ -190,7 +192,7 @@ The **DAY2** activities cover scaling and operating the system.
 
 Cognite provides support for a list of **DAY1** activities to enable governance best practices from the start, such as:
 
-- **Secure access management** to control access for users, apps and services to the various types of resources (data sets, assets, files, events, time series, etc.) in CDF.
+- **Secure access management** to control access for users, apps and services to the various types of resources (datasets, assets, files, events, time series, etc.) in CDF.
 - **Datasets** to document and track data lineage.
 - **Data quality** to monitor the data integration pipelines into CDF.
 
@@ -207,7 +209,7 @@ These areas are interconnected and span the customers' identity provider (Azure 
   - Create IdP group(s).
   - Create service principals (users and apps) and map them to IdP groups
 
-### Data sets
+### Datasets
 
 CDF **datasets** scope CDF groups' capabilities to a set of CDF resources. This allows you to fence future usage and stay within your scope. Creating new datasets is a governance action to be executed by a defined process. An exception is CDF Raw data which is scoped through CDF Raw databases.
 
@@ -253,7 +255,7 @@ Best practice is to keep the names short and add long names and details to the `
 
 1. Every `OWNER/READ` pair of CDF groups is configured with the same package of scopes:
    - Two Raw DBs (one for staging, one for state-stores).
-   - One data set (for all CDF resource types, as capabilities are not restricted)
+   - One dataset (for all CDF resource types, as capabilities are not restricted)
    - `OWNER` groups can be configured with additional shared access to scopes of other CDF groups.
    - This allows users (or apps) working on a Use-Case (`uc`):
      1. To read data from scopes of other source (`src`) groups, and
@@ -548,7 +550,7 @@ src:001:sap:db
 src:001:sap:db:state
 ```
 
-This allows you to give access to, for example, all sources, or to a specific source, like src:001, while forcing data to always be written into data sets.
+This allows you to give access to, for example, all sources, or to a specific source, like src:001, while forcing data to always be written into datasets.
 
 ## Bootstrap CLI commands
 
