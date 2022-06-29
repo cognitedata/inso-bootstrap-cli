@@ -150,7 +150,7 @@ bootstrap:
                 id: 1657685287903211
                 name: SAP Integration.png
             consoleMetaDataVersion: 1
-        - node-name: osolo:003:opcenter
+        - node-name: oslo:003:opcenter
           # events: production steps
           description: Sources 003; from Siemens Opcenter
         - node-name: oslo:004:cmms
