@@ -11,10 +11,10 @@
 #                                      "Y88P"                         "Y88P"
 #
 # 210504 mh:
-#  * Adding support for minimum groups and project capabilities for read and owner Groups
+#  * Adding support for minimum groups and project capabilities for read and owner groups
 #  * Exception handling for root-groups to avoid duplicate groups and projects capabilities
 # 210610 mh:
-#  * Adding RAW DBs and Datasets for Groups {env}:allprojects:{owner/read} and {env}:{group}:allprojects:{owner/read}
+#  * Adding RAW DBs and datasets for groups {env}:allprojects:{owner/read} and {env}:{group}:allprojects:{owner/read}
 #  * Adding functionality for updating dataset details (external id, description, etc) based on the config.yml
 # 210910 pa:
 #  * extended acl_default_types by labels, relationships, functions
@@ -44,7 +44,7 @@
 #    'extractors' and 'transformations' and their 'aad_mappings'
 #    * configurable through `deploy --with-special-groups=[yes|no]` parameter
 #  * adding new capabilities:
-#       transformationsAcl (replacing the need for magic "transformations" CDF Group)
+#       transformationsAcl (replacing the need for magic "transformations" CDF group)
 # 220404 pa:
 #  * v1.4.0 limited datasets for 'owner' that they cannot edit or create datasets
 #     * removed `datasets:write` capability
@@ -79,7 +79,7 @@
 #  * for 'diagram' command
 #    - made 'cognite' section optional
 #    - added support for parameter '--cdf-project' to explicit diagram a specific CDF Project
-#    - Added cdf-project name to diagram "IdP Groups for CDF: <>" subgraph title
+#    - Added cdf-project name to diagram "IdP groups for CDF: <>" subgraph title
 #    - renamed mermaid properties from 'name/short' to 'id_name/display'
 #  * documented config-deploy-example-v2.yml
 # 220511 pa: v2.0.0 release :)
@@ -232,7 +232,7 @@ T_BootstrapCore = TypeVar("T_BootstrapCore", bound="BootstrapCore")
 
 class BootstrapCore:
 
-    # CDF Group prefix, i.e. "cdf:", to make bootstrap created CDF Groups easy recognizable in Fusion
+    # CDF group prefix, i.e. "cdf:", to make bootstrap created CDF groups easy recognizable in Fusion
     GROUP_NAME_PREFIX = ""
 
     # mandatory for hierarchical-namespace
@@ -758,14 +758,14 @@ class BootstrapCore:
         return group_name_full_qualified, capabilities
 
     def get_group_ids_by_name(self, group_name: str) -> List[int]:
-        """Lookup if CDF Group name exists (could be more than one!)
-        and return list of all CDF Group IDs
+        """Lookup if CDF group name exists (could be more than one!)
+        and return list of all CDF group IDs
 
         Args:
-            group_name (str): CDF Group name to check
+            group_name (str): CDF group name to check
 
         Returns:
-            List[int]: of CDF Group IDs
+            List[int]: of CDF group IDs
         """
 
         return self.deployed["groups"].query("name == @group_name")["id"].tolist()
@@ -782,22 +782,22 @@ class BootstrapCore:
         group_capabilities: Dict[str, Any] = None,
         idp_mapping: Tuple[str] = None,
     ) -> Group:
-        """Creating a CDF Group
-        - with upsert support the same way Fusion updates CDF Groups
+        """Creating a CDF group
+        - with upsert support the same way Fusion updates CDF groups
           if a group with the same name exists:
               1. a new group with the same name will be created
               2. then the old group will be deleted (by its 'id')
         - with support of explicit given aad-mapping or internal lookup from config
 
         Args:
-            group_name (str): name of the CDF Group (always prefixed with GROUP_NAME_PREFIX)
-            group_capabilities (List[Dict[str, Any]], optional): Defining the CDF Group capabilities.
+            group_name (str): name of the CDF group (always prefixed with GROUP_NAME_PREFIX)
+            group_capabilities (List[Dict[str, Any]], optional): Defining the CDF group capabilities.
             aad_mapping (Tuple[str, str], optional):
                 Tuple of ({AAD SourceID}, {AAD SourceName})
-                to link the CDF Group to
+                to link the CDF group to
 
         Returns:
-            Group: the new created CDF Group
+            Group: the new created CDF group
         """
 
         idp_source_id, idp_source_name = None, None
@@ -833,7 +833,7 @@ class BootstrapCore:
             new_group = self.client.iam.groups.create(new_group)
 
         # if the group name existed before, delete those groups now
-        # same upsert approach Fusion is using to update a CDF Group: create new with changes => then delete old one
+        # same upsert approach Fusion is using to update a CDF group: create new with changes => then delete old one
         if old_group_ids:
             if self.is_dry_run:
                 _logger.info(f"Dry run - Deleting groups with ids: <{old_group_ids}>")
@@ -886,7 +886,7 @@ class BootstrapCore:
                 ):
                 # value
                 {
-                    "description": f"Dataset for '{BootstrapCore.AGGREGATED_LEVEL_NAME}' Owner Groups",
+                    "description": f"Dataset for '{BootstrapCore.AGGREGATED_LEVEL_NAME}' Owner groups",
                     # "metadata": "",
                     "external_id": f"{ns_name}:{BootstrapCore.AGGREGATED_LEVEL_NAME}"
                     if ns_name
@@ -1018,7 +1018,7 @@ class BootstrapCore:
         return target_raw_db_names, missing_rawdbs
 
     """
-    "Special CDF Groups" are groups which don't have capabilities but have an effect by their name only.
+    "Special CDF groups" are groups which don't have capabilities but have an effect by their name only.
     1. 'transformations' group: grants access to "Fusion > Integrate > Transformations"
     2. 'extractors' group: grants access to "Fusion > Integrate > Extract Data" which allows dowload of extractors
 
@@ -1048,21 +1048,21 @@ class BootstrapCore:
                 self.process_group(action, ns.ns_name)
             # 'all' groups on action level (no limits to datasets or raw-dbs)
             self.process_group(action)
-        # creating CDF Group for root_account (highest admin-level)
+        # creating CDF group for root_account (highest admin-level)
         for root_account in ["root"]:
             self.process_group(root_account=root_account)
 
     def load_deployed_config_from_cdf(self, groups_only=False) -> None:
-        """Load CDF Groups, Datasets and RAW DBs as pd.DataFrames
+        """Load CDF groups, datasets and RAW DBs as pd.DataFrames
         and store them in 'self.deployed' dictionary.
 
         Args:
-            groups_only (bool, optional): Limit to CDF Groups only (used by 'prepare' command). Defaults to False.
+            groups_only (bool, optional): Limit to CDF groups only (used by 'prepare' command). Defaults to False.
         """
         NOLIMIT = -1
 
         #
-        # Groups
+        # groups
         #
         groups_df = self.client.iam.groups.list(all=True).to_pandas()
         available_group_columns = [
@@ -1174,7 +1174,7 @@ class BootstrapCore:
             # sourceId
             idp_source_id,
             # sourceName
-            f"IdP Group ID: {idp_source_id}",
+            f"IdP group ID: {idp_source_id}",
         ]
 
         # load deployed groups with their ids and metadata
@@ -1185,7 +1185,7 @@ class BootstrapCore:
         # allows idempotent creates, as it cleans up old groups with same names after creation
         self.create_group(group_name=group_name, group_capabilities=group_capabilities, idp_mapping=idp_mapping)
         if not self.is_dry_run:
-            _logger.info(f"Created CDF Group {group_name}")
+            _logger.info(f"Created CDF group {group_name}")
         _logger.info("Finished CDF Project Bootstrapper in 'prepare' mode ")
 
     # '''
@@ -1213,7 +1213,7 @@ class BootstrapCore:
             else:
                 _logger.info(f"Groups already deleted: {group_names}")
         else:
-            _logger.info("No Groups to delete")
+            _logger.info("No groups to delete")
 
         # raw_dbs
         raw_db_names = self.delete_or_deprecate["raw_dbs"]
@@ -1254,12 +1254,12 @@ class BootstrapCore:
                         _logger.info(f"Dry run - Deprecating dataset: <{update_dataset}>")
                     self.client.data_sets.update(update_dataset)
         else:
-            _logger.info("No Datasets to archive (and mark as deprecated)")
+            _logger.info("No datasets to archive (and mark as deprecated)")
 
         # dump all configs to yaml, as cope/paste template for delete_or_deprecate step
         self.dump_delete_template_to_yaml()
         # TODO: write to file or standard output
-        _logger.info("Finished deleting CDF Groups, Datasets and RAW Databases")
+        _logger.info("Finished deleting CDF groups, datasets and RAW Databases")
 
     # '''
     #        .o8                       oooo
@@ -1320,19 +1320,19 @@ class BootstrapCore:
         time.sleep(5)  # wait for datasets and raw_dbs to be created!
         self.load_deployed_config_from_cdf()
 
-        # Special CDF Groups and their aad_mappings
+        # Special CDF groups and their aad_mappings
         if with_special_groups == YesNoType.yes:
             self.generate_special_groups()
 
-        # CDF Groups from configuration
+        # CDF groups from configuration
         self.generate_groups()
         if not self.is_dry_run:
-            _logger.info("Created new CDF Groups")
+            _logger.info("Created new CDF groups")
 
         # and reload again now with latest group config too
         # dump all configs to yaml, as cope/paste template for delete_or_deprecate step
         self.dump_delete_template_to_yaml()
-        _logger.info("Finished creating CDF Groups, Datasets and RAW Databases")
+        _logger.info("Finished creating CDF groups, datasets and RAW Databases")
 
         # _logger.info(f'Bootstrap Pipelines: created: {len(created)}, deleted: {len(delete_ids)}')
 
@@ -1405,7 +1405,7 @@ class BootstrapCore:
         ) -> Tuple[str, Dict[str, Any]]:
             """Adopted generate_group_name_and_capabilities() and get_scope_ctx_groupedby_action()
             to respond with
-            - the full-qualified CDF Group name and
+            - the full-qualified CDF group name and
             - all scopes sorted by action [read|owner] and [raw|datasets]
 
             TODO: support 'root'
@@ -1848,7 +1848,7 @@ class BootstrapCore:
 @click.version_option(prog_name="bootstrap_cli", version=__version__)
 @click.option(
     "--cdf-project-name",
-    help="CDF Project to interact with CDF API, the 'BOOTSTRAP_CDF_PROJECT',"
+    help="CDF Project to interact with the CDF API, the 'BOOTSTRAP_CDF_PROJECT',"
     "environment variable can be used instead. Required for OAuth2 and optional for api-keys.",
     envvar="BOOTSTRAP_CDF_PROJECT",
 )
@@ -1871,43 +1871,43 @@ class BootstrapCore:
 )
 @click.option(
     "--api-key",
-    help="API key to interact with CDF API. Provide this or make sure to set the 'BOOTSTRAP_CDF_API_KEY',"
+    help="API key to interact with the CDF API. Provide this or make sure to set the 'BOOTSTRAP_CDF_API_KEY',"
     "environment variable if you want to authenticate with API keys.",
     envvar="BOOTSTRAP_CDF_API_KEY",
 )
 @click.option(
     "--client-id",
-    help="IdP Client ID to interact with CDF API. Provide this or make sure to set the "
+    help="IdP client ID to interact with the CDF API. Provide this or make sure to set the "
     "'BOOTSTRAP_IDP_CLIENT_ID' environment variable if you want to authenticate with OAuth2.",
     envvar="BOOTSTRAP_IDP_CLIENT_ID",
 )
 @click.option(
     "--client-secret",
-    help="IdP Client secret to interact with CDF API. Provide this or make sure to set the "
+    help="IdP client secret to interact with the CDF API. Provide this or make sure to set the "
     "'BOOTSTRAP_IDP_CLIENT_SECRET' environment variable if you want to authenticate with OAuth2.",
     envvar="BOOTSTRAP_IDP_CLIENT_SECRET",
 )
 @click.option(
     "--token-url",
-    help="IdP Token URL to interact with CDF API. Provide this or make sure to set the "
+    help="IdP token URL to interact with the CDF API. Provide this or make sure to set the "
     "'BOOTSTRAP_IDP_TOKEN_URL' environment variable if you want to authenticate with OAuth2.",
     envvar="BOOTSTRAP_IDP_TOKEN_URL",
 )
 @click.option(
     "--scopes",
-    help="IdP Scopes to interact with CDF API, relevant for OAuth2 authentication method. "
+    help="IdP scopes to interact with the CDF API, relevant for OAuth2 authentication method. "
     "The 'BOOTSTRAP_IDP_SCOPES' environment variable can be used instead.",
     envvar="BOOTSTRAP_IDP_SCOPES",
 )
 @click.option(
     "--audience",
-    help="IdP Audience to interact with CDF API, relevant for OAuth2 authentication method. "
+    help="IdP Audience to interact with the CDF API, relevant for OAuth2 authentication method. "
     "The 'BOOTSTRAP_IDP_AUDIENCE' environment variable can be used instead.",
     envvar="BOOTSTRAP_IDP_AUDIENCE",
 )
 @click.option(
     "--dotenv-path",
-    help="Provide a relative or absolute path to an .env file (for commandline usage only)",
+    help="Provide a relative or absolute path to an .env file (for command line usage only)",
 )
 @click.option(
     "--debug",
@@ -1918,7 +1918,7 @@ class BootstrapCore:
     "--dry-run",
     default="no",
     type=click.Choice(["yes", "no"], case_sensitive=False),
-    help="Only logging planned CDF API action while doing nothing." " Defaults to 'no'",
+    help="Log only planned CDF API actions while doing nothing." " Defaults to 'no'.",
 )
 @click.pass_context
 def bootstrap_cli(
@@ -1964,7 +1964,7 @@ def bootstrap_cli(
     }
 
 
-@click.command(help="Deploy a set of bootstrap from a config-file")
+@click.command(help="Deploy a bootstrap configuration from a configuration file.")
 @click.argument(
     "config_file",
     default="./config-bootstrap.yml",
@@ -1976,13 +1976,13 @@ def bootstrap_cli(
     # is_flag=True,
     # default="no",
     type=click.Choice(["yes", "no"], case_sensitive=False),
-    help="Create special CDF Groups, which don't have capabilities (extractions, transformations). Defaults to 'no'",
+    help="Create special CDF groups, without any capabilities (extractions, transformations). Defaults to 'no'",
 )
 @click.option(
     "--with-raw-capability",
     # default="yes", # default defined in 'configuration.BootstrapFeatures'
     type=click.Choice(["yes", "no"], case_sensitive=False),
-    help="Create RAW DBs and 'rawAcl' capability. Defaults to 'yes'",
+    help="Create Raw databases and 'rawAcl' capability. Defaults to 'yes'",
 )
 @click.pass_obj
 def deploy(
@@ -2018,10 +2018,10 @@ def deploy(
 
 
 @click.command(
-    help="Prepare an elevated CDF Group 'cdf:bootstrap', using the same AAD Group link "
-    "as your initially provided 'oidc-admin-group'. "
-    "With additional capabilities to run the 'deploy' and 'delete' commands next. "
-    "The 'prepare' command is only required once per CDF Project."
+    help="Prepares an elevated CDF group 'cdf:bootstrap', using the same AAD group link "
+    "as used for the initial 'oidc-admin-group' and "
+    "with additional capabilities to run the 'deploy' and 'delete' commands next. "
+    "You only need to run the 'prepare' command once per CDF project."
 )
 @click.argument(
     "config_file",
@@ -2033,9 +2033,9 @@ def deploy(
     "--idp-source-id",
     "idp_source_id",  # explicit named variable for alternatives
     required=True,
-    help="Provide the IdP Source ID to use for the 'cdf:bootstrap' Group. "
-    "Typically for a new project its the same configured for the initial provided "
-    "CDF Group named 'oidc-admin-group'. "
+    help="Provide the IdP source ID to use for the 'cdf:bootstrap' group. "
+    "Typically for a new project it's the same as configured for the initial "
+    "CDF group named 'oidc-admin-group'. "
     "The parameter option '--aad-source-id' will be deprecated in next major release",
 )
 @click.pass_obj
@@ -2068,9 +2068,9 @@ def prepare(
 
 
 @click.command(
-    help="Delete mode used to delete CDF Groups, Datasets and Raw Databases, "
-    "CDF Groups and RAW Databases will be deleted, while Datasets will be archived "
-    "and deprecated (as they cannot be deleted)."
+    help="Delete mode used to delete CDF groups, datasets and raw databases. "
+    "CDF groups and raw databases are deleted, while datasets are archived "
+    "and deprecated (datasets cannot be deleted)."
 )
 @click.argument(
     "config_file",
@@ -2107,7 +2107,7 @@ def delete(
         exit(e.message)
 
 
-@click.command(help="Diagram mode used to document the given configuration as a Mermaid diagram")
+@click.command(help="Diagram mode documents the given configuration as a Mermaid diagram")
 @click.argument(
     "config_file",
     default="./config-bootstrap.yml",
@@ -2116,16 +2116,16 @@ def delete(
     "--markdown",
     default="no",
     type=click.Choice(["yes", "no"], case_sensitive=False),
-    help="Encapsulate Mermaid diagram in Markdown syntax. " "Defaults to 'no'",
+    help="Encapsulate the Mermaid diagram in Markdown syntax. " "Defaults to 'no'",
 )
 @click.option(
     "--with-raw-capability",
     type=click.Choice(["yes", "no"], case_sensitive=False),
-    help="Create RAW DBs and 'rawAcl' capability. " "Defaults to 'yes'",
+    help="Create RAW Databases and 'rawAcl' capability. " "Defaults to 'yes'",
 )
 @click.option(
     "--cdf-project",
-    help="[optional] Provide the CDF Project name to use for the diagram 'idp-cdf-mappings'.",
+    help="[optional] Provide the CDF project name to use for the diagram 'idp-cdf-mappings'.",
 )
 @click.pass_obj
 def diagram(
