@@ -2,7 +2,7 @@
 
 > **NOTE:** The Cognite Strategic Customer Services (SCS) team provides the inso-bootstrap CLI as-is. It is not an officially supported Cognite CLI with product-grade SLOs.
 
-Use the **inso-bootstrap CLI** to configure and bootstrap a new Cognite Data Fusion (CDF) project with CDF groups, datasets, and Raw databases. You can use the CLI to separate data by different levels or groupings of data. For example, you can separate data by data sources, use cases, user input, location, site, etc.
+Use the **inso-bootstrap CLI** to configure and bootstrap a new Cognite Data Fusion (CDF) project with CDF groups, datasets, and RAW databases. You can use the CLI to separate data by different levels or groupings of data. For example, you can separate data by data sources, use cases, user input, location, site, etc.
 
 The CLI restricts the structure of the datasets and the groups it supports, and you may or may not be able to use the CLI to maintain existing CDF projects.
 
@@ -79,7 +79,7 @@ The CLI has four main commands:
 - `diagram` - documents the current configuration as a Mermaid diagram.
 - `prepare` - prepares an elevated CDF group, `cdf:bootstrap`, and links it to an IdP group.
 - `deploy ` - deploys bootstrap components from a configuration file.
-- `delete` - deletes CDF groups, datasets, and Raw databases
+- `delete` - deletes CDF groups, datasets, and RAW databases
 
 To test the configuration without connecting to a CDF project, comment out the `cognite` section of the configuration file and run the `diagram` command (on WSL):
 
@@ -93,7 +93,7 @@ On Mac/Linux:
  poetry run bootstrap-cli diagram --cdf-project=shiny-dev configs/config-deploy-example-v2.yml > diagram.txt
 ```
 
-Then navigate to [Mermaid Live](https://mermaid.live/) and paste the content of the clipboard/file to see a diagram of the groups, datasets, and Raw databases the tool will create.
+Then navigate to [Mermaid Live](https://mermaid.live/) and paste the content of the clipboard/file to see a diagram of the groups, datasets, and RAW databases the tool will create.
 
 ### Authenticate
 
@@ -119,9 +119,9 @@ When you have run the `prepare` command, the CLI has the necessary access rights
 poetry run bootstrap-cli deploy --cdf-project=shiny-dev configs/config-deploy-example-v2.yml
 ```
 
-This creates the groups, datasets, and Raw databases as defined in your configuration file and illustrated in the diagram you created above.
+This creates the groups, datasets, and RAW databases as defined in your configuration file and illustrated in the diagram you created above.
 
-If any of the groups, datasets, or Raw databases already exist, the CLI updates/recreates them.
+If any of the groups, datasets, or RAW databases already exist, the CLI updates/recreates them.
 
 ### GitHub Actions
 
@@ -183,7 +183,7 @@ The Bootstrap CLI tackles both DAY1 and DAY2 activities related to access manage
 - Groups
 - Scopes
   - Datasets
-  - Raw databases
+  - RAW databases
 
 **DAY1** activities relates to the initial setup and configuration before the system can be used.
 
@@ -210,12 +210,12 @@ These areas are interconnected and span the customers' identity provider (Azure 
 
 ### Datasets
 
-CDF **datasets** scope CDF groups' capabilities to a set of CDF resources. This allows you to fence future usage and stay within your scope. Creating new datasets is a governance action to be executed by a defined process. An exception is CDF Raw data which is scoped through CDF Raw databases.
+CDF **datasets** scope CDF groups' capabilities to a set of CDF resources. This allows you to fence future usage and stay within your scope. Creating new datasets is a governance action to be executed by a defined process. An exception is CDF Raw data which is scoped through CDF RAW databases.
 
 CDF **scopes** configuration:
 
 - CDF datasets
-- CDF Raw databases
+- CDF RAW databases
 
 ## Bootstrap CLI makes access-control and data lineage manageable
 
@@ -253,7 +253,7 @@ Best practice is to keep the names short and add long names and details to the `
 ### Packaging
 
 1. Every `OWNER/READ` pair of CDF groups is configured with the same package of scopes:
-   - Two Raw DBs (one for staging, one for state-stores).
+   - Two RAW DBs (one for staging, one for state-stores).
    - One dataset (for all CDF resource types, as capabilities are not restricted)
    - `OWNER` groups can be configured with additional shared access to scopes of other CDF groups.
    - This allows users (or apps) working on a Use-Case (`uc`):
@@ -649,7 +649,7 @@ Options:
 
 ### `Deploy` command
 
-The bootstrap-cli `deploy` command applies the configuration file settings to your CDF project and creates the necessary CDF groups, datasets, and Raw databases.
+The bootstrap-cli `deploy` command applies the configuration file settings to your CDF project and creates the necessary CDF groups, datasets, and RAW databases.
 The command also supports the GitHub-Action workflow. To see what the command will do before you run it, run it with the `--dry-run=yes` flag .
 
 ```text
@@ -661,21 +661,21 @@ Options:
   --with-special-groups [yes|no]  Create special CDF groups without any
                                   capabilities (extractions, transformations).
                                   Defaults to 'no'.
-  --with-raw-capability [yes|no]  Create Raw databases and 'rawAcl' capability.
+  --with-raw-capability [yes|no]  Create RAW databases and 'rawAcl' capability.
                                   Defaults to 'yes'.
   -h, --help                      Show this message and exit.
 ```
 
 ### `Delete` command
 
-If you have to revert any changes, you can use the `delete` mode to delete CDF groups, datasets and Raw databases.
-Note that the CDF groups and Raw databases are deleted, whereas datasets are archived and deprecated, not deleted. To see what the command will do before you run it, run it with the `--dry-run=yes` flag.
+If you have to revert any changes, you can use the `delete` mode to delete CDF groups, datasets and RAW databases.
+Note that the CDF groups and RAW databases are deleted, whereas datasets are archived and deprecated, not deleted. To see what the command will do before you run it, run it with the `--dry-run=yes` flag.
 
 ```text
 Usage: bootstrap-cli delete [OPTIONS] [CONFIG_FILE]
 
   Delete mode to delete CDF groups, datasets and RAW DBs. CDF
-  groups and Raw databases are deleted, while datasets are archived
+  groups and RAW databases are deleted, while datasets are archived
   and deprecated (datasets cannot be deleted).
 
 Options:
@@ -785,9 +785,9 @@ The list of features:
 - `dataset-suffix`
   - Suffix added to all dataset names. The recommended value is `ds`, while the default is `dataset`.
 - `rawdb-suffix`
-  - Suffix added to all Raw databases. The Recommended value is `db`, while the default is `rawdb`.
+  - Suffix added to all RAW databases. The Recommended value is `db`, while the default is `rawdb`.
 - `rawdb-additional-variants`
-  - Allows you to create additional Raw databases per node. The additional Raw databases can, for example, be used for state stores from extractors to keep them separate from the actual data. The default is one additional variant with the suffix `state`.
+  - Allows you to create additional RAW databases per node. The additional RAW databases can, for example, be used for state stores from extractors to keep them separate from the actual data. The default is one additional variant with the suffix `state`.
 
 #### `idp-cdf-mappings` section: IdP Group to CDF Group mapping
 
@@ -855,7 +855,7 @@ For a more complete example of a `deploy` configuration, see `configs/config-dep
 
 In addition to the `config` and `logger` sections described above, the configuration file for delete mode should include one more section:
 
-- `delete_or_deprecate` - defines which CDF datasets, CDF groups and Raw databases (including tables) to delete (CDF datasets cannot be deleted but are deprecated.)
+- `delete_or_deprecate` - defines which CDF datasets, CDF groups and RAW databases (including tables) to delete (CDF datasets cannot be deleted but are deprecated.)
 
 ##### `delete_or_deprecate` section
 

@@ -1004,7 +1004,7 @@ class BootstrapCore:
             # which targets are not already deployed?
             missing_rawdbs = target_raw_db_names - set(self.deployed["raw_dbs"]["name"])
         except Exception as exc:
-            _logger.info(f"Raw databases do not exist in CDF:\n{exc}")
+            _logger.info(f"RAW databases do not exist in CDF:\n{exc}")
             missing_rawdbs = target_raw_db_names
 
         if missing_rawdbs:
@@ -1982,7 +1982,7 @@ def bootstrap_cli(
     "--with-raw-capability",
     # default="yes", # default defined in 'configuration.BootstrapFeatures'
     type=click.Choice(["yes", "no"], case_sensitive=False),
-    help="Create Raw databases and 'rawAcl' capability. Defaults to 'yes'",
+    help="Create RAW databases and 'rawAcl' capability. Defaults to 'yes'",
 )
 @click.pass_obj
 def deploy(
@@ -2068,8 +2068,8 @@ def prepare(
 
 
 @click.command(
-    help="Delete mode used to delete CDF groups, datasets and raw databases. "
-    "CDF groups and raw databases are deleted, while datasets are archived "
+    help="Delete mode used to delete CDF groups, datasets and RAW databases. "
+    "CDF groups and RAW databases are deleted, while datasets are archived "
     "and deprecated (datasets cannot be deleted)."
 )
 @click.argument(
