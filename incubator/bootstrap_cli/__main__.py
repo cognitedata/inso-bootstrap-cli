@@ -83,18 +83,22 @@
 #    - renamed mermaid properties from 'name/short' to 'id_name/display'
 #  * documented config-deploy-example-v2.yml
 # 220511 pa: v2.0.0 release :)
-# 220728 pa: v2.0.2 release with replacing time.sleep() statements (which could fail to reload CDF resources)
+# 220728 pa: v2.0.3 release with replacing time.sleep() statements (which could fail to reload CDF resources)
 #     through active caching of CDF resource changes
 #     * the 'self.deployed' is now of type 'CogniteDeployedCache' with support to create, update or delete cache entries
 #     Potential problem fixed with DRY-RUN and 'delete' command
 #     * enhanced dry-run logging
 #     Removed chunks from dataset creation (already covered by SDK)
-
+#    * made the '--debug' flag working, which can now overwrite a INFO level from config-yaml :)
+#      trick was to use the root-logger as global '_logging' variable
+#      as it is shared with extractor-utils 'LoggingConfig'
 
 #
 # TODO:
 #
-# 220728 pa: validation step if all shared groups are covered by config
+# 220728 pa:
+#   - validation step if all shared groups are covered by config
+#   - atm existing datasets (not created by bootstrap) can be referenced too
 
 import json
 import logging
@@ -149,7 +153,10 @@ from incubator.bootstrap_cli.mermaid_generator.mermaid import (
 #  Y8b d88P                                                                            Y8b d88P
 #   "Y88P"                                                                              "Y88P"
 # '''
-_logger = logging.getLogger(__name__)
+
+# share the root-logger, which get's later configured by extractor-utils LoggingConfig too
+# that we can switch the logLevel for all logging through the '--debug' cli-flag
+_logger = logging.getLogger()
 
 # because within f'' strings no backslash-character is allowed
 NEWLINE = "\n"
@@ -394,7 +401,7 @@ class BootstrapCore:
     # - additional variant-suffixes can be added like this ["", ":state"]
     RAW_VARIANTS = [""]
 
-    def __init__(self, configpath: str, command: CommandMode):
+    def __init__(self, configpath: str, command: CommandMode, debug: bool):
         if command == CommandMode.DELETE:
             self.config: BootstrapDeleteConfig = BootstrapDeleteConfig.from_yaml(configpath)
             self.delete_or_deprecate: Dict[str, Any] = self.config.delete_or_deprecate
@@ -445,9 +452,6 @@ class BootstrapCore:
         self.client: CogniteClient = None
         self.cdf_project = None
 
-        # TODO debug
-        # print(f"self.config= {self.config}")
-
         # TODO: support 'logger' section optional, provide default config for logger with console only
         #
         # Logger initialisation
@@ -457,11 +461,25 @@ class BootstrapCore:
         if self.config.logger.file:
             (Path.cwd() / self.config.logger.file.path).parent.mkdir(parents=True, exist_ok=True)
         self.config.logger.setup_logging()
+        if debug:
+            # SO: https://stackoverflow.com/a/57672742/1104502
+            # how to change the log-level of the registered handlers
+
+            # 1. change the root-logger (global variable)
+            _logger.setLevel(logging.DEBUG)
+            [
+                # 2. change for each handler
+                handler.setLevel(logging.DEBUG)
+                for handler in _logger.handlers
+                if isinstance(handler, type(logging.StreamHandler()))
+            ]
+            _logger.debug("Debug logging enabled")
+
         _logger.info(f"Starting CDF Bootstrap configuration for command: <{command}>")
 
         # debug new features
         if getattr(self, "bootstrap_config", False):
-            # TODO: not available for 'delete' but there must be aa smarter solution
+            # TODO: not available for 'delete' but there must be a smarter solution
             _logger.debug(
                 "Features from yaml-config or defaults (can be overridden by cli-parameters!): "
                 f"{self.bootstrap_config.features=}"
@@ -1087,7 +1105,6 @@ class BootstrapCore:
                 self.deployed.datasets.create(resources=created_datasets)
 
         # which targets are already deployed?
-        # TODO: refactoring?
         existing_datasets = {
             # dictionary generator
             # key:
@@ -1102,7 +1119,6 @@ class BootstrapCore:
         if existing_datasets:
             # update datasets which are already deployed
             # https://docs.cognite.com/api/v1/#operation/createDataSets
-            # TODO: description, metadata, externalId
             datasets_to_be_updated = [
                 DataSetUpdate(id=dataset["id"])
                 .name.set(name)
@@ -1423,8 +1439,6 @@ class BootstrapCore:
             "datasets": target_dataset_names,  # all datasets
         }
 
-        # TODO: update CogniteDeployedCache with datasets/ids!
-
         # Special CDF groups and their aad_mappings
         if with_special_groups == YesNoType.yes:
             self.generate_special_groups()
@@ -1515,8 +1529,6 @@ class BootstrapCore:
             - the full-qualified CDF group name and
             - all scopes sorted by action [read|owner] and [raw|datasets]
 
-            TODO: support 'root'
-
             Args:
                 action (str, optional):
                     One of the action_dimensions ["read", "owner"].
@@ -1588,7 +1600,7 @@ class BootstrapCore:
             ns_cdf_read = "Namespace Level (Read)"
             scope_read = "Scopes (Read)"
 
-        # TODO: refactoring required
+        # TODO: refactoring required, too much lines
         def group_to_graph(
             graph: GraphRegistry,
             action: str = None,
@@ -1976,6 +1988,7 @@ class BootstrapCore:
     "Default: https://bluefield.cognitedata.com/",
     envvar="BOOTSTRAP_CDF_HOST",
 )
+# TODO: can we deprecate API_KEY option?
 @click.option(
     "--api-key",
     help="API key to interact with the CDF API. Provide this or make sure to set the 'BOOTSTRAP_CDF_API_KEY',"
@@ -2102,14 +2115,9 @@ def deploy(
 
     click.echo(click.style("Deploying CDF Project bootstrap...", fg="red"))
 
-    if obj["debug"]:
-        # TODO: not working yet to switch the logger config, loaded from YAML from commandline
-        # so changes need to be done in config file
-        _logger.setLevel("DEBUG")  # INFO/DEBUG
-
     try:
         (
-            BootstrapCore(config_file, command=CommandMode.DEPLOY)
+            BootstrapCore(config_file, command=CommandMode.DEPLOY, debug=obj["debug"])
             .validate_config_length_limits()
             .validate_config_is_cdf_project_in_mappings()
             .dry_run(obj["dry_run"])
@@ -2135,7 +2143,6 @@ def deploy(
     "config_file",
     default="./config-bootstrap.yml",
 )
-# TODO: support '--idp-source-id' as an option too, to match v2 naming changes?
 @click.option(
     "--aad-source-id",
     "--idp-source-id",
@@ -2157,13 +2164,9 @@ def prepare(
 
     click.echo(click.style("Prepare CDF Project ...", fg="red"))
 
-    if obj["debug"]:
-        # TODO not working yet :/
-        _logger.setLevel("DEBUG")  # INFO/DEBUG
-
     try:
         (
-            BootstrapCore(config_file, command=CommandMode.PREPARE)
+            BootstrapCore(config_file, command=CommandMode.PREPARE, debug=obj["debug"])
             # .validate_config() # TODO
             .dry_run(obj["dry_run"])
             .prepare(idp_source_id=idp_source_id)
@@ -2193,13 +2196,9 @@ def delete(
 
     click.echo(click.style("Delete CDF Project ...", fg="red"))
 
-    if obj["debug"]:
-        # TODO not working yet :/
-        _logger.setLevel("DEBUG")  # INFO/DEBUG
-
     try:
         (
-            BootstrapCore(config_file, command=CommandMode.DELETE)
+            BootstrapCore(config_file, command=CommandMode.DELETE, debug=obj["debug"])
             # .validate_config() # TODO
             .dry_run(obj["dry_run"]).delete()
         )
@@ -2247,13 +2246,9 @@ def diagram(
 
     # click.echo(click.style("Diagram CDF Project ...", fg="red"))
 
-    if obj["debug"]:
-        # TODO not working yet :/
-        _logger.setLevel("DEBUG")  # INFO/DEBUG
-
     try:
         (
-            BootstrapCore(config_file, command=CommandMode.DIAGRAM)
+            BootstrapCore(config_file, command=CommandMode.DIAGRAM, debug=obj["debug"])
             .validate_config_length_limits()
             .validate_config_is_cdf_project_in_mappings()
             # .dry_run(obj['dry_run'])
