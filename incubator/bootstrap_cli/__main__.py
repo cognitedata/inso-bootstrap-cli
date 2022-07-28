@@ -243,7 +243,7 @@ class CogniteResourceCache(UserList):
         self.RESOURCE: Union[Group, Database, DataSet] = RESOURCE
         self.SELECTOR_FIELD = CogniteResourceCache.RESOURCE_SELECTOR_MAPPING[RESOURCE]
 
-        _logger.info(f"Init Resource Cache {RESOURCE=} with SELECTOR_FIELD='{self.SELECTOR_FIELD}'")
+        _logger.debug(f"Init Resource Cache {RESOURCE=} with SELECTOR_FIELD='{self.SELECTOR_FIELD}'")
 
         # a) unpack ResourceList to simple list
         # b) is single element, pack it in list
@@ -328,6 +328,11 @@ class CogniteDeployedCache:
 
     def __init__(self, client: CogniteClient, groups_only: bool = False):
 
+        # init
+        self.groups: CogniteResourceCache = None
+        self.datasets: CogniteResourceCache = None
+        self.raw_dbs: CogniteResourceCache = None
+
         """Load CDF groups, datasets and raw databases as CogniteResourceList
         and store them in 'self.deployed' dictionary.
 
@@ -337,9 +342,7 @@ class CogniteDeployedCache:
         NOLIMIT = -1
 
         self.client: CogniteClient = client
-        self.groups: CogniteResourceCache = CogniteResourceCache(
-            RESOURCE=Group, resources=self.client.iam.groups.list(all=True)
-        )
+        self.groups = CogniteResourceCache(RESOURCE=Group, resources=self.client.iam.groups.list(all=True))
 
         if groups_only:
             #
@@ -348,18 +351,14 @@ class CogniteDeployedCache:
             self.cache = {"groups": self.groups}
             return
 
-        self.datasets: CogniteResourceCache = CogniteResourceCache(
-            RESOURCE=DataSet, resources=self.client.data_sets.list(limit=NOLIMIT)
-        )
-        self.raw_dbs: CogniteResourceCache = CogniteResourceCache(
-            RESOURCE=Database, resources=self.client.raw.databases.list(limit=NOLIMIT)
-        )
+        self.datasets = CogniteResourceCache(RESOURCE=DataSet, resources=self.client.data_sets.list(limit=NOLIMIT))
+        self.raw_dbs = CogniteResourceCache(RESOURCE=Database, resources=self.client.raw.databases.list(limit=NOLIMIT))
 
     def log_counts(self):
         _logger.info(
             f"""Deployed CDF Resource counts:
-            RAW Dbs({len(self.raw_dbs.get_names())})
-            Data Sets({len(self.datasets.get_names())})
+            RAW Dbs({len(self.raw_dbs.get_names()) if self.raw_dbs else 'n/a with this command'})
+            Data Sets({len(self.datasets.get_names()) if self.datasets else 'n/a with this command'})
             CDF Groups({len(self.groups.get_names())})"""
         )
 
@@ -1279,10 +1278,13 @@ class BootstrapCore:
 
         _logger.debug(f"GROUPS in CDF:\n{self.deployed.groups}")
 
-        # allows idempotent creates, as it cleans up old groups with same names after creation
-        self.create_group(group_name=group_name, group_capabilities=group_capabilities, idp_mapping=idp_mapping)
-        if not self.is_dry_run:
+        if self.is_dry_run:
+            _logger.info(f"Dry run - Creating minimum CDF Group for bootstrap: <{group_name=}> with {idp_mapping=}")
+        else:
+            # allows idempotent creates, as it cleans up old groups with same names after creation
+            self.create_group(group_name=group_name, group_capabilities=group_capabilities, idp_mapping=idp_mapping)
             _logger.info(f"Created CDF group {group_name}")
+
         _logger.info("Finished CDF Project Bootstrapper in 'prepare' mode ")
 
     # '''
@@ -1388,13 +1390,13 @@ class BootstrapCore:
             self.with_raw_capability = with_raw_capability == YesNoType.yes
 
         # debug new features and override with cli-parameters
-        _logger.info(f"From cli: {with_special_groups=} / {with_raw_capability=}")
-        _logger.info(f"Effective: {self.with_special_groups=} / {self.with_raw_capability=}")
+        _logger.debug(f"From cli: {with_special_groups=} / {with_raw_capability=}")
+        _logger.debug(f"Effective: {self.with_special_groups=} / {self.with_raw_capability=}")
 
         # load deployed groups, datasets, raw_dbs with their ids and metadata
-        _logger.info(f"RAW_DBS in CDF:\n{self.deployed.raw_dbs.get_names()}")
-        _logger.info(f"DATASETS in CDF:\n{self.deployed.datasets.get_names()}")
-        _logger.info(f"GROUPS in CDF:\n{self.deployed.groups.get_names()}")
+        _logger.debug(f"RAW_DBS in CDF:\n{self.deployed.raw_dbs.get_names()}")
+        _logger.debug(f"DATASETS in CDF:\n{self.deployed.datasets.get_names()}")
+        _logger.debug(f"GROUPS in CDF:\n{self.deployed.groups.get_names()}")
 
         # run generate steps (only print results atm)
 
@@ -1403,7 +1405,7 @@ class BootstrapCore:
         if self.with_raw_capability:
             target_raw_db_names, new_created_raw_db_names = self.generate_missing_raw_dbs()
             _logger.info(f"All RAW_DBS from config:\n{target_raw_db_names}")
-            _logger.info(f"New RAW_DBS to CDF:\n{new_created_raw_db_names}")
+            _logger.info(f"New RAW_DBS to CDF:\n{list(new_created_raw_db_names)}")
         else:
             # no RAW DBs means no access to RAW at all
             # which means no 'rawAcl' capability to create
@@ -1432,15 +1434,13 @@ class BootstrapCore:
         if not self.is_dry_run:
             _logger.info("Created new CDF groups")
 
-        # and reload again now with latest group config too
+        _logger.debug(f"Final RAW_DBS in CDF:\n{self.deployed.raw_dbs.get_names()}")
+        _logger.debug(f"Final DATASETS in CDF:\n{self.deployed.datasets.get_names()}")
+        _logger.debug(f"Final GROUPS in CDF\n{self.deployed.groups.get_names()}")
+
         # dump all configs to yaml, as cope/paste template for delete_or_deprecate step
         _logger.info("Finished creating CDF groups, datasets and RAW Databases")
         self.dump_delete_template_to_yaml()
-
-        _logger.info(f"Final RAW_DBS in CDF:\n{self.deployed.raw_dbs.get_names()}")
-        _logger.info(f"Final DATASETS in CDF:\n{self.deployed.datasets.get_names()}")
-        _logger.info(f"Final GROUPS in CDF\n{self.deployed.groups.get_names()}")
-
         # _logger.info(f'Bootstrap Pipelines: created: {len(created)}, deleted: {len(delete_ids)}')
 
     # '''
@@ -2103,7 +2103,8 @@ def deploy(
     click.echo(click.style("Deploying CDF Project bootstrap...", fg="red"))
 
     if obj["debug"]:
-        # TODO not working yet :/
+        # TODO: not working yet to switch the logger config, loaded from YAML from commandline
+        # so changes need to be done in config file
         _logger.setLevel("DEBUG")  # INFO/DEBUG
 
     try:
