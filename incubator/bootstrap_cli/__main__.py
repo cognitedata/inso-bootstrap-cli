@@ -166,10 +166,14 @@ acl_all_scope_only_types = set(
     [
         "projects",
         "sessions",
-        "functions",
         "entitymatching",
+        "functions",
         "types",
         "threed",
+        "seismic",
+        "digitalTwin",
+        "geospatial",
+        "geospatialCrs",
     ]
 )
 # lookup of non-default actions per capability (acl) and role (owner/read/admin)
@@ -206,17 +210,21 @@ action_dimensions = {
 acl_default_types = [
     "assets",
     "datasets",
+    "digitalTwin",
     "entitymatching",
     "events",
     "extractionPipelines",
     "extractionRuns",
     "files",
     "functions",
+    "geospatial",
+    "geospatialCrs",
     "groups",
     "labels",
     "projects",
     "raw",
     "relationships",
+    "seismic",
     "sequences",
     "sessions",
     "timeSeries",
