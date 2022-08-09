@@ -83,24 +83,38 @@
 #    - renamed mermaid properties from 'name/short' to 'id_name/display'
 #  * documented config-deploy-example-v2.yml
 # 220511 pa: v2.0.0 release :)
+# 220728 pa: v2.0.3 release with replacing time.sleep() statements (which could fail to reload CDF resources in time)
+#     through active caching of CDF resource changes
+#     * the 'self.deployed' is now of type 'CogniteDeployedCache' with support to create, update or delete cache entries
+#     Potential problem fixed with DRY-RUN and 'delete' command
+#     * enhanced dry-run logging
+#     Removed chunks from dataset creation (already covered by SDK)
+#    * made the '--debug' flag working, which can now overwrite a INFO level from config-yaml :)
+#      solution was to use the root-logger as global '_logging' variable
+#      as it is shared with extractor-utils 'LoggingConfig'
 
+#
+# TODO:
+#
+# 220728 pa:
+#   - validation step if all shared groups are covered by config
+#   - atm existing datasets (not created by bootstrap) can be referenced too
 
+import json
 import logging
-import time
-
-# from dataclasses import dataclass, field
+from collections import UserList
+from collections.abc import Iterable
 from datetime import datetime
 from enum import Enum
-from itertools import islice
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Tuple, TypeVar
+from typing import Any, Dict, List, Optional, Set, Tuple, TypeVar, Union
 
 import click
-import pandas as pd
 import yaml
 from click import Context
-from cognite.client.data_classes import DataSet, Group
-from cognite.client.data_classes.data_sets import DataSetUpdate
+from cognite.client import utils
+from cognite.client.data_classes import Database, DatabaseList, DataSet, DataSetList, DataSetUpdate, Group, GroupList
+from cognite.client.data_classes._base import CogniteResource, CogniteResourceList
 from cognite.extractorutils.configtools import CogniteClient
 from dotenv import load_dotenv
 
@@ -139,7 +153,10 @@ from incubator.bootstrap_cli.mermaid_generator.mermaid import (
 #  Y8b d88P                                                                            Y8b d88P
 #   "Y88P"                                                                              "Y88P"
 # '''
-_logger = logging.getLogger(__name__)
+
+# share the root-logger, which get's later configured by extractor-utils LoggingConfig too
+# that we can switch the logLevel for all logging through the '--debug' cli-flag
+_logger = logging.getLogger()
 
 # because within f'' strings no backslash-character is allowed
 NEWLINE = "\n"
@@ -212,6 +229,147 @@ acl_default_types = [
 acl_admin_types = list(action_dimensions["admin"].keys())
 
 
+class CacheUpdateMode(str, Enum):
+    CREATE = "create"
+    UPDATE = "update"
+    DELETE = "delete"
+
+
+class CogniteResourceCache(UserList):
+    """Implement own CogniteResourceList class
+    To support generic code for Group, DataSet and Database
+    Which support simple insert, update or remove (which CogniteResourceList lacks)
+    """
+
+    # not all CDF resources support 'id' for selection, so this is the dynamic lookup for
+    RESOURCE_SELECTOR_MAPPING = {DataSet: "id", Group: "id", Database: "name"}  # noqa
+
+    def __init__(
+        self, RESOURCE: Union[Group, Database, DataSet], resources: Union[CogniteResource, CogniteResourceList]
+    ) -> None:
+        self.RESOURCE: Union[Group, Database, DataSet] = RESOURCE
+        self.SELECTOR_FIELD = CogniteResourceCache.RESOURCE_SELECTOR_MAPPING[RESOURCE]
+
+        _logger.debug(f"Init Resource Cache {RESOURCE=} with SELECTOR_FIELD='{self.SELECTOR_FIELD}'")
+
+        # a) unpack ResourceList to simple list
+        # b) is single element, pack it in list
+        self.data = [r for r in resources] if isinstance(resources, CogniteResourceList) else [resources]
+
+    def __str__(self) -> str:
+        """From CogniteResourceList
+
+        Returns:
+            _type_: _description_
+        """
+        item = utils._time.convert_time_attributes_to_datetime(self.dump())
+        return json.dumps(item, default=utils._auxiliary.json_dump_default, indent=4)
+
+    def dump(self, camel_case: bool = False) -> List[Dict[str, Any]]:
+        """Dump the instance into a json serializable Python data type.
+        Args:
+            camel_case (bool): Use camelCase for attribute names. Defaults to False.
+        Returns:
+            List[Dict[str, Any]]: A list of dicts representing the instance.
+        """
+        return [resource.dump(camel_case) for resource in self.data]
+
+    def get_names(self) -> List[str]:
+        """Convenience function to get list of names
+
+        Returns:
+            List[str]: _description_
+        """
+        return [(resource.name or "") for resource in self.data]
+
+    def select(self, values):
+        return [c for c in self.data if getattr(c, self.SELECTOR_FIELD) in values]
+
+    def create(self, resources: Union[CogniteResource, CogniteResourceList, List]) -> None:
+        """map 'mode' to internal update function ('_' prefixed)
+
+        Args:
+            mode (CacheUpdateMode): _description_
+            resources (CogniteResourceList): _description_
+        """
+        # handle single-element, with CogniteResourceList and List are Iterable
+        resources = resources if isinstance(resources, Iterable) else [resources]
+        self.data.extend([r for r in resources])
+
+    def delete(self, resources: Union[CogniteResource, CogniteResourceList, List]) -> None:
+        """Find existing resource and replace it
+        a) delete
+        b) call create
+
+        Args:
+            resources (CogniteResourceList): _description_
+        """
+        # handle single-element, with CogniteResourceList and List are Iterable
+        resources = resources if isinstance(resources, Iterable) else [resources]
+
+        # delete if exists
+        matching_in_cache = self.select(values=[getattr(r, self.SELECTOR_FIELD) for r in resources])
+        [self.data.remove(m) for m in matching_in_cache]
+
+    def update(self, resources: Union[CogniteResource, CogniteResourceList, List]) -> None:
+        """Find existing resource and replace it
+        a) delete
+        b) call create
+
+        Args:
+            resources (CogniteResourceList): _description_
+        """
+        # handle single-element, with CogniteResourceList and List are Iterable
+        resources = resources if isinstance(resources, Iterable) else [resources]
+
+        # delete if exists
+        self.delete(resources)
+        # create
+        self.create(resources)
+
+
+class CogniteDeployedCache:
+    """Load CDF groups, datasets and RAW DBs as pd.DataFrames
+    and store them in 'self.deployed' dictionary.
+    """
+
+    def __init__(self, client: CogniteClient, groups_only: bool = False):
+
+        # init
+        self.groups: CogniteResourceCache = None
+        self.datasets: CogniteResourceCache = None
+        self.raw_dbs: CogniteResourceCache = None
+
+        """Load CDF groups, datasets and raw databases as CogniteResourceList
+        and store them in 'self.deployed' dictionary.
+
+        Args:
+            groups_only (bool, optional): Limit to CDF groups only (used by 'prepare' command). Defaults to False.
+        """
+        NOLIMIT = -1
+
+        self.client: CogniteClient = client
+        self.groups = CogniteResourceCache(RESOURCE=Group, resources=self.client.iam.groups.list(all=True))
+
+        if groups_only:
+            #
+            # early exit
+            #
+            self.cache = {"groups": self.groups}
+            return
+
+        self.datasets = CogniteResourceCache(RESOURCE=DataSet, resources=self.client.data_sets.list(limit=NOLIMIT))
+        self.raw_dbs = CogniteResourceCache(RESOURCE=Database, resources=self.client.raw.databases.list(limit=NOLIMIT))
+
+    def log_counts(self):
+        _logger.info(
+            f"""Deployed CDF Resource counts:
+            RAW Dbs({len(self.raw_dbs.get_names()) if self.raw_dbs else 'n/a with this command'})
+            Data Sets({len(self.datasets.get_names()) if self.datasets else 'n/a with this command'})
+            CDF Groups({len(self.groups.get_names())})"""
+        )
+
+
 # '''
 #  888888b.                     888             888                              .d8888b.
 #  888  "88b                    888             888                             d88P  Y88b
@@ -243,7 +401,7 @@ class BootstrapCore:
     # - additional variant-suffixes can be added like this ["", ":state"]
     RAW_VARIANTS = [""]
 
-    def __init__(self, configpath: str, command: CommandMode):
+    def __init__(self, configpath: str, command: CommandMode, debug: bool):
         if command == CommandMode.DELETE:
             self.config: BootstrapDeleteConfig = BootstrapDeleteConfig.from_yaml(configpath)
             self.delete_or_deprecate: Dict[str, Any] = self.config.delete_or_deprecate
@@ -286,14 +444,13 @@ class BootstrapCore:
             # [OPTIONAL] default: ["", ":"state"]
             BootstrapCore.RAW_VARIANTS = [""] + [f":{suffix}" for suffix in features.rawdb_additional_variants]
 
-        self.deployed: Dict[str, Any] = {}
+        # migrating to CogniteDeployedCache
+        # self.deployed: Dict[str, Any] = {}
+        self.deployed: CogniteDeployedCache = None
         self.all_scope_ctx: Dict[str, Any] = {}
         self.is_dry_run: bool = False
         self.client: CogniteClient = None
         self.cdf_project = None
-
-        # TODO debug
-        # print(f"self.config= {self.config}")
 
         # TODO: support 'logger' section optional, provide default config for logger with console only
         #
@@ -304,11 +461,25 @@ class BootstrapCore:
         if self.config.logger.file:
             (Path.cwd() / self.config.logger.file.path).parent.mkdir(parents=True, exist_ok=True)
         self.config.logger.setup_logging()
-        _logger.info("Starting CDF Bootstrap configuration")
+        if debug:
+            # SO: https://stackoverflow.com/a/57672742/1104502
+            # how to change the log-level of the registered handlers
+
+            # 1. change the root-logger (global variable)
+            _logger.setLevel(logging.DEBUG)
+            [
+                # 2. change for each handler
+                handler.setLevel(logging.DEBUG)
+                for handler in _logger.handlers
+                if isinstance(handler, type(logging.StreamHandler()))
+            ]
+            _logger.debug("Debug logging enabled")
+
+        _logger.info(f"Starting CDF Bootstrap configuration for command: <{command}>")
 
         # debug new features
         if getattr(self, "bootstrap_config", False):
-            # TODO: not available for 'delete' but there must be aa smarter solution
+            # TODO: not available for 'delete' but there must be a smarter solution
             _logger.debug(
                 "Features from yaml-config or defaults (can be overridden by cli-parameters!): "
                 f"{self.bootstrap_config.features=}"
@@ -322,7 +493,12 @@ class BootstrapCore:
                 client_name="inso-bootstrap-cli", token_custom_args=self.config.token_custom_args
             )
             self.cdf_project = self.client.config.project
-            _logger.info("Successful connection to CDF client")
+            _logger.info(f"Successful connection to CDF client to project: '{self.cdf_project}'")
+
+            # load CDF group, dataset, rawdb config
+            if command in (CommandMode.PREPARE, CommandMode.DEPLOY, CommandMode.DELETE):
+                self.deployed = CogniteDeployedCache(self.client, groups_only=(command == CommandMode.PREPARE))
+                self.deployed.log_counts()
 
     @staticmethod
     def acl_template(actions, scope):
@@ -598,7 +774,12 @@ class BootstrapCore:
         return dataset_names
 
     def dataset_names_to_ids(self, dataset_names):
-        return self.deployed["datasets"].query("name in @dataset_names")["id"].tolist()
+        return [
+            # get id for all dataset names
+            ds.id
+            for ds in self.deployed.datasets
+            if ds.name in dataset_names
+        ]
 
     def get_scope_ctx_groupedby_action(self, action, ns_name, node_name=None):
         ds_by_action = self.get_group_datasets_groupedby_action(action, ns_name, node_name)
@@ -767,14 +948,7 @@ class BootstrapCore:
         Returns:
             List[int]: of CDF group IDs
         """
-
-        return self.deployed["groups"].query("name == @group_name")["id"].tolist()
-
-        # return self.deployed["groups"].query("name == @group_payload['name']")["id"].tolist()
-        # TODO 220203 pa: explicit providing 'group_name'
-        #     to bypass a strange bug under Docker which throws a
-        #     pandas.core.computation.ops.UndefinedVariableError:
-        #       name 'str_0_0x900xd80x90xec0x870x7f0x00x0' is not defined
+        return [g.id for g in self.deployed.groups if g.name == group_name]
 
     def create_group(
         self,
@@ -830,7 +1004,9 @@ class BootstrapCore:
             _logger.info(f"Dry run - Creating group with name: <{new_group.name}>")
             _logger.debug(f"Dry run - Creating group details: <{new_group}>")
         else:
-            new_group = self.client.iam.groups.create(new_group)
+            new_group: Union[Group, GroupList] = self.client.iam.groups.create(new_group)
+            self.deployed.groups.create(resources=new_group)
+            _logger.info(f"  {new_group.name} ({new_group.id}) [idp source: {new_group.source_id}]")
 
         # if the group name existed before, delete those groups now
         # same upsert approach Fusion is using to update a CDF group: create new with changes => then delete old one
@@ -839,6 +1015,7 @@ class BootstrapCore:
                 _logger.info(f"Dry run - Deleting groups with ids: <{old_group_ids}>")
             else:
                 self.client.iam.groups.delete(old_group_ids)
+                self.deployed.groups.delete(resources=self.deployed.groups.select(values=old_group_ids))
 
         return new_group
 
@@ -902,72 +1079,63 @@ class BootstrapCore:
     def generate_missing_datasets(self) -> Tuple[List[str], List[str]]:
         target_datasets = self.generate_target_datasets()
 
-        # TODO: SDK should do this fine, that was an older me still learning :)
-        def chunks(data, SIZE=10000):
-            it = iter(data)
-            for i in range(0, len(data), SIZE):
-                yield {k: data[k] for k in islice(it, SIZE)}
-
         # which targets are not already deployed?
         missing_datasets = {
-            name: payload
-            for name, payload in target_datasets.items()
-            if name not in self.deployed["datasets"]["name"].tolist()
+            name: payload for name, payload in target_datasets.items() if name not in self.deployed.datasets.get_names()
         }
 
         if missing_datasets:
             # create all datasets which are not already deployed
             # https://docs.cognite.com/api/v1/#operation/createDataSets
-            for chunked_missing_datasets in chunks(missing_datasets, 10):
-                datasets_to_be_created = [
-                    DataSet(
-                        name=name,
-                        description=payload.get("description"),
-                        external_id=payload.get("external_id"),
-                        metadata=payload.get("metadata"),
-                        write_protected=True,
-                    )
-                    for name, payload in chunked_missing_datasets.items()
-                ]
-                if self.is_dry_run:
-                    for data_set_to_be_created in datasets_to_be_created:
-                        _logger.info(f"Dry run - Creating dataset with name: <{data_set_to_be_created.name}>")
-                        _logger.debug(f"Dry run - Creating dataset: <{data_set_to_be_created}>")
-                else:
-                    self.client.data_sets.create(datasets_to_be_created)
+            datasets_to_be_created = [
+                DataSet(
+                    name=name,
+                    description=payload.get("description"),
+                    external_id=payload.get("external_id"),
+                    metadata=payload.get("metadata"),
+                    write_protected=True,
+                )
+                for name, payload in missing_datasets.items()
+            ]
+            if self.is_dry_run:
+                _logger.info(f"Dry run - Creating missing datasets: {[name for name in missing_datasets]}")
+                _logger.debug(f"Dry run - Creating missing datasets (details): <{datasets_to_be_created}>")
+            else:
+                created_datasets: Union[DataSet, DataSetList] = self.client.data_sets.create(datasets_to_be_created)
+                self.deployed.datasets.create(resources=created_datasets)
 
         # which targets are already deployed?
         existing_datasets = {
             # dictionary generator
             # key:
-            dataset_columns["name"]:
+            ds.name:
             # value
             # Merge dataset 'id' from CDF with dataset arguments from config.yml
-            dict(id=dataset_columns["id"], **target_datasets[dataset_columns["name"]])
-            for row_id, dataset_columns in self.deployed["datasets"].iterrows()  # iterating pd dataframe
-            if dataset_columns["name"] in target_datasets.keys()
+            dict(id=ds.id, **target_datasets[ds.name])
+            for ds in self.deployed.datasets
+            if ds.name in target_datasets.keys()
         }
 
         if existing_datasets:
             # update datasets which are already deployed
             # https://docs.cognite.com/api/v1/#operation/createDataSets
-            # TODO: description, metadata, externalId
-            for chunked_existing_datasets in chunks(existing_datasets, 10):
-                datasets_to_be_updated = [
-                    DataSetUpdate(id=dataset["id"])
-                    .name.set(name)
-                    .description.set(dataset.get("description"))
-                    .external_id.set(dataset.get("external_id"))
-                    .metadata.set(dataset.get("metadata"))
-                    for name, dataset in chunked_existing_datasets.items()
-                ]
-                if self.is_dry_run:
-                    for data_set_to_be_updated in datasets_to_be_updated:
-                        _logger.info(f"Dry run - Updating dataset with name: <{data_set_to_be_updated.name}>")
-                        _logger.debug(f"Dry run - Updating dataset: <{data_set_to_be_updated}>")
-                        # _logger.info(f"Dry run - Updating dataset: <{data_set_to_be_updated}>")
-                else:
-                    self.client.data_sets.update(datasets_to_be_updated)
+            datasets_to_be_updated = [
+                DataSetUpdate(id=dataset["id"])
+                .name.set(name)
+                .description.set(dataset.get("description"))
+                .external_id.set(dataset.get("external_id"))
+                .metadata.set(dataset.get("metadata"))
+                for name, dataset in existing_datasets.items()
+            ]
+            if self.is_dry_run:
+                # cannot get easy the ds.name out of a DataSetUpdate object > using existing_datasets for logging
+                _logger.info(f"Dry run - Updating existing datasets: {[name for name in existing_datasets]}")
+                # dump of DataSetUpdate object
+                _logger.debug(f"Dry run - Updating existing datasets (details): <{datasets_to_be_updated}>")
+            else:
+                updated_datasets: Union[DataSet, DataSetList] = self.client.data_sets.update(datasets_to_be_updated)
+                self.deployed.datasets.update(resources=updated_datasets)
+
         return list(target_datasets.keys()), list(missing_datasets.keys())
 
     def generate_target_raw_dbs(self) -> Set[str]:
@@ -1002,20 +1170,23 @@ class BootstrapCore:
 
         try:
             # which targets are not already deployed?
-            missing_rawdbs = target_raw_db_names - set(self.deployed["raw_dbs"]["name"])
+            missing_rawdb_names = target_raw_db_names - set(self.deployed.raw_dbs.get_names())
         except Exception as exc:
             _logger.info(f"RAW databases do not exist in CDF:\n{exc}")
-            missing_rawdbs = target_raw_db_names
+            missing_rawdb_names = target_raw_db_names
 
-        if missing_rawdbs:
+        if missing_rawdb_names:
             # create all raw_dbs which are not already deployed
             if self.is_dry_run:
-                for raw_db in list(missing_rawdbs):
+                for raw_db in list(missing_rawdb_names):
                     _logger.info(f"Dry run - Creating rawdb: <{raw_db}>")
             else:
-                self.client.raw.databases.create(list(missing_rawdbs))
+                created_rawdbs: Union[Database, DatabaseList] = self.client.raw.databases.create(
+                    list(missing_rawdb_names)
+                )
+                self.deployed.raw_dbs.create(resources=created_rawdbs)
 
-        return target_raw_db_names, missing_rawdbs
+        return target_raw_db_names, missing_rawdb_names
 
     """
     "Special CDF groups" are groups which don't have capabilities but have an effect by their name only.
@@ -1052,66 +1223,12 @@ class BootstrapCore:
         for root_account in ["root"]:
             self.process_group(root_account=root_account)
 
-    def load_deployed_config_from_cdf(self, groups_only=False) -> None:
-        """Load CDF groups, datasets and RAW DBs as pd.DataFrames
-        and store them in 'self.deployed' dictionary.
-
-        Args:
-            groups_only (bool, optional): Limit to CDF groups only (used by 'prepare' command). Defaults to False.
-        """
-        NOLIMIT = -1
-
-        #
-        # groups
-        #
-        groups_df = self.client.iam.groups.list(all=True).to_pandas()
-        available_group_columns = [
-            column
-            for column in groups_df.columns
-            if column in ["name", "id", "sourceId", "capabilities"]
-        ]  # fmt: skip
-
-        if groups_only:
-            #
-            # early exit
-            #
-            self.deployed = {"groups": groups_df[available_group_columns]}
-            return
-
-        #
-        # Data Sets
-        #
-        datasets_df = self.client.data_sets.list(limit=NOLIMIT).to_pandas()
-        if len(datasets_df) == 0:
-            # create an empty dataframe with columns, as SDK responded with no columns
-            datasets_df = pd.DataFrame(columns=["name", "id"])
-        else:
-            datasets_df = datasets_df[["name", "id"]]
-
-        #
-        # RAW DBs
-        #
-        rawdbs_df = self.client.raw.databases.list(limit=NOLIMIT).to_pandas()
-        if len(rawdbs_df) == 0:
-            # create an empty dataframe with columns, as SDK responded with no columns
-            rawdbs_df = pd.DataFrame(columns=["name"])
-        else:
-            rawdbs_df = rawdbs_df[["name"]]
-
-        # store DataFrames
-        # deployed: Dict[str, pd.DataFrame]
-        self.deployed = {
-            "groups": groups_df[available_group_columns],
-            "datasets": datasets_df,
-            "raw_dbs": rawdbs_df,
-        }
-
     # prepare a yaml for "delete" job
     def dump_delete_template_to_yaml(self) -> None:
         # and reload again now with latest group config too
 
-        time.sleep(5)  # wait for groups to be created!
-        self.load_deployed_config_from_cdf()
+        # log cdf resource counts
+        self.deployed.log_counts()
 
         delete_template = yaml.dump(
             {
@@ -1121,16 +1238,11 @@ class BootstrapCore:
                     "groups": [],
                 },
                 "latest_deployment": {
-                    "raw_dbs": sorted(self.deployed["raw_dbs"].sort_values(["name"])["name"].tolist()),
-                    # fillna('') because dataset names can be empty (NaN value)
-                    "datasets": sorted(self.deployed["datasets"].fillna("").sort_values(["name"])["name"].tolist()),
-                    # fillna('') because group names can be empty (NaN value)
-                    "groups": sorted(self.deployed["groups"].fillna("").sort_values(["name"])["name"].tolist()),
-                },
-                # TODO: 220509 pa: this dict cannot support (possible) duplicate dataset names
-                #   and why is this dumped anyway? Is this just for info?
-                "dataset_ids": {
-                    row["name"]: row["id"] for i, row in sorted(self.deployed["datasets"][["name", "id"]].iterrows())
+                    "raw_dbs": sorted(self.deployed.raw_dbs.get_names()),
+                    # (.. or "") because dataset names can be empty (None value)
+                    "datasets": sorted(self.deployed.datasets.get_names()),
+                    # (.. or "") because group names can be empty (None value)
+                    "groups": sorted(self.deployed.groups.get_names()),
                 },
             }
         )
@@ -1145,6 +1257,9 @@ class BootstrapCore:
 
     def dry_run(self, dry_run: YesNoType) -> T_BootstrapCore:
         self.is_dry_run = dry_run == YesNoType.yes
+
+        if self.is_dry_run:
+            _logger.info("DRY-RUN active: No changes will be made to CDF")
 
         # return self for command chaining
         return self
@@ -1177,15 +1292,15 @@ class BootstrapCore:
             f"IdP group ID: {idp_source_id}",
         ]
 
-        # load deployed groups with their ids and metadata
-        self.load_deployed_config_from_cdf(groups_only=True)
+        _logger.debug(f"GROUPS in CDF:\n{self.deployed.groups}")
 
-        _logger.debug(f"GROUPS in CDF:\n{self.deployed['groups']}")
-
-        # allows idempotent creates, as it cleans up old groups with same names after creation
-        self.create_group(group_name=group_name, group_capabilities=group_capabilities, idp_mapping=idp_mapping)
-        if not self.is_dry_run:
+        if self.is_dry_run:
+            _logger.info(f"Dry run - Creating minimum CDF Group for bootstrap: <{group_name=}> with {idp_mapping=}")
+        else:
+            # allows idempotent creates, as it cleans up old groups with same names after creation
+            self.create_group(group_name=group_name, group_capabilities=group_capabilities, idp_mapping=idp_mapping)
             _logger.info(f"Created CDF group {group_name}")
+
         _logger.info("Finished CDF Project Bootstrapper in 'prepare' mode ")
 
     # '''
@@ -1198,18 +1313,20 @@ class BootstrapCore:
     #  `Y8bod88P" `Y8bod8P' o888o `Y8bod8P'   "888" `Y8bod8P'
     # '''
     def delete(self):
-        # load deployed groups, datasets, raw_dbs with their ids and metadata
-        self.load_deployed_config_from_cdf()
 
         # groups
         group_names = self.delete_or_deprecate["groups"]
         if group_names:
-            delete_group_ids = self.deployed["groups"].query("name in @group_names")["id"].tolist()
+            delete_group_ids = [g.id for g in self.deployed.groups if g.name in group_names]
             if delete_group_ids:
                 # only delete groups which exist
                 _logger.info(f"DELETE groups: {group_names}")
-                if not self.is_dry_run:
+                if self.is_dry_run:
+                    _logger.info(f"Dry run - Deprecating groups: <{group_names}>")
+                else:
                     self.client.iam.groups.delete(delete_group_ids)
+                    self.deployed.groups.delete(resources=self.deployed.groups.select(values=delete_group_ids))
+
             else:
                 _logger.info(f"Groups already deleted: {group_names}")
         else:
@@ -1218,13 +1335,16 @@ class BootstrapCore:
         # raw_dbs
         raw_db_names = self.delete_or_deprecate["raw_dbs"]
         if raw_db_names:
-            delete_raw_db_names = list(set(raw_db_names).intersection(set(self.deployed["raw_dbs"]["name"])))
+            delete_raw_db_names = list(set(raw_db_names).intersection(set(self.deployed.raw_dbs.get_names())))
             if delete_raw_db_names:
                 # only delete dbs which exist
                 # print("DELETE raw_dbs recursive with tables: ", raw_db_names)
                 _logger.info(f"DELETE raw_dbs recursive with tables: {raw_db_names}")
-                if not self.is_dry_run:
+                if self.is_dry_run:
+                    _logger.info(f"Dry run - Deprecating raw_dbs: <{raw_db_names}>")
+                else:
                     self.client.raw.databases.delete(delete_raw_db_names, recursive=True)
+                    self.deployed.raw_dbs.delete(resources=self.deployed.raw_dbs.select(values=delete_raw_db_names))
             else:
                 # print(f"RAW DBs already deleted: {raw_db_names}")
                 _logger.info(f"RAW DBs already deleted: {raw_db_names}")
@@ -1237,11 +1357,11 @@ class BootstrapCore:
         dataset_names = self.delete_or_deprecate["datasets"]
         if dataset_names:
             # get datasets which exists by name
-            delete_datasets_df = self.deployed["datasets"].query("name in @dataset_names")
-            if not delete_datasets_df.empty:
-                for i, row in delete_datasets_df.iterrows():
-                    _logger.info(f"DEPRECATE dataset: {row['name']}")
-                    update_dataset = self.client.data_sets.retrieve(id=row["id"])
+            delete_datasets = [ds for ds in self.deployed.datasets if ds.name in dataset_names]
+            if delete_datasets:
+                for ds in delete_datasets:
+                    _logger.info(f"DEPRECATE dataset: {ds.name}")
+                    update_dataset = self.client.data_sets.retrieve(id=ds.id)
                     update_dataset.name = (
                         f"_DEPR_{update_dataset.name}"
                         if not update_dataset.name.startswith("_DEPR_")
@@ -1251,12 +1371,16 @@ class BootstrapCore:
                     update_dataset.metadata = dict(update_dataset.metadata, archived=True)  # or dict(a, **b)
                     update_dataset.external_id = f"_DEPR_{update_dataset.external_id}_[{self.get_timestamp()}]"
                     if self.is_dry_run:
-                        _logger.info(f"Dry run - Deprecating dataset: <{update_dataset}>")
-                    self.client.data_sets.update(update_dataset)
+                        _logger.info(f"Dry run - Deprecated dataset details: <{update_dataset}>")
+                    else:
+                        updated_datasets = self.client.data_sets.update(update_dataset)
+                        self.deployed.datasets.update(resources=updated_datasets)
+
         else:
             _logger.info("No datasets to archive (and mark as deprecated)")
 
         # dump all configs to yaml, as cope/paste template for delete_or_deprecate step
+        _logger.info("Finished deleting CDF groups, datasets and RAW Databases")
         self.dump_delete_template_to_yaml()
         # TODO: write to file or standard output
         _logger.info("Finished deleting CDF groups, datasets and RAW Databases")
@@ -1282,23 +1406,22 @@ class BootstrapCore:
             self.with_raw_capability = with_raw_capability == YesNoType.yes
 
         # debug new features and override with cli-parameters
-        _logger.info(f"From cli: {with_special_groups=} / {with_raw_capability=}")
-        _logger.info(f"Effective: {self.with_special_groups=} / {self.with_raw_capability=}")
+        _logger.debug(f"From cli: {with_special_groups=} / {with_raw_capability=}")
+        _logger.debug(f"Effective: {self.with_special_groups=} / {self.with_raw_capability=}")
 
         # load deployed groups, datasets, raw_dbs with their ids and metadata
-        self.load_deployed_config_from_cdf()
-        _logger.debug(f"RAW_DBS in CDF:\n{self.deployed['raw_dbs']}")
-        _logger.debug(f"DATASETS in CDF:\n{self.deployed['datasets']}")
-        _logger.debug(f"GROUPS in CDF:\n{self.deployed['groups']}")
+        _logger.debug(f"RAW_DBS in CDF:\n{self.deployed.raw_dbs.get_names()}")
+        _logger.debug(f"DATASETS in CDF:\n{self.deployed.datasets.get_names()}")
+        _logger.debug(f"GROUPS in CDF:\n{self.deployed.groups.get_names()}")
 
         # run generate steps (only print results atm)
 
-        target_raw_dbs: List[str] = []
-        new_created_raw_dbs: List[str] = []
+        target_raw_db_names: List[str] = []
+        new_created_raw_db_names: List[str] = []
         if self.with_raw_capability:
-            target_raw_dbs, new_created_raw_dbs = self.generate_missing_raw_dbs()
-            _logger.info(f"All RAW_DBS from config:\n{target_raw_dbs}")
-            _logger.info(f"New RAW_DBS to CDF:\n{new_created_raw_dbs}")
+            target_raw_db_names, new_created_raw_db_names = self.generate_missing_raw_dbs()
+            _logger.info(f"All RAW_DBS from config:\n{target_raw_db_names}")
+            _logger.info(f"New RAW_DBS to CDF:\n{list(new_created_raw_db_names)}")
         else:
             # no RAW DBs means no access to RAW at all
             # which means no 'rawAcl' capability to create
@@ -1306,19 +1429,15 @@ class BootstrapCore:
             _logger.info("Creating no RAW_DBS and no 'rawAcl' capability")
             acl_default_types.remove("raw")
 
-        target_datasets, new_created_datasets = self.generate_missing_datasets()
-        _logger.info(f"All DATASETS from config:\n{target_datasets}")
-        _logger.info(f"New DATASETS to CDF:\n{new_created_datasets}")
+        target_dataset_names, new_created_dataset_names = self.generate_missing_datasets()
+        _logger.info(f"All DATASETS from config:\n{target_dataset_names}")
+        _logger.info(f"New DATASETS to CDF:\n{new_created_dataset_names}")
 
         # store all raw_dbs and datasets in scope of this configuration
         self.all_scope_ctx = {
-            "raw": target_raw_dbs,  # all raw_dbs
-            "datasets": target_datasets,  # all datasets
+            "raw": target_raw_db_names,  # all raw_dbs
+            "datasets": target_dataset_names,  # all datasets
         }
-
-        # reload deployed configs to be used as reference for group creation
-        time.sleep(5)  # wait for datasets and raw_dbs to be created!
-        self.load_deployed_config_from_cdf()
 
         # Special CDF groups and their aad_mappings
         if with_special_groups == YesNoType.yes:
@@ -1329,11 +1448,13 @@ class BootstrapCore:
         if not self.is_dry_run:
             _logger.info("Created new CDF groups")
 
-        # and reload again now with latest group config too
-        # dump all configs to yaml, as cope/paste template for delete_or_deprecate step
-        self.dump_delete_template_to_yaml()
-        _logger.info("Finished creating CDF groups, datasets and RAW Databases")
+        _logger.debug(f"Final RAW_DBS in CDF:\n{self.deployed.raw_dbs.get_names()}")
+        _logger.debug(f"Final DATASETS in CDF:\n{self.deployed.datasets.get_names()}")
+        _logger.debug(f"Final GROUPS in CDF\n{self.deployed.groups.get_names()}")
 
+        # dump all configs to yaml, as cope/paste template for delete_or_deprecate step
+        _logger.info("Finished creating CDF groups, datasets and RAW Databases")
+        self.dump_delete_template_to_yaml()
         # _logger.info(f'Bootstrap Pipelines: created: {len(created)}, deleted: {len(delete_ids)}')
 
     # '''
@@ -1408,8 +1529,6 @@ class BootstrapCore:
             - the full-qualified CDF group name and
             - all scopes sorted by action [read|owner] and [raw|datasets]
 
-            TODO: support 'root'
-
             Args:
                 action (str, optional):
                     One of the action_dimensions ["read", "owner"].
@@ -1481,7 +1600,7 @@ class BootstrapCore:
             ns_cdf_read = "Namespace Level (Read)"
             scope_read = "Scopes (Read)"
 
-        # TODO: refactoring required
+        # TODO: refactoring required, too much lines
         def group_to_graph(
             graph: GraphRegistry,
             action: str = None,
@@ -1869,6 +1988,7 @@ class BootstrapCore:
     "Default: https://bluefield.cognitedata.com/",
     envvar="BOOTSTRAP_CDF_HOST",
 )
+# TODO: can we deprecate API_KEY option?
 @click.option(
     "--api-key",
     help="API key to interact with the CDF API. Provide this or make sure to set the 'BOOTSTRAP_CDF_API_KEY',"
@@ -1995,13 +2115,9 @@ def deploy(
 
     click.echo(click.style("Deploying CDF Project bootstrap...", fg="red"))
 
-    if obj["debug"]:
-        # TODO not working yet :/
-        _logger.setLevel("DEBUG")  # INFO/DEBUG
-
     try:
         (
-            BootstrapCore(config_file, command=CommandMode.DEPLOY)
+            BootstrapCore(config_file, command=CommandMode.DEPLOY, debug=obj["debug"])
             .validate_config_length_limits()
             .validate_config_is_cdf_project_in_mappings()
             .dry_run(obj["dry_run"])
@@ -2027,7 +2143,6 @@ def deploy(
     "config_file",
     default="./config-bootstrap.yml",
 )
-# TODO: support '--idp-source-id' as an option too, to match v2 naming changes?
 @click.option(
     "--aad-source-id",
     "--idp-source-id",
@@ -2049,13 +2164,9 @@ def prepare(
 
     click.echo(click.style("Prepare CDF Project ...", fg="red"))
 
-    if obj["debug"]:
-        # TODO not working yet :/
-        _logger.setLevel("DEBUG")  # INFO/DEBUG
-
     try:
         (
-            BootstrapCore(config_file, command=CommandMode.PREPARE)
+            BootstrapCore(config_file, command=CommandMode.PREPARE, debug=obj["debug"])
             # .validate_config() # TODO
             .dry_run(obj["dry_run"])
             .prepare(idp_source_id=idp_source_id)
@@ -2085,13 +2196,9 @@ def delete(
 
     click.echo(click.style("Delete CDF Project ...", fg="red"))
 
-    if obj["debug"]:
-        # TODO not working yet :/
-        _logger.setLevel("DEBUG")  # INFO/DEBUG
-
     try:
         (
-            BootstrapCore(config_file, command=CommandMode.DELETE)
+            BootstrapCore(config_file, command=CommandMode.DELETE, debug=obj["debug"])
             # .validate_config() # TODO
             .dry_run(obj["dry_run"]).delete()
         )
@@ -2139,13 +2246,9 @@ def diagram(
 
     # click.echo(click.style("Diagram CDF Project ...", fg="red"))
 
-    if obj["debug"]:
-        # TODO not working yet :/
-        _logger.setLevel("DEBUG")  # INFO/DEBUG
-
     try:
         (
-            BootstrapCore(config_file, command=CommandMode.DIAGRAM)
+            BootstrapCore(config_file, command=CommandMode.DIAGRAM, debug=obj["debug"])
             .validate_config_length_limits()
             .validate_config_is_cdf_project_in_mappings()
             # .dry_run(obj['dry_run'])
