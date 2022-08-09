@@ -83,14 +83,14 @@
 #    - renamed mermaid properties from 'name/short' to 'id_name/display'
 #  * documented config-deploy-example-v2.yml
 # 220511 pa: v2.0.0 release :)
-# 220728 pa: v2.0.3 release with replacing time.sleep() statements (which could fail to reload CDF resources)
+# 220728 pa: v2.0.3 release with replacing time.sleep() statements (which could fail to reload CDF resources in time)
 #     through active caching of CDF resource changes
 #     * the 'self.deployed' is now of type 'CogniteDeployedCache' with support to create, update or delete cache entries
 #     Potential problem fixed with DRY-RUN and 'delete' command
 #     * enhanced dry-run logging
 #     Removed chunks from dataset creation (already covered by SDK)
 #    * made the '--debug' flag working, which can now overwrite a INFO level from config-yaml :)
-#      trick was to use the root-logger as global '_logging' variable
+#      solution was to use the root-logger as global '_logging' variable
 #      as it is shared with extractor-utils 'LoggingConfig'
 
 #
