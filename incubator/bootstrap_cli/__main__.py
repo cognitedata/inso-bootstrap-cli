@@ -231,6 +231,8 @@ acl_default_types = [
     "transformations",
     "types",
     "threed",
+    "templategroups",
+    "templateinstances"
 ]
 
 # give precedence when merging over acl_default_types
