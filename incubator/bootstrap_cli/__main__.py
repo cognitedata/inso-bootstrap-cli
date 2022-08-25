@@ -232,7 +232,7 @@ acl_default_types = [
     "types",
     "threed",
     "templategroups",
-    "templateinstances"
+    "templateinstances",
 ]
 
 # give precedence when merging over acl_default_types
