@@ -92,7 +92,8 @@
 #    * made the '--debug' flag working, which can now overwrite a INFO level from config-yaml :)
 #      solution was to use the root-logger as global '_logging' variable
 #      as it is shared with extractor-utils 'LoggingConfig'
-
+# 220826 js: v2.2.0 added two more acls: templateInstances, templateGroups
+#        pa: added two more acls: dataModels, dataModelInstances (for FDM), limited to "all" scope access for now
 #
 # TODO:
 #
@@ -174,6 +175,9 @@ acl_all_scope_only_types = set(
         "digitalTwin",
         "geospatial",
         "geospatialCrs",
+        # until support for new "externalId" scope mechanism is implemented
+        "dataModels",
+        "dataModelInstances",
     ]
 )
 # lookup of non-default actions per capability (acl) and role (owner/read/admin)
@@ -209,6 +213,8 @@ action_dimensions = {
 #
 acl_default_types = [
     "assets",
+    "dataModels",
+    "dataModelInstances",
     "datasets",
     "digitalTwin",
     "entitymatching",
@@ -227,12 +233,12 @@ acl_default_types = [
     "seismic",
     "sequences",
     "sessions",
+    "templateGroups",
+    "templateInstances",
+    "threed",
     "timeSeries",
     "transformations",
     "types",
-    "threed",
-    "templateGroups",
-    "templateInstances",
 ]
 
 # give precedence when merging over acl_default_types
