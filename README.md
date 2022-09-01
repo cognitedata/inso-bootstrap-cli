@@ -255,7 +255,8 @@ Best practice is to keep the names short and add long names and details to the `
 1. Every `OWNER/READ` pair of CDF groups is configured with the same package of scopes:
    - Two RAW DBs (one for staging, one for state-stores).
    - One dataset (for all CDF resource types, as capabilities are not restricted)
-   - `OWNER` groups can be configured with additional shared access to scopes of other CDF groups.
+   - `OWNER` groups can be configured with additional shared access to scopes of other CDF groups.  
+NOTE! `READ` groups will not be granted access to the shared access scopes.
    - This allows users (or apps) working on a Use-Case (`uc`):
      1. To read data from scopes of other source (`src`) groups, and
      2. To write the processed and value-added data to its own scope,
