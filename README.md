@@ -44,6 +44,8 @@ The CLI restricts the structure of the datasets and the groups it supports, and 
         - [`namespaces` section](#namespaces-section)
     - [Configuration for the `delete` command](#configuration-for-the-delete-command)
         - [`delete_or_deprecate` section](#delete_or_deprecate-section)
+- [Common practices & How-Tos](#common-practices--how-tos)
+  - [How to implement Read-only Shared Access](#how-to-implement-read-only-shared-access)
 - [Development / Contribute](#development--contribute)
   - [Inspiration](#inspiration)
   - [Semantic versioning](#semantic-versioning)
@@ -255,7 +257,8 @@ Best practice is to keep the names short and add long names and details to the `
 1. Every `OWNER/READ` pair of CDF groups is configured with the same package of scopes:
    - Two RAW DBs (one for staging, one for state-stores).
    - One dataset (for all CDF resource types, as capabilities are not restricted)
-   - `OWNER` groups can be configured with additional shared access to scopes of other CDF groups.
+   - **Only** `OWNER` groups can be configured with additional shared access to scopes of other CDF groups.
+     - see also: ["How to implement read-only shared-access groups"](#how-to-implement-read-only-shared-access)
    - This allows users (or apps) working on a Use-Case (`uc`):
      1. To read data from scopes of other source (`src`) groups, and
      2. To write the processed and value-added data to its own scope,
@@ -884,6 +887,36 @@ If nothing should be deleted, provide an empty list: `[]`.
 **Warning:** the template includes **ALL** groups. Edit carefully before deleting groups. For instance, you should not delete the `oidc-admin-group`.
 
 For a complete example of the delete configuration, see the `configs/config-delete-example.yml`.
+
+# Common practices & How-Tos
+
+This chapter is based on feedback from the field, for example how to solve specific requirements with this approach.
+
+## How to implement Read-only Shared Access
+
+As stated in chapter [Packaging](#packaging) only `OWNER` groups can be configured with shared-access. This restriction is by design.
+
+In case you need a `READ` group with shared access to multiple scopes, following approach is available.
+
+- Use an existing or create a new `namespace` for "interfaces" (or "end-user-role")
+- define your read-only end-user roles spanning multiple scopes by using an `OWNER` role:
+- example:
+
+```
+  - description: 'Namespace for all user-interfaces (aka user roles)'
+    ns-name: in
+    ns-nodes:
+    - description: User Interface 002; end-user access to Supply Plotly-Dash frontend
+      node-name: in:002:supply
+      shared-access:
+        read:
+        - node-name: uc:003:supply
+        - node-name: src:006:sap
+```
+
+This configuration provides a `cdf:in:002:supply:owner` CDF Group
+- which grants read-only access to two more scopes
+- for the price of an additional (empty and unused) `in:002:supply:dataset` with owner access
 
 # Development / Contribute
 
