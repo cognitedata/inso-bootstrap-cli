@@ -94,6 +94,7 @@
 #      as it is shared with extractor-utils 'LoggingConfig'
 # 220826 js: v2.2.0 added two more acls: templateInstances, templateGroups
 #        pa: added two more acls: dataModels, dataModelInstances (for FDM), limited to "all" scope access for now
+# 221121 jr: added wells capabilities to support WDL access
 #
 # TODO:
 #
@@ -175,6 +176,7 @@ acl_all_scope_only_types = set(
         "digitalTwin",
         "geospatial",
         "geospatialCrs",
+        "wells",
         # until support for new "externalId" scope mechanism is implemented
         "dataModels",
         "dataModelInstances",
@@ -239,6 +241,7 @@ acl_default_types = [
     "timeSeries",
     "transformations",
     "types",
+    "wells",
 ]
 
 # give precedence when merging over acl_default_types
