@@ -1,7 +1,5 @@
 # InSo Bootstrap CLI
 
-> **NOTE:** The Cognite Strategic Customer Services (SCS) team provides the inso-bootstrap CLI as-is. It is not an officially supported Cognite CLI with product-grade SLOs.
-
 Use the **inso-bootstrap CLI** to configure and bootstrap a new Cognite Data Fusion (CDF) project with CDF groups, datasets, and RAW databases. You can use the CLI to separate data by different levels or groupings of data. For example, you can separate data by data sources, use cases, user input, location, site, etc.
 
 The CLI restricts the structure of the datasets and the groups it supports, and you may or may not be able to use the CLI to maintain existing CDF projects.
