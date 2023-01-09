@@ -642,9 +642,9 @@ class BootstrapCore:
                 # RAW DB src:002:weather:rawdbiswaytoolongtofit : len(38) > 32
                 f"""{NEWLINE.join(
                     [
-                        f'"{invalid_shared_access_node_name}" : non existent reference'
-                        f'in "{node_name}".shared-access.{role}'
-                        for (node_name, role, invalid_shared_access_node_name) in errors
+                        f'{i+1}. Non existent node-name reference "{invalid_shared_access_node_name}" found'
+                        f' in "{node_name}".shared-access.{role}'
+                        for i, (node_name, role, invalid_shared_access_node_name) in enumerate(errors)
                     ])}"""
             )
 
