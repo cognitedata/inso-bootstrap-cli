@@ -612,6 +612,44 @@ class BootstrapCore:
         # return self for chaining
         return self
 
+    def validate_config_shared_access(self):
+        """Check shared-access configuration, that all node-names exist
+
+        Returns:
+            self: allows validation chaining
+        """
+        errors = []
+
+        # collect all node-names
+        ns_node_names = [ns_node.node_name for ns in self.bootstrap_config.namespaces for ns_node in ns.ns_nodes]
+
+        # check for each node-name if a shared-access exists
+        for node_name in ns_node_names:
+            if shared_access := self.get_ns_node_shared_access_by_name(node_name):
+                errors.extend(
+                    [
+                        # collect node | role | invalid shared-access node-name
+                        (node_name, role, shared_node.node_name)
+                        for role in ["owner", "read"]
+                        for shared_node in getattr(shared_access, role)
+                        if shared_node.node_name not in ns_node_names
+                    ]
+                )
+
+        if errors:
+            raise BootstrapValidationError(
+                "Shared Access validation error(s):\n"
+                # RAW DB src:002:weather:rawdbiswaytoolongtofit : len(38) > 32
+                f"""{NEWLINE.join(
+                    [
+                        f'{i+1}. Non existent node-name reference "{invalid_shared_access_node_name}" found'
+                        f' in "{node_name}".shared-access.{role}'
+                        for i, (node_name, role, invalid_shared_access_node_name) in enumerate(errors)
+                    ])}"""
+            )
+
+        return self
+
     def validate_config_is_cdf_project_in_mappings(self):
 
         # check if mapping exists for configured cdf-project
@@ -2138,6 +2176,7 @@ def deploy(
         (
             BootstrapCore(config_file, command=CommandMode.DEPLOY, debug=obj["debug"])
             .validate_config_length_limits()
+            .validate_config_shared_access()
             .validate_config_is_cdf_project_in_mappings()
             .dry_run(obj["dry_run"])
             .deploy(
@@ -2269,6 +2308,7 @@ def diagram(
         (
             BootstrapCore(config_file, command=CommandMode.DIAGRAM, debug=obj["debug"])
             .validate_config_length_limits()
+            .validate_config_shared_access()
             .validate_config_is_cdf_project_in_mappings()
             # .dry_run(obj['dry_run'])
             .diagram(
