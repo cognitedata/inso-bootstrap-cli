@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "inso-bootstrap-cli"
 # keep manually in sync with __init__.py > __version__
-version = "2.3.0"
+version = "2.4.0"
 description = "A CLI to deploy a CDF Project to bootstrap CDF Groups scoped with Data Sets and RAW DBs"
 authors = ["Peter Arwanitis <peter.arwanitis@cognite.com>", "Tugce Ozgur Oztetik <tugce.oztetik@cognite.com>"]
 license = "Apache-2.0"
