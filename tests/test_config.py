@@ -1,57 +1,60 @@
-import json
+from pathlib import Path
 
-from dotenv import load_dotenv
+import pytest
+from rich import print
 
-from incubator.bootstrap_cli.__main__ import BootstrapCore
+from incubator.bootstrap_cli import app_container
+from tests.constants import ROOT_DIRECTORY
 
+print(ROOT_DIRECTORY)
 
-def main():
-    config_file = "tests/example/config-deploy-bootstrap.yml"
-    bootstrap = BootstrapCore(config_file)
+def generate_deploy_config_01_is_valid_test_data():
+    yield pytest.param(config := ROOT_DIRECTORY / "example/config-deploy-example-01.0.yml", ROOT_DIRECTORY / "../.env", id=config.name)
+    yield pytest.param(config := ROOT_DIRECTORY / "example/config-deploy-example-01.1.yml", ROOT_DIRECTORY / "../.env", id=config.name)
+    yield pytest.param(config := ROOT_DIRECTORY / "example/config-deploy-example-01.2.yml", ROOT_DIRECTORY / "../.env", id=config.name)
+    yield pytest.param(config := ROOT_DIRECTORY / "example/config-deploy-example-01.3.yml", ROOT_DIRECTORY / "../.env", id=config.name)
 
-    print(bootstrap.deployed["datasets"])
+@pytest.mark.parametrize("example_file, dotenv_path", generate_deploy_config_01_is_valid_test_data())
+def test_deploy_config_01_is_valid(example_file: Path, dotenv_path: Path):
+    """
+    This test is intended to ensure that the configuration examples are valid.
+    If this test fails, please update the relevant configuration example.
+    """
+    container: app_container.DeployCommandContainer = app_container.init_container(app_container.DeployCommandContainer, example_file, dotenv_path)
 
-    root_account = "root"
-    group_name, group_capabilities = bootstrap.generate_group_name_and_capabilities(
-        root_account=root_account,
-    )
-    # sort capabilities by key
-    print(group_name, json.dumps(sorted(group_capabilities, key=lambda x: list(x.keys())[0]), indent=2))
-
-    print("=" * 80)
-
-    action = "read"
-    group_ns = "src"
-    group_core = "src:001:sap"
-    group_name, group_capabilities = bootstrap.generate_group_name_and_capabilities(
-        action=action,
-        group_ns=group_ns,
-        group_core=group_core,
-    )
-
-    # sort capabilities by key
-    print(group_name, json.dumps(sorted(group_capabilities, key=lambda x: list(x.keys())[0]), indent=2))
-
-    print("=" * 80)
-
-    action = "owner"
-    group_ns = "src"
-    group_name, group_capabilities = bootstrap.generate_group_name_and_capabilities(
-        action=action,
-        group_ns=group_ns,
-    )
-
-    # sort capabilities by key
-    print(group_name, json.dumps(sorted(group_capabilities, key=lambda x: list(x.keys())[0]), indent=2))
+    assert container.bootstrap()
+    assert container.cognite_client().config.project
+    assert container.bootstrap().features
 
 
-if __name__ == "__main__":
-    # dotenv_path = "/home/arwapet/.config/cdf/equinor-dev.env"
-    # load_dotenv(dotenv_path=dotenv_path)
-    # wrong env-variable names
+def generate_diagram_config_02_is_valid_test_data():
+    yield pytest.param(config := ROOT_DIRECTORY / "example/config-diagram-example-02.0.yml", ROOT_DIRECTORY / "../.env", id=config.name)
 
-    load_dotenv()
+@pytest.mark.parametrize("example_file, dotenv_path", generate_diagram_config_02_is_valid_test_data())
+def test_diagram_config_02_is_valid(example_file: Path, dotenv_path: Path):
+    """
+    This test is intended to ensure that the configuration examples are valid.
+    If this test fails, please update the relevant configuration example.
+    """
 
-    # print('\n'.join([f'{k}: {v}' for k,v in os.environ.items()]))
+    container: app_container.DiagramCommandContainer = app_container.init_container(app_container.DiagramCommandContainer, example_file, dotenv_path)
 
-    main()
+    assert container.bootstrap()
+
+def generate_delete_config_03_is_valid_test_data():
+    yield pytest.param(config := ROOT_DIRECTORY / "example/config-delete-example-03.0.yml", ROOT_DIRECTORY / "../.env", id=config.name)
+
+@pytest.mark.parametrize("example_file, dotenv_path", generate_delete_config_03_is_valid_test_data())
+def test_delete_config_03_is_valid(example_file: Path, dotenv_path: Path):
+    """
+    This test is intended to ensure that the configuration examples are valid.
+    If this test fails, please update the relevant configuration example.
+    """
+
+    container: app_container.DeleteCommandContainer = app_container.init_container(app_container.DeleteCommandContainer, example_file, dotenv_path)
+
+    assert container.delete_or_deprecate()
+
+    # run 'pytest -s' to get print output in console
+    print(container.delete_or_deprecate().datasets)
+

@@ -1,0 +1,25 @@
+delete_or_deprecate:
+  datasets: [1111111, 2222222]
+  groups: []
+  raw_dbs: []
+
+# follows the same parameter structure as the DB extractor configuration
+cognite: # kwargs to pass to the CogniteClient, Environment variable format: ${ENVIRONMENT_VARIABLE}
+  host: ${BOOTSTRAP_CDF_HOST}
+  project: ${BOOTSTRAP_CDF_PROJECT}
+  #
+  # AAD IdP login:
+  #
+  idp-authentication:
+    client-id: ${BOOTSTRAP_IDP_CLIENT_ID}
+    secret: ${BOOTSTRAP_IDP_CLIENT_SECRET}
+    scopes:
+      - ${BOOTSTRAP_IDP_SCOPES}
+    token_url: ${BOOTSTRAP_IDP_TOKEN_URL}
+
+logger:
+  file:
+    path: ./logs/test-deploy.log
+    level: INFO
+  console:
+    level: INFO

@@ -1,0 +1,52 @@
+bootstrap:
+
+  # no features:
+
+  idp-cdf-mappings:
+    - cdf-project: shiny-dev
+      mappings:
+        - cdf-group: cdf:root
+          idp-source-id: 374dc9f6-f3a1-4b34-b897-11111111111
+          idp-source-name: CDF_DEV_ROOT
+        - cdf-group: cdf:all:owner
+          idp-source-id: acd2fe35-aa51-45a7-acef-11111111111
+          idp-source-name: CDF_DEV_ALL_OWNER
+    - cdf-project: shiny-prod
+      mappings:
+        - cdf-group: cdf:root
+          idp-source-id: 374dc9f6-f3a1-4b34-b897-22222222222
+          idp-source-name: CDF_PROD_ROOT
+
+  namespaces:
+    - ns-name: src
+      # The description is not yet implemented in the namespace-level datasets.
+      description: Customer source systems
+
+      ns-nodes:
+        - node-name: src:001:sap
+          description: Sources 001; from SAP
+          external-id: src:001:sap
+        - node-name: src:002:weather
+          description: Sources 002; from Weather.com
+
+
+cognite: # kwargs to pass to the CogniteClient, Environment variable format: ${ENVIRONMENT_VARIABLE_NAME}
+  # host: https://${BOOTSTRAP_CDF_CLUSTER}.cognitedata.com/
+  host: ${BOOTSTRAP_CDF_HOST}
+  project: ${BOOTSTRAP_CDF_PROJECT}
+  #
+  # AAD IdP sign-in credentials:
+  #
+  idp-authentication:
+    client-id: ${BOOTSTRAP_IDP_CLIENT_ID}
+    secret: ${BOOTSTRAP_IDP_CLIENT_SECRET}
+    scopes:
+      - ${BOOTSTRAP_IDP_SCOPES}
+    token-url: ${BOOTSTRAP_IDP_TOKEN_URL}
+
+logger:
+  file:
+    path: ./logs/create-dev-logs.log
+    level: INFO
+  console:
+    level: INFO
