@@ -26,6 +26,17 @@ class CacheUpdateMode(str, Enum):
     UPDATE = "update"
     DELETE = "delete"
 
+class ScopeCtxType(str, Enum):
+    DATASET = "datasets"
+    SPACE = "spaces"
+    RAWDB = "raw_dbs"
+    GROUP = "groups"
+
+
+class RoleType(str, Enum):
+    READ = "read"
+    OWNER = "owner"
+    ADMIN = "admin"
 
 #
 # pydantic class definitions
@@ -121,9 +132,10 @@ class Namespace(KebapBaseModel):
 
 
 class BootstrapFeatures(KebapBaseModel):
-    # load_yaml includes mapping from several string like 'yes|no' to boolean
     with_special_groups: Optional[bool] = False
     with_raw_capability: Optional[bool] = True
+    # TODO: datamodel / spaces / fdm?
+    with_datamodel_capability: Optional[bool] = False
     group_prefix: Optional[str] = "cdf"
     aggregated_level_name: Optional[str] = "allprojects"
     dataset_suffix: Optional[str] = "dataset"

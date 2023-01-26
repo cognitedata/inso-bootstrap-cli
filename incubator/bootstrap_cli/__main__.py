@@ -109,6 +109,7 @@ from collections.abc import Iterable
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
+import re
 from typing import Any, Dict, List, Optional, Set, Tuple, TypeVar, Union
 from rich import print
 
@@ -128,17 +129,9 @@ from incubator.bootstrap_cli.app_config import (
     CommandMode,
     SharedAccess,
     YesNoType,
+    ScopeCtxType,
+    RoleType,
 )
-
-# from incubator.bootstrap_cli.configuration import (
-    # CommandMode,
-    # YesNoType,
-    # BootstrapConfigError,
-    # BootstrapValidationError,
-    # BootstrapDeleteConfig,
-    # BootstrapDeployConfig,
-    # SharedAccess,
-# )
 
 from incubator.bootstrap_cli.app_container import (
     CogniteContainer,
@@ -206,7 +199,7 @@ acl_all_scope_only_types = set(
 # lookup of non-default actions per capability (acl) and role (owner/read/admin)
 action_dimensions = {
     # owner datasets might only need READ and OWNER
-    "owner": {  # else ["READ","WRITE"]
+    RoleType.OWNER: {  # else ["READ","WRITE"]
         "raw": ["READ", "WRITE", "LIST"],
         "datasets": ["READ", "OWNER"],
         "groups": ["LIST"],
@@ -214,13 +207,13 @@ action_dimensions = {
         "sessions": ["LIST", "CREATE"],
         "threed": ["READ", "CREATE", "UPDATE", "DELETE"],
     },
-    "read": {  # else ["READ"]
+    RoleType.READ: {  # else ["READ"]
         "raw": ["READ", "LIST"],
         "groups": ["LIST"],
         "projects": ["LIST"],
         "sessions": ["LIST"],
     },
-    "admin": {
+    RoleType.ADMIN: {
         "datasets": ["READ", "WRITE", "OWNER"],
         "groups": ["LIST", "READ", "CREATE", "UPDATE", "DELETE"],
         "projects": ["READ", "UPDATE", "LIST"],
@@ -266,7 +259,7 @@ acl_default_types = [
 ]
 
 # give precedence when merging over acl_default_types
-acl_admin_types = list(action_dimensions["admin"].keys())
+acl_admin_types = list(action_dimensions[RoleType.ADMIN].keys())
 
 class CogniteResourceCache(UserList):
     """Implement own CogniteResourceList class
@@ -275,7 +268,12 @@ class CogniteResourceCache(UserList):
     """
 
     # not all CDF resources support 'id' for selection, so this is the dynamic lookup for
-    RESOURCE_SELECTOR_MAPPING = {DataSet: "id", Group: "id", Database: "name"}  # noqa
+    RESOURCE_SELECTOR_MAPPING = {
+        DataSet: "id",
+        Group: "id",
+        Database: "name",
+        # DataModelStorageSpace: "external_id",
+        }  # noqa
 
     def __init__(
         self, RESOURCE: Union[Group, Database, DataSet], resources: Union[CogniteResource, CogniteResourceList]
@@ -372,6 +370,7 @@ class CogniteDeployedCache:
         self.groups: CogniteResourceCache = None
         self.datasets: CogniteResourceCache = None
         self.raw_dbs: CogniteResourceCache = None
+        self.spaces: CogniteResourceCache = None
 
         """Load CDF groups, datasets and raw databases as CogniteResourceList
         and store them in 'self.deployed' dictionary.
@@ -393,6 +392,9 @@ class CogniteDeployedCache:
 
         self.datasets = CogniteResourceCache(RESOURCE=DataSet, resources=self.client.data_sets.list(limit=NOLIMIT))
         self.raw_dbs = CogniteResourceCache(RESOURCE=Database, resources=self.client.raw.databases.list(limit=NOLIMIT))
+        # self.spaces = CogniteResourceCache(
+        #     RESOURCE=DataModelStorageSpace, resources=self.client.data_model_storages.spaces.list(limit=NOLIMIT)
+        # )
 
     def log_counts(self):
         logging.info(
@@ -400,6 +402,7 @@ class CogniteDeployedCache:
             RAW Dbs({len(self.raw_dbs.get_names()) if self.raw_dbs else 'n/a with this command'})
             Data Sets({len(self.datasets.get_names()) if self.datasets else 'n/a with this command'})
             CDF Groups({len(self.groups.get_names())})"""
+            # Data Model Spaces({len(self.spaces.get_names()) if self.spaces else 'n/a with this command'})
         )
 
 
@@ -504,6 +507,9 @@ class BootstrapCore:
             # [OPTIONAL] default: "dataset"
             # support for '' empty string
             BootstrapCore.DATASET_SUFFIX = f":{features.dataset_suffix}" if features.dataset_suffix else ""
+            # [OPTIONAL] default: "space"
+            # support for '' empty string
+            BootstrapCore.SPACE_SUFFIX = f":{features.space_suffix}" if features.space_suffix else ""
             # [OPTIONAL] default: "rawdb"
             # support for '' empty string
             BootstrapCore.RAW_SUFFIX = f":{features.rawdb_suffix}" if features.rawdb_suffix else ""
@@ -521,6 +527,14 @@ class BootstrapCore:
     @staticmethod
     def get_dataset_name_template():
         return "{node_name}" + BootstrapCore.DATASET_SUFFIX
+
+    @staticmethod
+    def get_space_name_template(node_name: str):
+        # 'space' have to match this regex: ^[a-zA-Z0-9][a-zA-Z0-9_-]{0,41}[a-zA-Z0-9]?$
+        FDM_SPACE_RE = re.compile(r"[^a-zA-Z0-9-_]").sub
+        # every charchter not matching this pattern will be replaced
+        FDM_SPECIAL_CHAR_REPLACEMENT = "-"
+        return FDM_SPACE_RE(FDM_SPECIAL_CHAR_REPLACEMENT, f"{node_name}{BootstrapCore.SPACE_SUFFIX}")
 
     @staticmethod
     def get_raw_dbs_name_template():
@@ -551,6 +565,8 @@ class BootstrapCore:
         RAWDB_NAME_LENGTH_LIMIT = 32
         DATASET_NAME_LENGTH_LIMIT = 50
         DATASET_EXTERNALID_LENGTH_LIMIT = 255
+        # TODO: space extid limit?
+        SPACE_EXTERNALID_LENGTH_LIMIT = 44
 
         # create all required scopes to check name lengths
         all_scopes = {
@@ -558,6 +574,8 @@ class BootstrapCore:
             "raw": self.generate_target_raw_dbs(),  # all raw_dbs
             # generate_target_datasets -> returns a Dict[str, Any]
             "datasets": self.generate_target_datasets(),  # all datasets
+            # # generate_target_spaces -> returns a Set[str]
+            # "spaces": self.generate_target_spaces(),  # all spaces
         }
 
         errors = []
@@ -567,6 +585,14 @@ class BootstrapCore:
                     ("RAW DB", rawdb_name, len(rawdb_name), RAWDB_NAME_LENGTH_LIMIT)
                     for rawdb_name in all_scopes["raw"]
                     if len(rawdb_name) > RAWDB_NAME_LENGTH_LIMIT
+                ]
+            )
+        if self.with_datamodel_capability:
+            errors.extend(
+                [
+                    ("SPACE", space_name, len(space_name), RAWDB_NAME_LENGTH_LIMIT)
+                    for space_name in all_scopes["spaces"]
+                    if len(space_name) > SPACE_EXTERNALID_LENGTH_LIMIT
                 ]
             )
         errors.extend(
@@ -621,7 +647,7 @@ class BootstrapCore:
                     [
                         # collect node | role | invalid shared-access node-name
                         (node_name, role, shared_node.node_name)
-                        for role in ["owner", "read"]
+                        for role in [RoleType.OWNER, RoleType.READ]
                         for shared_node in getattr(shared_access, role)
                         if shared_node.node_name not in ns_node_names
                     ]
@@ -654,10 +680,10 @@ class BootstrapCore:
         return self
 
     def generate_default_action(self, action, acl_type):
-        return action_dimensions[action].get(acl_type, ["READ", "WRITE"] if action == "owner" else ["READ"])
+        return action_dimensions[action].get(acl_type, ["READ", "WRITE"] if action == RoleType.OWNER else ["READ"])
 
     def generate_admin_action(self, acl_admin_type):
-        return action_dimensions["admin"][acl_admin_type]
+        return action_dimensions[RoleType.ADMIN][acl_admin_type]
 
     def get_ns_node_shared_access_by_name(self, node_name) -> SharedAccess:
         for ns in self.bootstrap_config.namespaces:
@@ -666,8 +692,8 @@ class BootstrapCore:
                     return ns_node.shared_access
         return SharedAccess(owner=[], read=[])
 
-    def get_group_raw_dbs_groupedby_action(self, action, ns_name, node_name=None):
-        raw_db_names: Dict[str, Any] = {"owner": [], "read": []}
+    def get_raw_dbs_groupedby_action(self, action, ns_name, node_name=None):
+        raw_db_names: Dict[str, Any] = {RoleType.OWNER: [], RoleType.READ: []}
         if node_name:
             raw_db_names[action].extend(
                 # the dataset which belongs directly to this node_name
@@ -678,8 +704,8 @@ class BootstrapCore:
             )
 
             # for owner groups add "shared_owner_access" raw_dbs too
-            if action == "owner":
-                raw_db_names["owner"].extend(
+            if action == RoleType.OWNER:
+                raw_db_names[RoleType.OWNER].extend(
                     [
                         self.get_raw_dbs_name_template().format(
                             node_name=shared_node.node_name, raw_variant=raw_variant
@@ -690,7 +716,7 @@ class BootstrapCore:
                         for raw_variant in BootstrapCore.RAW_VARIANTS
                     ]
                 )
-                raw_db_names["read"].extend(
+                raw_db_names[RoleType.READ].extend(
                     [
                         self.get_raw_dbs_name_template().format(
                             node_name=shared_node.node_name, raw_variant=raw_variant
@@ -720,8 +746,8 @@ class BootstrapCore:
                 ]
             )
             # only owner-groups support "shared_access" rawdbs
-            if action == "owner":
-                raw_db_names["owner"].extend(
+            if action == RoleType.OWNER:
+                raw_db_names[RoleType.OWNER].extend(
                     [
                         self.get_raw_dbs_name_template().format(
                             node_name=shared_access_node.node_name, raw_variant=raw_variant
@@ -734,7 +760,7 @@ class BootstrapCore:
                         for raw_variant in BootstrapCore.RAW_VARIANTS
                     ]
                 )
-                raw_db_names["read"].extend(
+                raw_db_names[RoleType.READ].extend(
                     [
                         self.get_raw_dbs_name_template().format(
                             node_name=shared_access_node.node_name, raw_variant=raw_variant
@@ -751,8 +777,74 @@ class BootstrapCore:
         # returns clear names grouped by action
         return raw_db_names
 
-    def get_group_datasets_groupedby_action(self, action, ns_name, node_name=None):
-        dataset_names: Dict[str, Any] = {"owner": [], "read": []}
+    def get_spaces_groupedby_action(self, action, ns_name, node_name=None):
+        spaces_by_action: Dict[str, Any] = {RoleType.OWNER: [], RoleType.READ: []}
+        # for example fac:001:wasit, uc:002:meg, etc.
+        if node_name:
+            spaces_by_action[action].extend(
+                # the dataset which belongs directly to this node_name
+                [self.get_space_name_template(node_name=node_name)]
+            )
+
+            # for owner groups add "shared_access" datasets too
+            if action == RoleType.OWNER:
+                spaces_by_action[RoleType.OWNER].extend(
+                    [
+                        self.get_space_name_template(node_name=shared_node.node_name)
+                        # find the group_config which matches the id,
+                        # and check the "shared_access" groups list (else [])
+                        for shared_node in self.get_ns_node_shared_access_by_name(node_name).owner
+                    ]
+                )
+                spaces_by_action[RoleType.READ].extend(
+                    [
+                        self.get_space_name_template(node_name=shared_node.node_name)
+                        # find the group_config which matches the id,
+                        # and check the "shared_access" groups list (else [])
+                        for shared_node in self.get_ns_node_shared_access_by_name(node_name).read
+                    ]
+                )
+        # for example src, fac, uc, ca
+        else:  # handling the {ns_name}:{BootstrapCore.AGGREGATED_GROUP_NAME}
+            spaces_by_action[action].extend(
+                [
+                    # all datasets for each of the nodes of the given namespace
+                    self.get_space_name_template(node_name=ns_node.node_name)
+                    for ns in self.bootstrap_config.namespaces
+                    if ns.ns_name == ns_name
+                    for ns_node in ns.ns_nodes
+                ]
+                # adding the {ns_name}:{BootstrapCore.AGGREGATED_GROUP_NAME} dataset
+                + [self.get_space_name_template(node_name=self.get_allprojects_name_template(ns_name=ns_name))]  # noqa
+            )
+            # only owner-groups support "shared_access" datasets
+            if action == RoleType.OWNER:
+                spaces_by_action[RoleType.OWNER].extend(
+                    [
+                        self.get_space_name_template(node_name=shared_access_node.node_name)
+                        # and check the "shared_access" groups list (else [])
+                        for ns in self.bootstrap_config.namespaces
+                        if ns.ns_name == ns_name
+                        for ns_node in ns.ns_nodes
+                        for shared_access_node in ns_node.shared_access.owner
+                    ]
+                )
+                spaces_by_action[RoleType.READ].extend(
+                    [
+                        self.get_space_name_template(node_name=shared_access_node.node_name)
+                        # and check the "shared_access" groups list (else [])
+                        for ns in self.bootstrap_config.namespaces
+                        if ns.ns_name == ns_name
+                        for ns_node in ns.ns_nodes
+                        for shared_access_node in ns_node.shared_access.read
+                    ]
+                )
+
+        # returns clear names
+        return spaces_by_action
+
+    def get_datasets_groupedby_action(self, action, ns_name, node_name=None):
+        dataset_names: Dict[str, Any] = {RoleType.OWNER: [], RoleType.READ: []}
         # for example fac:001:wasit, uc:002:meg, etc.
         if node_name:
             dataset_names[action].extend(
@@ -761,8 +853,8 @@ class BootstrapCore:
             )
 
             # for owner groups add "shared_access" datasets too
-            if action == "owner":
-                dataset_names["owner"].extend(
+            if action == RoleType.OWNER:
+                dataset_names[RoleType.OWNER].extend(
                     [
                         self.get_dataset_name_template().format(node_name=shared_node.node_name)
                         # find the group_config which matches the id,
@@ -770,7 +862,7 @@ class BootstrapCore:
                         for shared_node in self.get_ns_node_shared_access_by_name(node_name).owner
                     ]
                 )
-                dataset_names["read"].extend(
+                dataset_names[RoleType.READ].extend(
                     [
                         self.get_dataset_name_template().format(node_name=shared_node.node_name)
                         # find the group_config which matches the id,
@@ -796,8 +888,8 @@ class BootstrapCore:
                 ]
             )
             # only owner-groups support "shared_access" datasets
-            if action == "owner":
-                dataset_names["owner"].extend(
+            if action == RoleType.OWNER:
+                dataset_names[RoleType.OWNER].extend(
                     [
                         self.get_dataset_name_template().format(node_name=shared_access_node.node_name)
                         # and check the "shared_access" groups list (else [])
@@ -807,7 +899,7 @@ class BootstrapCore:
                         for shared_access_node in ns_node.shared_access.owner
                     ]
                 )
-                dataset_names["read"].extend(
+                dataset_names[RoleType.READ].extend(
                     [
                         self.get_dataset_name_template().format(node_name=shared_access_node.node_name)
                         # and check the "shared_access" groups list (else [])
@@ -830,20 +922,31 @@ class BootstrapCore:
         ]
 
     def get_scope_ctx_groupedby_action(self, action, ns_name, node_name=None):
-        ds_by_action = self.get_group_datasets_groupedby_action(action, ns_name, node_name)
-        rawdbs_by_action = self.get_group_raw_dbs_groupedby_action(action, ns_name, node_name)
+        ds_by_action = self.get_datasets_groupedby_action(action, ns_name, node_name)
+        # spaces_by_action = self.get_spaces_groupedby_action(action, ns_name, node_name)
+        rawdbs_by_action = self.get_raw_dbs_groupedby_action(action, ns_name, node_name)
         return {
-            action: {"raw": rawdbs_by_action[action], "datasets": ds_by_action[action]}
-            for action in ["owner", "read"]
+            action: {
+                ScopeCtxType.RAWDB: rawdbs_by_action[action],
+                ScopeCtxType.DATASET: ds_by_action[action],
+                # ScopeCtxType.SPACE: spaces_by_action[action]
+            }
+            for action in [RoleType.OWNER, RoleType.READ]
         }  # fmt: skip
 
     def generate_scope(self, acl_type, scope_ctx):
         if acl_type == "raw":
             # { "tableScope": { "dbsToTables": { "foo:db": {}, "bar:db": {} } }
-            return {"tableScope": {"dbsToTables": {raw: {} for raw in scope_ctx["raw"]}}}
+            return {"tableScope": {"dbsToTables": {raw: {} for raw in scope_ctx[ScopeCtxType.RAWDB]}}}
+        elif acl_type == "dataModels":
+            # { "dataModelScope": { "externalIds": [ "foo", "bar" ] }
+            return {"dataModelScope": {"externalIds": [space for space in scope_ctx[ScopeCtxType.SPACE]]}}
+        elif acl_type == "dataModelInstances":
+            # { "spaceScope": { "externalIds": [ "foo", "bar" ] }
+            return {"spaceScope": {"externalIds": [space for space in scope_ctx[ScopeCtxType.SPACE]]}}
         elif acl_type == "datasets":
             # { "idScope": { "ids": [ 2695894113527579, 4254268848874387 ] } }
-            return {"idScope": {"ids": self.dataset_names_to_ids(scope_ctx["datasets"])}}
+            return {"idScope": {"ids": self.dataset_names_to_ids(scope_ctx[ScopeCtxType.DATASET])}}
         # adding minimum projects and groups scopes for non-root groups
         # TODO: adding documentation link
         elif acl_type in acl_all_scope_only_types:
@@ -852,7 +955,7 @@ class BootstrapCore:
             return {"currentuserscope": {}}
         else:  # like 'assets', 'events', 'files', 'sequences', 'timeSeries', ..
             # { "datasetScope": { "ids": [ 2695894113527579, 4254268848874387 ] } }
-            return {"datasetScope": {"ids": self.dataset_names_to_ids(scope_ctx["datasets"])}}
+            return {"datasetScope": {"ids": self.dataset_names_to_ids(scope_ctx[ScopeCtxType.DATASET])}}
 
     def generate_group_name_and_capabilities(
         self, action: str = None, ns_name: str = None, node_name: str = None, root_account: str = None
@@ -866,7 +969,7 @@ class BootstrapCore:
 
         Args:
             action (str, optional):
-                One of the action_dimensions ["read", "owner"].
+                One of the action_dimensions [RoleType.READ, RoleType.OWNER].
                 Defaults to None.
             ns_name (str, optional):
                 Namespace like "src" or "uc".
@@ -903,7 +1006,7 @@ class BootstrapCore:
                 for shared_action, scope_ctx in self.get_scope_ctx_groupedby_action(action, ns_name, node_name).items()
                 # don't create empty scopes
                 # enough to check one as they have both same length, but that's more explicit
-                if scope_ctx["raw"] and scope_ctx["datasets"]
+                if scope_ctx[ScopeCtxType.RAWDB] and scope_ctx[ScopeCtxType.DATASET]
             ]
 
         # group-type level like cdf:src:all:read
@@ -928,7 +1031,7 @@ class BootstrapCore:
                 for shared_action, scope_ctx in self.get_scope_ctx_groupedby_action(action, ns_name).items()
                 # don't create empty scopes
                 # enough to check one as they have both same length, but that's more explicit
-                if scope_ctx["raw"] and scope_ctx["datasets"]
+                if scope_ctx[ScopeCtxType.RAWDB] and scope_ctx[ScopeCtxType.DATASET]
             ]
 
         # top level like cdf:all:read
@@ -963,7 +1066,7 @@ class BootstrapCore:
                     {
                         f"{acl_type}Acl": self.acl_template(
                             # check for acl specific owner actions, else default
-                            actions=self.generate_default_action("owner", acl_type),
+                            actions=self.generate_default_action(RoleType.OWNER, acl_type),
                             scope={"all": {}},
                         )
                     }
@@ -1236,6 +1339,54 @@ class BootstrapCore:
 
         return target_raw_db_names, missing_rawdb_names
 
+    def generate_target_spaces(self) -> Set[str]:
+        # list of all targets: autogenerated space names
+        target_space_names = set(
+            [
+                self.get_space_name_template(node_name=ns_node.node_name)
+                for ns in self.bootstrap_config.namespaces
+                for ns_node in ns.ns_nodes
+            ]
+        )
+        target_space_names.update(
+            # add SPACEs for 'all' users
+            [
+                self.get_space_name_template(
+                    node_name=f"{ns_name}:{BootstrapCore.AGGREGATED_LEVEL_NAME}"
+                    if ns_name
+                    else BootstrapCore.AGGREGATED_LEVEL_NAME,
+                )
+                # creating allprojects at group type level + top-level
+                for ns_name in list([ns.ns_name for ns in self.bootstrap_config.namespaces]) + [""]
+            ]
+        )
+
+        return target_space_names
+
+    def generate_missing_spaces(self) -> Tuple[List[str], List[str]]:
+        target_space_names = self.generate_target_spaces()
+
+        try:
+            # which targets are not already deployed?
+            missing_space_names = target_space_names - set(self.deployed.spaces.get_names())
+        except Exception as exc:
+            logging.info(f"RAW databases do not exist in CDF:\n{exc}")
+            missing_space_names = target_space_names
+
+        if missing_space_names:
+            spaces_to_be_created = [DataModelStorageSpace(external_id=name) for name in missing_space_names]
+            # create all spaces which are not already deployed
+            if self.is_dry_run:
+                for space in list(missing_space_names):
+                    logging.info(f"Dry run - Creating space: <{space}>")
+            else:
+                created_spaces: Union[
+                    DataModelStorageSpace, DataModelStorageSpaceList
+                ] = self.client.data_model_storages.spaces.create(space=spaces_to_be_created)
+                self.deployed.spaces.create(resources=created_spaces)
+
+        return target_space_names, missing_space_names
+
     """
     "Special CDF groups" are groups which don't have capabilities but have an effect by their name only.
     1. 'transformations' group: grants access to "Fusion > Integrate > Transformations"
@@ -1257,7 +1408,7 @@ class BootstrapCore:
     # generate all groups - iterating through the 3-level hierarchy
     def generate_groups(self):
         # permutate the combinations
-        for action in ["read", "owner"]:  # action_dimensions w/o 'admin'
+        for action in [RoleType.READ, RoleType.OWNER]:  # action_dimensions w/o 'admin'
             for ns in self.bootstrap_config.namespaces:
                 for ns_node in ns.ns_nodes:
                     # group for each dedicated group-type id
@@ -1281,16 +1432,18 @@ class BootstrapCore:
         delete_template = yaml.dump(
             {
                 "delete_or_deprecate": {
-                    "raw_dbs": [],
-                    "datasets": [],
-                    "groups": [],
+                    f"{ScopeCtxType.RAWDB}": [],
+                    f"{ScopeCtxType.DATASET}": [],
+                    # f"{ScopeCtxType.SPACE}": [],
+                    f"{ScopeCtxType.GROUP}": [],
                 },
                 "latest_deployment": {
-                    "raw_dbs": sorted(self.deployed.raw_dbs.get_names()),
+                    f"{ScopeCtxType.RAWDB}": sorted(self.deployed.raw_dbs.get_names()),
                     # (.. or "") because dataset names can be empty (None value)
-                    "datasets": sorted(self.deployed.datasets.get_names()),
+                    f"{ScopeCtxType.DATASET}": sorted(self.deployed.datasets.get_names()),
+                    # f"{ScopeCtxType.SPACE}": sorted(self.deployed.spaces.get_names()),
                     # (.. or "") because group names can be empty (None value)
-                    "groups": sorted(self.deployed.groups.get_names()),
+                    f"{ScopeCtxType.GROUP}": sorted(self.deployed.groups.get_names()),
                 },
             }
         )
@@ -1464,6 +1617,9 @@ class BootstrapCore:
 
         # run generate steps (only print results atm)
 
+        #
+        # raw_dbs
+        #
         target_raw_db_names: List[str] = []
         new_created_raw_db_names: List[str] = []
         if self.with_raw_capability:
@@ -1477,14 +1633,35 @@ class BootstrapCore:
             logging.info("Creating no RAW_DBS and no 'rawAcl' capability")
             acl_default_types.remove("raw")
 
+        #
+        # spaces
+        #
+        target_space_names: List[str] = []
+        new_created_space_names: List[str] = []
+        if self.with_datamodel_capability:
+            target_space_names, new_created_space_names = self.generate_missing_spaces()
+            logging.info(f"All SPACES from config:\n{target_space_names}")
+            logging.info(f"New SPACES to CDF:\n{list(new_created_space_names)}")
+        else:
+            # no SPACESs means no access to FDM at all
+            # which means no 'dataModels' and 'dataModelInstances' capabilities to create
+            # remove it form the default types
+            logging.info("Creating no SPACEs and no 'dataModels' and 'dataModelInstances' capabilities")
+            acl_default_types.remove("dataModels")
+            acl_default_types.remove("dataModelInstances")
+
+        #
+        # datasets
+        #
         target_dataset_names, new_created_dataset_names = self.generate_missing_datasets()
         logging.info(f"All DATASETS from config:\n{target_dataset_names}")
         logging.info(f"New DATASETS to CDF:\n{new_created_dataset_names}")
 
         # store all raw_dbs and datasets in scope of this configuration
         self.all_scope_ctx = {
-            "raw": target_raw_db_names,  # all raw_dbs
-            "datasets": target_dataset_names,  # all datasets
+            ScopeCtxType.RAWDB: target_raw_db_names,  # all raw_dbs
+            ScopeCtxType.DATASET: target_dataset_names,  # all datasets
+            # ScopeCtxType.SPACE: target_space_names,  # all spaces
         }
 
         # Special CDF groups and their aad_mappings
@@ -1498,12 +1675,13 @@ class BootstrapCore:
 
         logging.debug(f"Final RAW_DBS in CDF:\n{self.deployed.raw_dbs.get_names()}")
         logging.debug(f"Final DATASETS in CDF:\n{self.deployed.datasets.get_names()}")
+        # logging.debug(f"Final SPACES in CDF:\n{self.deployed.spaces.get_names()}")
         logging.debug(f"Final GROUPS in CDF\n{self.deployed.groups.get_names()}")
 
         # dump all configs to yaml, as cope/paste template for delete_or_deprecate step
         logging.info("Finished creating CDF groups, datasets and RAW Databases")
         self.dump_delete_template_to_yaml()
-        # _logger.info(f'Bootstrap Pipelines: created: {len(created)}, deleted: {len(delete_ids)}')
+        # logging.info(f'Bootstrap Pipelines: created: {len(created)}, deleted: {len(delete_ids)}')
 
     # '''
     #        .o8   o8o
@@ -1557,16 +1735,16 @@ class BootstrapCore:
 
         # store all raw_dbs and datasets in scope of this configuration
         self.all_scope_ctx = {
-            "owner": (
+            RoleType.OWNER: (
                 all_scopes := {
                     # generate_target_raw_dbs -> returns a Set[str]
-                    "raw": list(self.generate_target_raw_dbs()),  # all raw_dbs
+                    ScopeCtxType.RAWDB: list(self.generate_target_raw_dbs()),  # all raw_dbs
                     # generate_target_datasets -> returns a Dict[str, Any]
-                    "datasets": list(self.generate_target_datasets().keys()),  # all datasets
+                    ScopeCtxType.DATASET: list(self.generate_target_datasets().keys()),  # all datasets
                 }
             ),
             # and copy the same to 'read'
-            "read": all_scopes,
+            RoleType.READ: all_scopes,
         }
 
         def get_group_name_and_scopes(
@@ -1579,7 +1757,7 @@ class BootstrapCore:
 
             Args:
                 action (str, optional):
-                    One of the action_dimensions ["read", "owner"].
+                    One of the action_dimensions [RoleType.READ, RoleType.OWNER].
                     Defaults to None.
                 ns_name (str, optional):
                     Namespace like "src" or "uc".
@@ -1594,13 +1772,15 @@ class BootstrapCore:
                 Returns:
                     Tuple[str, Dict[str, Any]]: (group_name, scope_ctx_by_action)
                         scope_ctx_by_action is a dictionary with the following structure:
-                            {'owner': {
-                                'raw': ['src:002:weather:rawdb', 'src:002:weather:rawdb:state'],
-                                'datasets': ['src:002:weather:dataset']
+                            {RoleType.OWNER: {
+                                ScopeCtxType.RAWDB: ['src:002:weather:rawdb', 'src:002:weather:rawdb:state'],
+                                ScopeCtxType.DATASET: ['src:002:weather:dataset'],
+                                ScopeCtxType.SPACE: ['src-002-weather-space'],
                                 },
-                            'read': {
-                                'raw': [],
-                                'datasets': []
+                            RoleType.READ: {
+                                ScopeCtxType.RAWDB: [],
+                                ScopeCtxType.DATASET: []
+                                ScopeCtxType.SPACE: [],
                             }}
             """
 
@@ -1720,7 +1900,7 @@ class BootstrapCore:
                 #
                 # EDGE FROM PARENT 'src:all' to 'src:001:sap'
                 #
-                edge_type_cls = Edge if action == "owner" else DottedEdge
+                edge_type_cls = Edge if action == RoleType.OWNER else DottedEdge
                 graph.edges.append(
                     edge_type_cls(
                         # link from all:{ns}
@@ -1764,7 +1944,7 @@ class BootstrapCore:
                             # EDGE FROM actual processed group-node to added scope
                             #   cdf:src:001:sap:read to 'src:001:sap:rawdb'
                             #
-                            edge_type_cls = Edge if shared_action == "owner" else DottedEdge
+                            edge_type_cls = Edge if shared_action == RoleType.OWNER else DottedEdge
                             graph.edges.append(
                                 edge_type_cls(
                                     id_name=group_name,
@@ -1790,7 +1970,7 @@ class BootstrapCore:
                 # EDGE FROM PARENT top LEVEL to NAMESPACE LEVEL
                 #   'all' to 'src:all'
                 #
-                edge_type_cls = Edge if action == "owner" else DottedEdge
+                edge_type_cls = Edge if action == RoleType.OWNER else DottedEdge
                 graph.edges.append(
                     edge_type_cls(
                         id_name=f"{BootstrapCore.GROUP_NAME_PREFIX}{BootstrapCore.AGGREGATED_LEVEL_NAME}:{action}",
@@ -1836,7 +2016,7 @@ class BootstrapCore:
                             # EDGE FROM actual processed group-node to added scope
                             #   cdf:src:all:read to 'src:all:rawdb'
                             #
-                            edge_type_cls = Edge if shared_action == "owner" else DottedEdge
+                            edge_type_cls = Edge if shared_action == RoleType.OWNER else DottedEdge
                             graph.edges.append(
                                 edge_type_cls(
                                     id_name=group_name,
@@ -1876,14 +2056,14 @@ class BootstrapCore:
                             if not scope_name.startswith(f"{BootstrapCore.AGGREGATED_LEVEL_NAME}:"):
                                 continue
 
-                            # _logger.info(f"> {action=} {shared_action=} process {scope_name=} : all {scopes=}")
+                            # logging.info(f"> {action=} {shared_action=} process {scope_name=} : all {scopes=}")
                             #
                             # NODE DATASET or RAW scope
                             #    'all:rawdb'
                             #
                             if scope_name not in scope_graph:
 
-                                # _logger.info(f">> add {scope_name=}__{action=}")
+                                # logging.info(f">> add {scope_name=}__{action=}")
 
                                 node_type_cls = SubroutineNode if scope_type == "raw" else AssymetricNode
                                 scope_graph.elements.append(
@@ -1898,7 +2078,7 @@ class BootstrapCore:
                             # EDGE FROM actual processed group-node to added scope
                             #   cdf:all:read to 'all:rawdb'
                             #
-                            edge_type_cls = Edge if shared_action == "owner" else DottedEdge
+                            edge_type_cls = Edge if shared_action == RoleType.OWNER else DottedEdge
                             graph.edges.append(
                                 edge_type_cls(
                                     id_name=group_name,
@@ -1966,7 +2146,7 @@ class BootstrapCore:
         )
 
         # permutate the combinations
-        for action in ["read", "owner"]:  # action_dimensions w/o 'admin'
+        for action in [RoleType.READ, RoleType.OWNER]:  # action_dimensions w/o 'admin'
             for ns in self.bootstrap_config.namespaces:
                 for ns_node in ns.ns_nodes:
                     # group for each dedicated group-type id
