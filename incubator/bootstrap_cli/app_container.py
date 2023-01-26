@@ -9,13 +9,15 @@ from dotenv import load_dotenv
 from rich import print
 
 from .app_config import (
+    YesNoType,
+    CommandMode,
     CogniteConfig,
     BootstrapCoreConfig,
     BootstrapDeleteConfig,
     )
 
 def init_container(container_cls: containers.Container, config_path: str | Path = "/etc/f25e/config.yaml", dotenv_path: str | Path = None):
-    """Spinning up container and 
+    """Spinning up container and
 
     Args:
         container_cls (containers.Container): support different
@@ -25,26 +27,71 @@ def init_container(container_cls: containers.Container, config_path: str | Path 
     Returns:
         _type_: _description_
     """
-    # if .env file exists, load it and override existing env-variables
+    # checks for .env file, loads it and override existing env-variables
     load_dotenv(dotenv_path, override=True)
 
     container = container_cls()
     container.config.from_yaml(config_path, required=True)
-
-    logging.debug(f"{container.config()=}")
-
     container.init_resources()  # i.e.logging
+
+    # logging.debug(f"{container.config()=}")
+
     return container
 
 
-def init_logging(config: Optional[Dict]):
-    if config:
-        logging.config.dictConfig(config)
+def init_logging(logging_config: Optional[Dict], deprecated_logger_config: Optional[Dict]):
+    # https://docs.python.org/3/howto/logging-cookbook.html#logging-to-a-single-file-from-multiple-processes
+    # from logging-cookbook examples for 'logging_config' dict
+    # TODO: needed to handle missing log folders?
+    if logging_config:
+        logging.config.dictConfig(logging_config)
+
+        logging.debug(f"{logging_config=}")
+
+    elif deprecated_logger_config:
+        # convert extractorutils logger-config to a standard 'dictConfig'
+        # TODO: deprecation warning
+        logging.config.dictConfig(
+            {
+                'version': 1,
+                'formatters': {
+                    'formatter': {
+                        'format': '[%(asctime)s] [%(levelname)s] [%(name)s]: %(message)s'
+                    }
+                },
+                'handlers': {
+                    'file': {
+                        'class': 'logging.FileHandler',
+                        'filename': deprecated_logger_config.get('file', {}).get('path', './logs/bootstrap.log'),
+                        'formatter': 'formatter',
+                        'mode': 'w',
+                        'level': deprecated_logger_config.get('file', {}).get('level', 'INFO'),
+                    },
+                    'console': {
+                        'class': 'logging.StreamHandler',
+                        'level': deprecated_logger_config.get('console', {}).get('level', 'INFO'),
+                        'formatter': 'formatter',
+                        'stream': 'ext://sys.stderr'
+                    }
+                },
+                'root': {
+                    'level': 'DEBUG',
+                    'handlers': ['console', 'file']
+                }
+            }
+        )
     else:
-        logging.basicConfig(format="%(levelname)s:%(message)s", level=logging.DEBUG)
+        # if no logging config given, make a simple one to console only
+        logging.basicConfig(
+            format="%(asctime)s [%(levelname)-8s] %(threadName)s - %(message)s",
+            level=logging.INFO,
+            handlers=[
+                # logging.FileHandler("./logs/debug.log"),
+                logging.StreamHandler()
+            ]
+        )
 
     yield logging.getLogger()
-
 
 def shutdown_container(container):
     logging.debug("function to handle additional shutdown of resources")
@@ -90,7 +137,12 @@ class BaseContainer(containers.DeclarativeContainer):
     )
     config = providers.Configuration()
 
-    logging = providers.Resource(init_logging, config=config.logging)
+    # support old extractorutils LoggingConfig (console/file)
+    logging = providers.Resource(
+        init_logging,
+        logging_config=config.logging,
+        deprecated_logger_config=config.logger
+        )
 
 class CogniteContainer(BaseContainer):
     # provides config.cognite:dict as pydantic CogniteConfig object
@@ -121,3 +173,10 @@ class DeployCommandContainer(CogniteContainer):
 
 class DeleteCommandContainer(CogniteContainer):
     delete_or_deprecate = providers.Resource(BootstrapDeleteConfig.parse_obj, obj=BaseContainer.config.delete_or_deprecate)
+
+ContainerSelector = {
+    CommandMode.PREPARE : DeployCommandContainer,
+    CommandMode.DIAGRAM : DiagramCommandContainer,
+    CommandMode.DEPLOY : DeployCommandContainer,
+    CommandMode.DELETE : DeleteCommandContainer,
+}

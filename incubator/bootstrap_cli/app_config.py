@@ -1,9 +1,30 @@
 from typing import Any, Dict, List, Literal, Optional
 
+from enum import Enum
 from pydantic import BaseSettings, BaseModel, Field, validator
 
 from .app_exceptions import BootstrapConfigError
 
+
+
+# mixin 'str' to 'Enum' to support comparison to string-values
+# https://docs.python.org/3/library/enum.html#others
+# https://stackoverflow.com/a/63028809/1104502
+class YesNoType(str, Enum):
+    yes = "yes"
+    no = "no"
+
+
+class CommandMode(str, Enum):
+    PREPARE = "prepare"
+    DEPLOY = "deploy"
+    DELETE = "delete"
+    DIAGRAM = "diagram"
+
+class CacheUpdateMode(str, Enum):
+    CREATE = "create"
+    UPDATE = "update"
+    DELETE = "delete"
 
 
 #
@@ -27,8 +48,11 @@ class KebapBaseModel(BaseModel):
     when using 'Field(alias=..)' or 'alias_generator'
     """
     class Config:
+        # generate for each field an alias in kebap-case (hyphen)
         alias_generator = to_kebap_case
-
+        # an aliased field may be populated by its name as given by the model attribute, as well as the alias
+        # this supports both cases to be mixed!
+        allow_population_by_field_name = True
 
 class CogniteIdpConfig(KebapBaseModel):
     # fields required for OIDC client-credentials authentication
@@ -36,31 +60,7 @@ class CogniteIdpConfig(KebapBaseModel):
     client_id: str
     secret: str
     scopes: List[str]
-    # backwards compatibility, because this field is documented with snake_case :(
-    token_url_kebap: Optional[str] = Field(alias='token-url')
-    # TODO: how to trigger a DeprecationWarning or FutureWarning?
-    token_url_compatibilty: Optional[str] = Field(alias='token_url')
-
-    @property
-    def token_url(self) -> str:
-        # support both field-names for backward-compatibility
-        return self.token_url_compatibilty or self.token_url_kebap
-
-    @validator("token_url_compatibilty", always=True)
-    def token_url_is_required(cls, value, values, field):
-        # validators are called in order the fields are defined!
-        # to compare values 'token_url_compatibilty' must be defined after 'token_url_kebap'
-        # 'always=True' assures that validation run if value is empty
-
-        # one field must contain a value
-        if not (value or values.get('token_url_kebap')):
-            raise ValueError(f"'token-url' is missing")
-
-        # corner-case that both contain values, but are differnt
-        if (value and (kebap := values.get('token_url_kebap')) and (value != kebap)):
-            raise ValueError(f"'token-url' and 'token_url' provided with different values")
-
-        return value
+    token_url: Optional[str]
 
 class CogniteConfig(KebapBaseModel):
     host: str
@@ -90,7 +90,7 @@ class CogniteConfig(KebapBaseModel):
 
 class IdpCdfMapping(KebapBaseModel):
     cdf_group: str
-    idp_source_id: str
+    idp_source_id: Optional[str]
     idp_source_name: Optional[str]
 
 class IdpCdfMappingProjects(KebapBaseModel):
@@ -138,7 +138,9 @@ class BootstrapCoreConfig(KebapBaseModel):
 
     # providing a default for optional 'features' set not avaialble
     # 1:1 default values as used in 'BootstrapFeatures'
-    features: Optional[BootstrapFeatures] = Field(default=dict(
+    features: Optional[BootstrapFeatures] = Field(
+        default=BootstrapFeatures(
+            **dict(
                 with_special_groups= False,
                 with_raw_capability= True,
                 group_prefix="cdf",
@@ -146,7 +148,7 @@ class BootstrapCoreConfig(KebapBaseModel):
                 dataset_suffix="dataset",
                 rawdb_suffix="rawdb",
                 rawdb_additional_variants = ["state"]
-            ))
+            )))
 
     # [] works too > https://stackoverflow.com/a/63808835/1104502
     namespaces: List[Namespace] = Field(default_factory=list)
@@ -170,7 +172,7 @@ class BootstrapCoreConfig(KebapBaseModel):
                 f"Found more than one mapping for cdf_group {cdf_group} in cdf_project {cdf_project}"
             )
 
-        return mappings[0] if mappings else IdpCdfMapping(cdf_group, None, None)
+        return mappings[0] if mappings else IdpCdfMapping(cdf_group=cdf_group, idp_source_id=None, idp_source_name=None)
 
 
 class BootstrapDeleteConfig(KebapBaseModel):
@@ -180,10 +182,4 @@ class BootstrapDeleteConfig(KebapBaseModel):
 
     datasets: Optional[List] = []
     groups: Optional[List] = []
-    raw_dbs_kebap: Optional[List] = Field(default=[], alias='raw-dbs')
-    raw_dbs_compatibilty: Optional[List] = Field(default=[], alias='raw_dbs')
-
-    @property
-    def raw_dbs(self) -> str:
-        # support both field-names for backward-compatibility
-        return self.raw_dbs_compatibilty or self.raw_dbs_kebap
+    raw_dbs: Optional[List] = []

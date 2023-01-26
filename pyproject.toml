@@ -11,6 +11,9 @@ repository = "https://github.com/cognitedata/inso-bootstrap-cli"
 packages = [
     { include="incubator", from="." },
 ]
+[tool.poetry.group.dev.dependencies]
+autopep8 = "^2.0.1"
+
 
 [tool.black]
 line-length = 120

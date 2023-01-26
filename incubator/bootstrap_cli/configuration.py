@@ -1,27 +1,11 @@
 from dataclasses import dataclass, field
-from enum import Enum
 from typing import Any, Dict, List, Optional
 
 from cognite.extractorutils.configtools import CogniteConfig, LoggingConfig, load_yaml
 from .app_exceptions import BootstrapConfigError
 from dotenv import load_dotenv
 
-
-# mixin 'str' to 'Enum' to support comparison to string-values
-# https://docs.python.org/3/library/enum.html#others
-# https://stackoverflow.com/a/63028809/1104502
-class YesNoType(str, Enum):
-    yes = "yes"
-    no = "no"
-
-
-class CommandMode(str, Enum):
-    PREPARE = "prepare"
-    DEPLOY = "deploy"
-    DELETE = "delete"
-    DIAGRAM = "diagram"
-
-
+from .app_config import YesNoType, CommandMode
 
 
 # '''
