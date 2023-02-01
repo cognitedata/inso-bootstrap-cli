@@ -1,10 +1,14 @@
-from typing import Any, Dict, Iterator, List, Optional, Sequence, Union, cast
+from typing import Any, Iterator, Optional, Sequence, Union, cast, overload
 
 from cognite.client._api_client import APIClient
 from cognite.client.utils._identifier import IdentifierSequence
 
-# from cognite.client.data_classes.data_model_storages.spaces import (
 from fdm_sdk_inject.data_classes.data_model_storages.spaces import DataModelStorageSpace, DataModelStorageSpaceList
+
+#
+# HINTS: used cognite/client/_api/assets.py as template for methods
+#       cognite/client/_api/transformations/jobs.py for folder-structure
+#
 
 
 class DataModelStorageSpacesAPI(APIClient):
@@ -13,6 +17,8 @@ class DataModelStorageSpacesAPI(APIClient):
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
+        # default: 1000
+        # TODO: still 100?
         self._CREATE_LIMIT = 100
 
     def __call__(
@@ -23,26 +29,24 @@ class DataModelStorageSpacesAPI(APIClient):
         """Iterate over spaces
         Fetches spaces as they are iterated over, so you keep a limited number of spaces in memory.
         Args:
-            chunk_size (int, optional): Number of spaces to return in each chunk. Defaults to yielding one data set a time.
-            metadata (Dict[str, str]): Custom, application-specific metadata. String key -> String value.
-            limit (int, optional): Maximum number of spaces to return. Defaults to return all items.
+            chunk_size (int, optional):
+                Number of spaces to return in each chunk. Defaults to yielding one data set a time.
+            metadata (Dict[str, str]):
+                Custom, application-specific metadata. String key -> String value.
+            limit (int, optional):
+                Maximum number of spaces to return. Defaults to return all items.
         Yields:
-            Union[DataModelStorageSpace, DataModelStorageSpaceList]: yields DataModelStorageSpace one by one if chunk is not specified, else DataModelStorageSpaceList objects.
+            Union[DataModelStorageSpace, DataModelStorageSpaceList]:
+                yields DataModelStorageSpace one by one if chunk is not specified,
+                else DataModelStorageSpaceList objects.
         """
-        filter = None
-        # filter = SpaceFilter(
-        #     metadata=metadata,
-        #     created_time=created_time,
-        #     last_updated_time=last_updated_time,
-        #     external_id_prefix=external_id_prefix,
-        #     write_protected=write_protected,
-        # ).dump(camel_case=True)
+        # not supported yet(?)
+        # filter = None
         return self._list_generator(
             list_cls=DataModelStorageSpaceList,
             resource_cls=DataModelStorageSpace,
             method="POST",
             chunk_size=chunk_size,
-            filter=filter,
             limit=limit,
         )
 
@@ -52,7 +56,15 @@ class DataModelStorageSpacesAPI(APIClient):
         Yields:
             Event: yields DataModelStorageSpace one by one.
         """
-        return cast(Iterator[DataModelStorageSpace], self.__call__())
+        return cast(Iterator[DataModelStorageSpace], self())
+
+    @overload
+    def create(self, space: Sequence[DataModelStorageSpace]) -> DataModelStorageSpaceList:
+        ...
+
+    @overload
+    def create(self, space: DataModelStorageSpace) -> DataModelStorageSpace:
+        ...
 
     def create(
         self, space: Union[DataModelStorageSpace, Sequence[DataModelStorageSpace]]
@@ -108,10 +120,7 @@ class DataModelStorageSpacesAPI(APIClient):
         """
         identifiers = IdentifierSequence.load(external_ids=external_ids)
         return self._retrieve_multiple(
-            list_cls=DataModelStorageSpaceList,
-            resource_cls=DataModelStorageSpace,
-            identifiers=identifiers,
-            ignore_unknown_ids=ignore_unknown_ids,
+            list_cls=DataModelStorageSpaceList, resource_cls=DataModelStorageSpace, identifiers=identifiers
         )
 
     def list(
@@ -140,27 +149,15 @@ class DataModelStorageSpacesAPI(APIClient):
                 >>> for space_list in c.spaces(chunk_size=2500):
                 ...     space_list # do something with the list
         """
-        filter = None
-        # filter = SpaceFilter(
-        #     metadata=metadata,
-        #     created_time=created_time,
-        #     last_updated_time=last_updated_time,
-        #     external_id_prefix=external_id_prefix,
-        #     write_protected=write_protected,
-        # ).dump(camel_case=True)
+        # not supported yet(?)
+        # filter = None
         return self._list(
-            list_cls=DataModelStorageSpaceList,
-            resource_cls=DataModelStorageSpace,
-            method="POST",
-            limit=limit,
-            filter=filter,
+            list_cls=DataModelStorageSpaceList, resource_cls=DataModelStorageSpace, method="POST", limit=limit
         )
 
-    def delete(
-        self,
-        external_id: Union[str, Sequence[str]] = None,
-    ) -> None:
-        """`Delete one or more spaces <https://pr-ark-codegen-1692.specs.preview.cogniteapp.com/v1.json.html#operation/deleteSpaces>`_
+    def delete(self, external_id: Union[str, Sequence[str]] = None) -> None:
+        """`Delete one or more spaces 
+        <https://pr-ark-codegen-1692.specs.preview.cogniteapp.com/v1.json.html#operation/deleteSpaces>`_
         Args:
             external_id (Union[str, Sequence[str]]): External ID or list of external ids
         Returns:
@@ -171,7 +168,11 @@ class DataModelStorageSpacesAPI(APIClient):
                 >>> c = CogniteClient()
                 >>> c.data_model_storages.spaces.delete(external_id="3")
         """
-        self._delete_multiple(
-            identifiers=IdentifierSequence.load(external_ids=external_id),
-            wrap_ids=False,
-        )
+        # FAILURE: SDK Identifier and IdentifierSequence cannot handle 'spaces' only `external_id' or 'id'
+        # self._delete_multiple(
+        #     identifiers=IdentifierSequence.load(external_ids=external_id),
+        #     wrap_ids=False
+        # )
+
+    # not supported yet(?)
+    # def update(..)

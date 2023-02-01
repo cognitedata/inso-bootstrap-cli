@@ -104,14 +104,12 @@
 
 import json
 import logging
+import re
 from collections import UserList
 from collections.abc import Iterable
 from datetime import datetime
 from enum import Enum
-from pathlib import Path
-import re
 from typing import Any, Dict, List, Optional, Set, Tuple, TypeVar, Union
-from rich import print
 
 import click
 import yaml
@@ -120,6 +118,13 @@ from cognite.client import CogniteClient, utils
 from cognite.client.data_classes import Database, DatabaseList, DataSet, DataSetList, DataSetUpdate, Group, GroupList
 from cognite.client.data_classes._base import CogniteResource, CogniteResourceList
 from dotenv import load_dotenv
+from rich import print
+
+# fdm sdk injection
+# v2
+# from fdm_sdk_inject.data_classes.data_model_storages.spaces import DataModelStorageSpace, DataModelStorageSpaceList
+# v3
+from fdm_sdk_inject.data_classes.models.spaces import ModelsSpace, ModelsSpaceList
 
 # cli internal
 from incubator.bootstrap_cli import __version__
@@ -127,23 +132,16 @@ from incubator.bootstrap_cli.app_config import (
     BootstrapCoreConfig,
     BootstrapDeleteConfig,
     CommandMode,
+    RoleType,
+    ScopeCtxType,
     SharedAccess,
     YesNoType,
-    ScopeCtxType,
-    RoleType,
 )
-
 from incubator.bootstrap_cli.app_container import (
-    CogniteContainer,
     ContainerSelector,
     init_container,
-    DeployCommandContainer,
-    DeleteCommandContainer,
-    DiagramCommandContainer,
-    # PrepareCommandContainer,
-    )
+)
 from incubator.bootstrap_cli.app_exceptions import BootstrapConfigError, BootstrapValidationError
-
 from incubator.bootstrap_cli.mermaid_generator.mermaid import (
     AssymetricNode,
     DottedEdge,
@@ -261,6 +259,7 @@ acl_default_types = [
 # give precedence when merging over acl_default_types
 acl_admin_types = list(action_dimensions[RoleType.ADMIN].keys())
 
+
 class CogniteResourceCache(UserList):
     """Implement own CogniteResourceList class
     To support generic code for Group, DataSet and Database
@@ -273,12 +272,15 @@ class CogniteResourceCache(UserList):
         Group: "id",
         Database: "name",
         # DataModelStorageSpace: "external_id",
-        }  # noqa
+        ModelsSpace: "space",
+    }  # noqa
 
     def __init__(
-        self, RESOURCE: Union[Group, Database, DataSet], resources: Union[CogniteResource, CogniteResourceList]
+        self,
+        RESOURCE: Union[Group, Database, DataSet, ModelsSpace],
+        resources: Union[CogniteResource, CogniteResourceList],
     ) -> None:
-        self.RESOURCE: Union[Group, Database, DataSet] = RESOURCE
+        self.RESOURCE: Union[Group, Database, DataSet, ModelsSpace] = RESOURCE
         self.SELECTOR_FIELD = CogniteResourceCache.RESOURCE_SELECTOR_MAPPING[RESOURCE]
 
         logging.debug(f"Init Resource Cache {RESOURCE=} with SELECTOR_FIELD='{self.SELECTOR_FIELD}'")
@@ -311,7 +313,23 @@ class CogniteResourceCache(UserList):
         Returns:
             List[str]: _description_
         """
-        return [(resource.name or "") for resource in self.data]
+
+        def get_identifier(resource):
+            """CogniteResources have different identifiers
+
+            Args:
+                resource (CogniteResource):  DataSet, Group, Database, DataModelStorageSpace (v2), ModelsSpace (v3)
+
+            Returns:
+                str: best representation we found in order 'space', 'name', 'external_id'
+            """
+            return (
+                resource.space
+                if getattr(resource, "space", False)
+                else (resource.name if getattr(resource, "name", False) else resource.external_id)
+            )
+
+        return [(get_identifier(resource) or "") for resource in self.data]
 
     def select(self, values):
         return [c for c in self.data if getattr(c, self.SELECTOR_FIELD) in values]
@@ -392,8 +410,13 @@ class CogniteDeployedCache:
 
         self.datasets = CogniteResourceCache(RESOURCE=DataSet, resources=self.client.data_sets.list(limit=NOLIMIT))
         self.raw_dbs = CogniteResourceCache(RESOURCE=Database, resources=self.client.raw.databases.list(limit=NOLIMIT))
+        # v3
+        self.spaces = CogniteResourceCache(
+            RESOURCE=ModelsSpace, resources=self.client.models.spaces.list(limit=NOLIMIT)
+        )
+        # v2
         # self.spaces = CogniteResourceCache(
-        #     RESOURCE=DataModelStorageSpace, resources=self.client.data_model_storages.spaces.list(limit=NOLIMIT)
+        #     RESOURCE=DataModelStorageSpace, resources=self.client.models.spaces.list(limit=NOLIMIT)
         # )
 
     def log_counts(self):
@@ -401,8 +424,9 @@ class CogniteDeployedCache:
             f"""Deployed CDF Resource counts:
             RAW Dbs({len(self.raw_dbs.get_names()) if self.raw_dbs else 'n/a with this command'})
             Data Sets({len(self.datasets.get_names()) if self.datasets else 'n/a with this command'})
-            CDF Groups({len(self.groups.get_names())})"""
-            # Data Model Spaces({len(self.spaces.get_names()) if self.spaces else 'n/a with this command'})
+            CDF Groups({len(self.groups.get_names())})
+            Data Model Spaces({len(self.spaces.get_names()) if self.spaces else 'n/a with this command'})
+            """
         )
 
 
@@ -446,12 +470,12 @@ class BootstrapCore:
         # migrating to CogniteDeployedCache
         # self.deployed: Dict[str, Any] = {}
         self.deployed: CogniteDeployedCache = None
-        self.all_scope_ctx: Dict[str, Any] = {}
+        self.all_scoped_ctx: Dict[str, Any] = {}
         self.is_dry_run: bool = False
         self.client: CogniteClient = None
         self.cdf_project = None
 
-        logging.info(f"Starting CDF Bootstrap configuration for command: <{command}>")
+        logging.info(f"Starting CDF Bootstrap version <v{__version__}> for command: <{command}>")
 
         # init command-specific parts
         # if subclass(ContainerCls, CogniteContainer):
@@ -467,10 +491,7 @@ class BootstrapCore:
             logging.info(f"Successful connection to CDF client to project: '{self.cdf_project}'")
 
             # load CDF group, dataset, rawdb config
-            self.deployed = CogniteDeployedCache(
-                self.container.cognite_client(),
-                groups_only=(command == CommandMode.PREPARE)
-                )
+            self.deployed = CogniteDeployedCache(self.client, groups_only=(command == CommandMode.PREPARE))
             self.deployed.log_counts()
 
         if command == CommandMode.DELETE:
@@ -482,6 +503,14 @@ class BootstrapCore:
             self.bootstrap_config: BootstrapCoreConfig = self.container.bootstrap()
             self.idp_cdf_mappings = self.bootstrap_config.idp_cdf_mappings
 
+            if command == CommandMode.DIAGRAM:
+                # diagram, doesn't contain 'cognite' config
+                # but tries to read 'cognite.project' as default
+                # if no '--cdf-project' cli-parameter is given explicit.
+                # Accessing the 'container.config()' directly to check availability
+                # TODO: how to configure an optional 'cognite' section in container directly?
+                self.cdf_project = self.container.config().get("cognite", {}).get("project")
+
             #
             # load 'bootstrap.features'
             #
@@ -490,14 +519,15 @@ class BootstrapCore:
 
             # TODO: not available for 'delete' but there must be a smarter solution
             logging.debug(
-                "Features from config.yaml or defaults (can be overridden by cli-parameters!): "
-                f"{features=}"
+                "Features from config.yaml or defaults (can be overridden by cli-parameters!): " f"{features=}"
             )
 
             # [OPTIONAL] default: False
             self.with_special_groups: bool = features.with_special_groups
             # [OPTIONAL] default: True
             self.with_raw_capability: bool = features.with_raw_capability
+            # [OPTIONAL] default: False
+            self.with_datamodel_capability: bool = features.with_datamodel_capability
 
             # [OPTIONAL] default: "allprojects"
             BootstrapCore.AGGREGATED_LEVEL_NAME = features.aggregated_level_name
@@ -513,7 +543,7 @@ class BootstrapCore:
             # [OPTIONAL] default: "rawdb"
             # support for '' empty string
             BootstrapCore.RAW_SUFFIX = f":{features.rawdb_suffix}" if features.rawdb_suffix else ""
-            # [OPTIONAL] default: ["", ":"state"]
+            # [OPTIONAL] default: ["", ":state"]
             BootstrapCore.RAW_VARIANTS = [""] + [f":{suffix}" for suffix in features.rawdb_additional_variants]
 
     @staticmethod
@@ -575,7 +605,7 @@ class BootstrapCore:
             # generate_target_datasets -> returns a Dict[str, Any]
             "datasets": self.generate_target_datasets(),  # all datasets
             # # generate_target_spaces -> returns a Set[str]
-            # "spaces": self.generate_target_spaces(),  # all spaces
+            "spaces": self.generate_target_spaces(),  # all spaces
         }
 
         errors = []
@@ -667,19 +697,46 @@ class BootstrapCore:
 
         return self
 
-    def validate_config_is_cdf_project_in_mappings(self):
+    def validate_cdf_project_available(self, cdf_project_from_cli: str):
+        # diagram, doesn't require 'cognite' config
+        # using the container to check if one exists and read its 'project' name
+
+        if not cdf_project_from_cli and not self.cdf_project:
+            raise ValueError(
+                "No --cdf-project or 'cognite' configuration is given. No idp-cdf-mapping possible in diagram"
+            )
+
+        # return self for chaining
+        return self
+
+    def validate_config_is_cdf_project_in_mappings(self, cdf_project_from_cli: str = None):
 
         # check if mapping exists for configured cdf-project
-        is_cdf_project_in_mappings = self.cdf_project in [mapping.cdf_project for mapping in self.idp_cdf_mappings]
+        # or for explicit configured cli parameter ('diagram' only)
+        check_cdf_project = cdf_project_from_cli or self.cdf_project
+        is_cdf_project_in_mappings = check_cdf_project in [mapping.cdf_project for mapping in self.idp_cdf_mappings]
+
         if not is_cdf_project_in_mappings:
-            logging.warning(f"No 'idp-cdf-mapping' found for CDF Project <{self.cdf_project}>")
+            logging.warning(f"No 'idp-cdf-mapping' found for CDF Project <{check_cdf_project}>")
             # log or raise?
             # raise ValueError(f'No mapping for CDF project {self.cdf_project}')
 
         # return self for chaining
         return self
 
-    def generate_default_action(self, action, acl_type):
+    def generate_default_action(self, action: RoleType, acl_type: str) -> List[str]:
+        """bootstrap-cli supports two roles: READ, OWNER (called action as parameter)
+        Each acl and role resolves to a list of default or custom actions.
+        - Default actions are hard-coded as ["READ", "WRITE"] or ["READ"]
+        - Custom actions are configured 'action_dimensions'
+
+        Args:
+            action (RoleType): a supported bootstrap-role, representing a group of actions
+            acl_type (str): an acl from 'acl_default_types'
+
+        Returns:
+            List[str]: list of action
+        """
         return action_dimensions[action].get(acl_type, ["READ", "WRITE"] if action == RoleType.OWNER else ["READ"])
 
     def generate_admin_action(self, acl_admin_type):
@@ -843,7 +900,7 @@ class BootstrapCore:
         # returns clear names
         return spaces_by_action
 
-    def get_datasets_groupedby_action(self, action, ns_name, node_name=None):
+    def get_datasets_groupedby_action(self, action: RoleType, ns_name: str, node_name: str = None):
         dataset_names: Dict[str, Any] = {RoleType.OWNER: [], RoleType.READ: []}
         # for example fac:001:wasit, uc:002:meg, etc.
         if node_name:
@@ -923,27 +980,33 @@ class BootstrapCore:
 
     def get_scope_ctx_groupedby_action(self, action, ns_name, node_name=None):
         ds_by_action = self.get_datasets_groupedby_action(action, ns_name, node_name)
-        # spaces_by_action = self.get_spaces_groupedby_action(action, ns_name, node_name)
+        spaces_by_action = self.get_spaces_groupedby_action(action, ns_name, node_name)
         rawdbs_by_action = self.get_raw_dbs_groupedby_action(action, ns_name, node_name)
         return {
             action: {
                 ScopeCtxType.RAWDB: rawdbs_by_action[action],
                 ScopeCtxType.DATASET: ds_by_action[action],
-                # ScopeCtxType.SPACE: spaces_by_action[action]
+                ScopeCtxType.SPACE: spaces_by_action[action],
             }
             for action in [RoleType.OWNER, RoleType.READ]
         }  # fmt: skip
 
-    def generate_scope(self, acl_type, scope_ctx):
+    def generate_scope(self, acl_type: str, scope_ctx: Dict[ScopeCtxType, List[str]]):
         if acl_type == "raw":
             # { "tableScope": { "dbsToTables": { "foo:db": {}, "bar:db": {} } }
             return {"tableScope": {"dbsToTables": {raw: {} for raw in scope_ctx[ScopeCtxType.RAWDB]}}}
         elif acl_type == "dataModels":
             # { "dataModelScope": { "externalIds": [ "foo", "bar" ] }
             return {"dataModelScope": {"externalIds": [space for space in scope_ctx[ScopeCtxType.SPACE]]}}
+            # TODO v3:
+            # { "spaceIdScope": { "spaceIds": [ "foo", "bar" ] }
+            # return {"spaceIdScope": {"spaceIds": [space for space in scope_ctx[ScopeCtxType.SPACE]]}}
         elif acl_type == "dataModelInstances":
             # { "spaceScope": { "externalIds": [ "foo", "bar" ] }
             return {"spaceScope": {"externalIds": [space for space in scope_ctx[ScopeCtxType.SPACE]]}}
+            # TODO v3:
+            # { "spaceIdScope": { "spaceIds": [ "foo", "bar" ] }
+            # return {"spaceIdScope": {"spaceIds": [space for space in scope_ctx[ScopeCtxType.SPACE]]}}
         elif acl_type == "datasets":
             # { "idScope": { "ids": [ 2695894113527579, 4254268848874387 ] } }
             return {"idScope": {"ids": self.dataset_names_to_ids(scope_ctx[ScopeCtxType.DATASET])}}
@@ -1049,7 +1112,7 @@ class BootstrapCore:
                             actions=self.generate_default_action(action, acl_type),
                             # scope = { "all": {} }
                             # create scope for all raw_dbs and datasets
-                            scope=self.generate_scope(acl_type, self.all_scope_ctx),
+                            scope=self.generate_scope(acl_type, self.all_scoped_ctx),
                         )
                     }
                 )
@@ -1374,15 +1437,23 @@ class BootstrapCore:
             missing_space_names = target_space_names
 
         if missing_space_names:
-            spaces_to_be_created = [DataModelStorageSpace(external_id=name) for name in missing_space_names]
+            # v2
+            # spaces_to_be_created = [DataModelStorageSpace(external_id=name) for name in missing_space_names]
+            # v3
+            spaces_to_be_created = [ModelsSpace(space=name, name=name) for name in missing_space_names]
             # create all spaces which are not already deployed
             if self.is_dry_run:
                 for space in list(missing_space_names):
                     logging.info(f"Dry run - Creating space: <{space}>")
             else:
-                created_spaces: Union[
-                    DataModelStorageSpace, DataModelStorageSpaceList
-                ] = self.client.data_model_storages.spaces.create(space=spaces_to_be_created)
+                # v2
+                # created_spaces: Union[
+                #     DataModelStorageSpace, DataModelStorageSpaceList
+                # ] = self.client.data_model_storages.spaces.create(space=spaces_to_be_created)
+                # v3
+                created_spaces: Union[ModelsSpace, ModelsSpaceList] = self.client.models.spaces.create(
+                    space=spaces_to_be_created
+                )
                 self.deployed.spaces.create(resources=created_spaces)
 
         return target_space_names, missing_space_names
@@ -1434,14 +1505,14 @@ class BootstrapCore:
                 "delete_or_deprecate": {
                     f"{ScopeCtxType.RAWDB}": [],
                     f"{ScopeCtxType.DATASET}": [],
-                    # f"{ScopeCtxType.SPACE}": [],
+                    f"{ScopeCtxType.SPACE}": [],
                     f"{ScopeCtxType.GROUP}": [],
                 },
                 "latest_deployment": {
                     f"{ScopeCtxType.RAWDB}": sorted(self.deployed.raw_dbs.get_names()),
                     # (.. or "") because dataset names can be empty (None value)
                     f"{ScopeCtxType.DATASET}": sorted(self.deployed.datasets.get_names()),
-                    # f"{ScopeCtxType.SPACE}": sorted(self.deployed.spaces.get_names()),
+                    f"{ScopeCtxType.SPACE}": sorted(self.deployed.spaces.get_names()),
                     # (.. or "") because group names can be empty (None value)
                     f"{ScopeCtxType.GROUP}": sorted(self.deployed.groups.get_names()),
                 },
@@ -1523,7 +1594,7 @@ class BootstrapCore:
                 # only delete groups which exist
                 logging.info(f"DELETE groups: {group_names}")
                 if self.is_dry_run:
-                    logging.info(f"Dry run - Deprecating groups: <{group_names}>")
+                    logging.info(f"Dry run - Deleting groups: <{group_names}>")
                 else:
                     self.client.iam.groups.delete(delete_group_ids)
                     self.deployed.groups.delete(resources=self.deployed.groups.select(values=delete_group_ids))
@@ -1532,6 +1603,28 @@ class BootstrapCore:
                 logging.info(f"Groups already deleted: {group_names}")
         else:
             logging.info("No groups to delete")
+
+        # spaces
+        space_names = self.delete_or_deprecate.spaces
+        if space_names:
+            # v2 spaces have 'external_id' only
+            # delete_space_ids = [s.external_id for s in self.deployed.spaces if s.external_id in space_names]
+            # v3 spaces have 'space' not 'external_id'
+            delete_space_ids = [s.space for s in self.deployed.spaces if s.space in space_names]
+            if delete_space_ids:
+                # only delete space which exist
+                logging.info(f"DELETE spaces: {space_names}")
+                if self.is_dry_run:
+                    logging.info(f"Dry run - Deleting spaces: <{space_names}>")
+                else:
+                    # TODO: delete is not supported in v2 only v3
+                    self.client.models.spaces.delete(delete_space_ids)
+                    self.deployed.spaces.delete(resources=self.deployed.spaces.select(values=delete_space_ids))
+
+            else:
+                logging.info(f"Spaces already deleted: {space_names}")
+        else:
+            logging.info("No spaces to delete")
 
         # raw_dbs
         raw_db_names = self.delete_or_deprecate.raw_dbs
@@ -1613,6 +1706,7 @@ class BootstrapCore:
         # load deployed groups, datasets, raw_dbs with their ids and metadata
         logging.debug(f"RAW_DBS in CDF:\n{self.deployed.raw_dbs.get_names()}")
         logging.debug(f"DATASETS in CDF:\n{self.deployed.datasets.get_names()}")
+        logging.debug(f"SPACES in CDF:\n{self.deployed.spaces.get_names()}")
         logging.debug(f"GROUPS in CDF:\n{self.deployed.groups.get_names()}")
 
         # run generate steps (only print results atm)
@@ -1658,10 +1752,10 @@ class BootstrapCore:
         logging.info(f"New DATASETS to CDF:\n{new_created_dataset_names}")
 
         # store all raw_dbs and datasets in scope of this configuration
-        self.all_scope_ctx = {
+        self.all_scoped_ctx = {
             ScopeCtxType.RAWDB: target_raw_db_names,  # all raw_dbs
             ScopeCtxType.DATASET: target_dataset_names,  # all datasets
-            # ScopeCtxType.SPACE: target_space_names,  # all spaces
+            ScopeCtxType.SPACE: target_space_names,  # all spaces
         }
 
         # Special CDF groups and their aad_mappings
@@ -1675,7 +1769,7 @@ class BootstrapCore:
 
         logging.debug(f"Final RAW_DBS in CDF:\n{self.deployed.raw_dbs.get_names()}")
         logging.debug(f"Final DATASETS in CDF:\n{self.deployed.datasets.get_names()}")
-        # logging.debug(f"Final SPACES in CDF:\n{self.deployed.spaces.get_names()}")
+        logging.debug(f"Final SPACES in CDF:\n{self.deployed.spaces.get_names()}")
         logging.debug(f"Final GROUPS in CDF\n{self.deployed.groups.get_names()}")
 
         # dump all configs to yaml, as cope/paste template for delete_or_deprecate step
@@ -1722,7 +1816,9 @@ class BootstrapCore:
             ➟  poetry run bootstrap-cli diagram --with-raw-capability no --cdf-project shiny-prod configs/config-deploy-example-v2.yml
         """  # noqa
 
-        diagram_cdf_project = cdf_project if cdf_project else self.cdf_project
+        # availability is validate_cdf_project_available()
+        diagram_cdf_project = cdf_project or self.cdf_project
+
         # same handling as in 'deploy' command
         # store parameter as bool
         # if available it overrides configuration or defaults from yaml-config
@@ -1730,11 +1826,14 @@ class BootstrapCore:
             self.with_raw_capability = with_raw_capability == YesNoType.yes
 
         # debug new features and override with cli-parameters
-        logging.info(f"From cli: {with_raw_capability=}")
-        logging.info(f"Effective: {self.with_raw_capability=}")
+        logging.info(
+            f"'diagram' configured for CDF Project: <{diagram_cdf_project}> and 'with_raw_capability': {self.with_raw_capability}"
+        )
 
         # store all raw_dbs and datasets in scope of this configuration
-        self.all_scope_ctx = {
+        # TODO: wrong structure, actions (RoleType) are added by get_scope_ctx_groupedby_action(..)
+        # diagram uses this data different then deploy
+        self.all_scoped_ctx = {
             RoleType.OWNER: (
                 all_scopes := {
                     # generate_target_raw_dbs -> returns a Set[str]
@@ -1807,7 +1906,7 @@ class BootstrapCore:
                     f"{BootstrapCore.GROUP_NAME_PREFIX}{BootstrapCore.AGGREGATED_LEVEL_NAME}:{action}"
                 )
                 # limit all_scopes to 'action'
-                scope_ctx_by_action = {action: self.all_scope_ctx[action]}
+                scope_ctx_by_action = {action: self.all_scoped_ctx[action]}
             # root level like cdf:root
             elif root_account:  # no parameters
                 # all (no limits)
@@ -2480,7 +2579,8 @@ def diagram(
             BootstrapCore(config_file, command=CommandMode.DIAGRAM, debug=obj["debug"])
             .validate_config_length_limits()
             .validate_config_shared_access()
-            .validate_config_is_cdf_project_in_mappings()
+            .validate_cdf_project_available(cdf_project_from_cli=cdf_project)
+            .validate_config_is_cdf_project_in_mappings(cdf_project_from_cli=cdf_project)
             # .dry_run(obj['dry_run'])
             .diagram(
                 to_markdown=markdown,

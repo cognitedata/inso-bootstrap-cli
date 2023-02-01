@@ -1,10 +1,9 @@
-from typing import Any, Dict, List, Literal, Optional
-
 from enum import Enum
-from pydantic import BaseSettings, BaseModel, Field, validator
+from typing import Any, Dict, List, Optional
+
+from pydantic import BaseModel, Field
 
 from .app_exceptions import BootstrapConfigError
-
 
 
 # mixin 'str' to 'Enum' to support comparison to string-values
@@ -21,10 +20,12 @@ class CommandMode(str, Enum):
     DELETE = "delete"
     DIAGRAM = "diagram"
 
+
 class CacheUpdateMode(str, Enum):
     CREATE = "create"
     UPDATE = "update"
     DELETE = "delete"
+
 
 class ScopeCtxType(str, Enum):
     DATASET = "datasets"
@@ -37,6 +38,7 @@ class RoleType(str, Enum):
     READ = "read"
     OWNER = "owner"
     ADMIN = "admin"
+
 
 #
 # pydantic class definitions
@@ -51,19 +53,22 @@ def to_kebap_case(value: str) -> str:
     Returns:
         str: alias in kebap-style
     """
-    return value.replace('_', '-')
+    return value.replace("_", "-")
+
 
 class KebapBaseModel(BaseModel):
     """Subclass with alias_generator
     Using BaseModel instead of BaseSettings as latter throws FutureWarnings
     when using 'Field(alias=..)' or 'alias_generator'
     """
+
     class Config:
         # generate for each field an alias in kebap-case (hyphen)
         alias_generator = to_kebap_case
         # an aliased field may be populated by its name as given by the model attribute, as well as the alias
         # this supports both cases to be mixed!
         allow_population_by_field_name = True
+
 
 class CogniteIdpConfig(KebapBaseModel):
     # fields required for OIDC client-credentials authentication
@@ -72,6 +77,7 @@ class CogniteIdpConfig(KebapBaseModel):
     secret: str
     scopes: List[str]
     token_url: Optional[str]
+
 
 class CogniteConfig(KebapBaseModel):
     host: str
@@ -83,26 +89,33 @@ class CogniteConfig(KebapBaseModel):
     @property
     def base_url(self) -> List[str]:
         return self.host
+
     @property
     def token_url(self) -> str:
         return self.idp_authentication.token_url
+
     @property
     def scopes(self) -> List[str]:
         return self.idp_authentication.scopes
+
     @property
     def client_name(self) -> List[str]:
         return self.idp_authentication.client_name
+
     @property
     def client_id(self) -> List[str]:
         return self.idp_authentication.client_id
+
     @property
     def client_secret(self) -> List[str]:
         return self.idp_authentication.secret
+
 
 class IdpCdfMapping(KebapBaseModel):
     cdf_group: str
     idp_source_id: Optional[str]
     idp_source_name: Optional[str]
+
 
 class IdpCdfMappingProjects(KebapBaseModel):
     cdf_project: str
@@ -116,6 +129,7 @@ class SharedNode(KebapBaseModel):
 class SharedAccess(KebapBaseModel):
     owner: Optional[List[SharedNode]] = Field(default_factory=list)
     read: Optional[List[SharedNode]] = Field(default_factory=list)
+
 
 class NamespaceNode(KebapBaseModel):
     node_name: str
@@ -139,8 +153,10 @@ class BootstrapFeatures(KebapBaseModel):
     group_prefix: Optional[str] = "cdf"
     aggregated_level_name: Optional[str] = "allprojects"
     dataset_suffix: Optional[str] = "dataset"
+    space_suffix: Optional[str] = "space"
     rawdb_suffix: Optional[str] = "rawdb"
     rawdb_additional_variants: Optional[List[str]] = ["state"]
+
 
 class BootstrapCoreConfig(KebapBaseModel):
     """
@@ -153,20 +169,23 @@ class BootstrapCoreConfig(KebapBaseModel):
     features: Optional[BootstrapFeatures] = Field(
         default=BootstrapFeatures(
             **dict(
-                with_special_groups= False,
-                with_raw_capability= True,
+                with_special_groups=False,
+                with_raw_capability=True,
+                with_datamodel_capability=False,
                 group_prefix="cdf",
                 aggregated_level_name="allprojects",
                 dataset_suffix="dataset",
+                space_suffix="space",
                 rawdb_suffix="rawdb",
-                rawdb_additional_variants = ["state"]
-            )))
+                rawdb_additional_variants=["state"],
+            )
+        )
+    )
 
     # [] works too > https://stackoverflow.com/a/63808835/1104502
     namespaces: List[Namespace] = Field(default_factory=list)
     # alias_generator
     idp_cdf_mappings: Optional[List[IdpCdfMappingProjects]] = Field(default_factory=list)
-
 
     def get_idp_cdf_mapping_for_group(self, cdf_project, cdf_group) -> IdpCdfMapping:
         """
@@ -195,3 +214,4 @@ class BootstrapDeleteConfig(KebapBaseModel):
     datasets: Optional[List] = []
     groups: Optional[List] = []
     raw_dbs: Optional[List] = []
+    spaces: Optional[List] = []

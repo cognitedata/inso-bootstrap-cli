@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any, Dict, List, Union, cast
+from typing import TYPE_CHECKING, cast
 
 from cognite.client.data_classes._base import CogniteResource, CogniteResourceList
 

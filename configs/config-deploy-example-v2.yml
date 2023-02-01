@@ -43,6 +43,9 @@ bootstrap:
     # The default and recommended value is: true
     with-raw-capability: true
 
+    # The default and recommended value is: false
+    with-datamodel-capability: true
+
     # New in v2 to configure previously (v1) hardcoded naming elements.
     # Most of the naming configurations don't have a functional effect, but affect
     # naming of groups, datasets and Raw databases only.
@@ -63,6 +66,10 @@ bootstrap:
     # Recommended value is 'ds' or ''
     #   Supports empty strings, ''
     dataset-suffix: ds
+
+    # Default value: space
+    #  Recommended value: 'spc' or  ''
+    space-suffix: spc
 
     # Default value: rawdb
     #  Recommended value: 'db' or  ''

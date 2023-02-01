@@ -1,22 +1,25 @@
 import logging.config
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Dict, Optional
 
 from cognite.client import ClientConfig, CogniteClient
 from cognite.client.credentials import OAuthClientCredentials
 from dependency_injector import containers, providers
 from dotenv import load_dotenv
-from rich import print
 
-from .app_config import (
-    YesNoType,
-    CommandMode,
-    CogniteConfig,
-    BootstrapCoreConfig,
-    BootstrapDeleteConfig,
-    )
+# v2
+# from fdm_sdk_inject._api.data_model_storages import DataModelStoragesAPI
+# v3
+from fdm_sdk_inject._api.models import ModelsAPI
 
-def init_container(container_cls: containers.Container, config_path: str | Path = "/etc/f25e/config.yaml", dotenv_path: str | Path = None):
+from .app_config import BootstrapCoreConfig, BootstrapDeleteConfig, CogniteConfig, CommandMode
+
+
+def init_container(
+    container_cls: containers.Container,
+    config_path: str | Path = "/etc/f25e/config.yaml",
+    dotenv_path: str | Path = None,
+):
     """Spinning up container and
 
     Args:
@@ -53,31 +56,24 @@ def init_logging(logging_config: Optional[Dict], deprecated_logger_config: Optio
         # TODO: deprecation warning
         logging.config.dictConfig(
             {
-                'version': 1,
-                'formatters': {
-                    'formatter': {
-                        'format': '[%(asctime)s] [%(levelname)s] [%(name)s]: %(message)s'
-                    }
-                },
-                'handlers': {
-                    'file': {
-                        'class': 'logging.FileHandler',
-                        'filename': deprecated_logger_config.get('file', {}).get('path', './logs/bootstrap.log'),
-                        'formatter': 'formatter',
-                        'mode': 'w',
-                        'level': deprecated_logger_config.get('file', {}).get('level', 'INFO'),
+                "version": 1,
+                "formatters": {"formatter": {"format": "[%(asctime)s] [%(levelname)s] [%(name)s]: %(message)s"}},
+                "handlers": {
+                    "file": {
+                        "class": "logging.FileHandler",
+                        "filename": deprecated_logger_config.get("file", {}).get("path", "./logs/bootstrap.log"),
+                        "formatter": "formatter",
+                        "mode": "w",
+                        "level": deprecated_logger_config.get("file", {}).get("level", "INFO"),
                     },
-                    'console': {
-                        'class': 'logging.StreamHandler',
-                        'level': deprecated_logger_config.get('console', {}).get('level', 'INFO'),
-                        'formatter': 'formatter',
-                        'stream': 'ext://sys.stderr'
-                    }
+                    "console": {
+                        "class": "logging.StreamHandler",
+                        "level": deprecated_logger_config.get("console", {}).get("level", "INFO"),
+                        "formatter": "formatter",
+                        "stream": "ext://sys.stderr",
+                    },
                 },
-                'root': {
-                    'level': 'DEBUG',
-                    'handlers': ['console', 'file']
-                }
+                "root": {"level": "DEBUG", "handlers": ["console", "file"]},
             }
         )
     else:
@@ -88,10 +84,11 @@ def init_logging(logging_config: Optional[Dict], deprecated_logger_config: Optio
             handlers=[
                 # logging.FileHandler("./logs/debug.log"),
                 logging.StreamHandler()
-            ]
+            ],
         )
 
     yield logging.getLogger()
+
 
 def shutdown_container(container):
     logging.debug("function to handle additional shutdown of resources")
@@ -121,10 +118,26 @@ def get_cognite_client(cognite_config: CogniteConfig) -> CogniteClient:
             credentials=credentials,
         )
         logging.debug(f"get CogniteClient for {cognite_config.project=}")
-        return CogniteClient(cnf)
+
+        #
+        # FDM SDK injector
+        #
+        client = CogniteClient(cnf)
+        _API_VERSION = "v1"
+        if not getattr(client, "data_model_storages", None):
+            # v2
+            # client.data_model_storages = DataModelStoragesAPI(
+            #     config=client.config, api_version=_API_VERSION, cognite_client=client
+            # )
+            # v3
+            client.models = ModelsAPI(config=client.config, api_version=_API_VERSION, cognite_client=client)
+            logging.debug("Successfully injected FDM data_model_storages")
+
+        return client
     except Exception as e:
         logging.critical(f"Unable to create CogniteClient: {e}")
         raise
+
 
 class BaseContainer(containers.DeclarativeContainer):
     wiring_config = containers.WiringConfiguration(
@@ -138,11 +151,8 @@ class BaseContainer(containers.DeclarativeContainer):
     config = providers.Configuration()
 
     # support old extractorutils LoggingConfig (console/file)
-    logging = providers.Resource(
-        init_logging,
-        logging_config=config.logging,
-        deprecated_logger_config=config.logger
-        )
+    logging = providers.Resource(init_logging, logging_config=config.logging, deprecated_logger_config=config.logger)
+
 
 class CogniteContainer(BaseContainer):
     # provides config.cognite:dict as pydantic CogniteConfig object
@@ -161,7 +171,9 @@ class DiagramCommandContainer(BaseContainer):
     Args:
         BaseContainer (_type_): _description_
     """
+
     bootstrap = providers.Resource(BootstrapCoreConfig.parse_obj, obj=BaseContainer.config.bootstrap)
+
 
 class DeployCommandContainer(CogniteContainer):
     """Container providing 'cognite_client' and 'bootstrap'
@@ -169,14 +181,19 @@ class DeployCommandContainer(CogniteContainer):
     Args:
         CogniteContainer (_type_): _description_
     """
+
     bootstrap = providers.Resource(BootstrapCoreConfig.parse_obj, obj=CogniteContainer.config.bootstrap)
 
+
 class DeleteCommandContainer(CogniteContainer):
-    delete_or_deprecate = providers.Resource(BootstrapDeleteConfig.parse_obj, obj=BaseContainer.config.delete_or_deprecate)
+    delete_or_deprecate = providers.Resource(
+        BootstrapDeleteConfig.parse_obj, obj=BaseContainer.config.delete_or_deprecate
+    )
+
 
 ContainerSelector = {
-    CommandMode.PREPARE : DeployCommandContainer,
-    CommandMode.DIAGRAM : DiagramCommandContainer,
-    CommandMode.DEPLOY : DeployCommandContainer,
-    CommandMode.DELETE : DeleteCommandContainer,
+    CommandMode.PREPARE: DeployCommandContainer,
+    CommandMode.DIAGRAM: DiagramCommandContainer,
+    CommandMode.DEPLOY: DeployCommandContainer,
+    CommandMode.DELETE: DeleteCommandContainer,
 }
