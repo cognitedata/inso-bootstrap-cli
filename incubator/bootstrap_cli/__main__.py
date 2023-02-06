@@ -147,10 +147,11 @@ from incubator.bootstrap_cli.mermaid_generator.mermaid import (
     DottedEdge,
     Edge,
     GraphRegistry,
+    HexagonNode,
     Node,
-    RoundedNode,
+    RoundedEdgesNode,
     SubroutineNode,
-    TrapezNode,
+    TrapezoidAltNode,
 )
 
 # '''
@@ -180,6 +181,7 @@ acl_all_scope_only_types = set(
     [
         "projects",
         "sessions",
+        "annotations",
         "entitymatching",
         "functions",
         "types",
@@ -189,9 +191,6 @@ acl_all_scope_only_types = set(
         "geospatial",
         "geospatialCrs",
         "wells",
-        # until support for new "externalId" scope mechanism is implemented
-        "dataModels",
-        "dataModelInstances",
     ]
 )
 # lookup of non-default actions per capability (acl) and role (owner/read/admin)
@@ -202,6 +201,7 @@ action_dimensions = {
         "datasets": ["READ", "OWNER"],
         "groups": ["LIST"],
         "projects": ["LIST"],
+        "robotics": ["READ", "CREATE", "UPDATE", "DELETE"],
         "sessions": ["LIST", "CREATE"],
         "threed": ["READ", "CREATE", "UPDATE", "DELETE"],
     },
@@ -227,12 +227,14 @@ action_dimensions = {
 #
 acl_default_types = [
     "assets",
+    "annotations",
     "dataModels",
     "dataModelInstances",
     "datasets",
     "digitalTwin",
     "entitymatching",
     "events",
+    "extractionConfigs",
     "extractionPipelines",
     "extractionRuns",
     "files",
@@ -1846,6 +1848,15 @@ class BootstrapCore:
             RoleType.READ: all_scopes,
         }
 
+        def scopectx_mermaid_node_mapping(scopectx: ScopeCtxType) -> Node:
+            # hide a dict access in this typed-helper method
+            return {
+                ScopeCtxType.DATASET: AssymetricNode,
+                ScopeCtxType.RAWDB: SubroutineNode,
+                ScopeCtxType.SPACE: HexagonNode,
+                }[scopectx]
+
+
         def get_group_name_and_scopes(
             action: str = None, ns_name: str = None, node_name: str = None, root_account: str = None
         ) -> Tuple[str, Dict[str, Any]]:
@@ -1964,7 +1975,7 @@ class BootstrapCore:
             idp = graph.get_or_create(SubgraphTypes.idp)
             if idp_source_name and (idp_source_name not in idp):
                 idp.elements.append(
-                    TrapezNode(
+                    TrapezoidAltNode(
                         id_name=idp_source_name,
                         display=idp_source_name,
                         comments=[f'IdP objectId: {idp_source_id}']
@@ -1989,7 +2000,7 @@ class BootstrapCore:
             #
             if action and ns_name and node_name:
                 core_cdf.elements.append(
-                    RoundedNode(
+                    RoundedEdgesNode(
                         id_name=group_name,
                         display=group_name,
                         comments=""
@@ -2020,8 +2031,11 @@ class BootstrapCore:
                     # scopes: List[str]
                     for scope_type, scopes in scope_ctx.items():
 
-                        if not self.with_raw_capability and scope_type == "raw":
-                            continue  # SKIP RAW
+                        if not self.with_raw_capability and scope_type in (ScopeCtxType.RAWDB, ScopeCtxType.SPACE):
+                            continue  # simple output SKIP RAW and SPACE
+
+                        if not self.with_datamodel_capability and scope_type == ScopeCtxType.SPACE:
+                            continue  # SKIP SPACE
 
                         for scope_name in scopes:
 
@@ -2030,7 +2044,7 @@ class BootstrapCore:
                             #    'src:001:sap:rawdb'
                             #
                             if scope_name not in scope_graph:
-                                node_type_cls = SubroutineNode if scope_type == "raw" else AssymetricNode
+                                node_type_cls = scopectx_mermaid_node_mapping(scope_type)
                                 scope_graph.elements.append(
                                     node_type_cls(
                                         id_name=f"{scope_name}__{action}__{scope_type}",
@@ -2086,8 +2100,12 @@ class BootstrapCore:
                     # scopes: List[str]
                     for scope_type, scopes in scope_ctx.items():
 
-                        if not self.with_raw_capability and scope_type == "raw":
-                            continue  # SKIP RAW
+                        if not self.with_raw_capability and scope_type in (ScopeCtxType.RAWDB, ScopeCtxType.SPACE):
+                            continue  # simple output SKIP RAW and SPACE
+
+                        if not self.with_datamodel_capability and scope_type == ScopeCtxType.SPACE:
+                            continue  # SKIP SPACE
+
 
                         for scope_name in scopes:
 
@@ -2102,7 +2120,7 @@ class BootstrapCore:
                             #
                             if scope_name not in scope_graph:
 
-                                node_type_cls = SubroutineNode if scope_type == "raw" else AssymetricNode
+                                node_type_cls = scopectx_mermaid_node_mapping(scope_type)
                                 scope_graph.elements.append(
                                     node_type_cls(
                                         id_name=f"{scope_name}__{action}__{scope_type}",
@@ -2145,8 +2163,11 @@ class BootstrapCore:
                     # scopes: List[str]
                     for scope_type, scopes in scope_ctx.items():
 
-                        if not self.with_raw_capability and scope_type == "raw":
-                            continue  # SKIP RAW
+                        if not self.with_raw_capability and scope_type in (ScopeCtxType.RAWDB, ScopeCtxType.SPACE):
+                            continue  # simple output SKIP RAW and SPACE
+
+                        if not self.with_datamodel_capability and scope_type == ScopeCtxType.SPACE:
+                            continue  # SKIP SPACE
 
                         for scope_name in scopes:
 
@@ -2164,7 +2185,7 @@ class BootstrapCore:
 
                                 # logging.info(f">> add {scope_name=}__{action=}")
 
-                                node_type_cls = SubroutineNode if scope_type == "raw" else AssymetricNode
+                                node_type_cls = scopectx_mermaid_node_mapping(scope_type)
                                 scope_graph.elements.append(
                                     node_type_cls(
                                         id_name=f"{scope_name}__{action}__{scope_type}",

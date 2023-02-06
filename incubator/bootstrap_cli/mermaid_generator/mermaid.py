@@ -46,7 +46,7 @@ class MermaidFlowchartElement:
         return f"""{NEWLINE.join([f'%% {comment}' for comment in self.comments]) + NEWLINE}""" if self.comments else ""
 
 
-# https://mermaid-js.github.io/mermaid/#/flowchart?id=node-shapestyle-and-arrowstyle
+# https://mermaid.js.org/syntax/flowchart.html#node-shapes
 @dataclass
 class Node(MermaidFlowchartElement):
     display: str
@@ -60,20 +60,31 @@ class Node(MermaidFlowchartElement):
 class HexagonNode(Node):
     def __repr__(self):
         return (
-            self.comments_to_mermaid() + f"""{self.id_name}""" + (rf"""{{"{self.display}"}}""" if self.display else "")
+            # id1{{This is the text in the box}}
+            self.comments_to_mermaid() + f"""{self.id_name}""" + (rf"""{{{{"{self.display}"}}}}""" if self.display else "")
         )
 
 
 @dataclass
-class RoundedNode(Node):
+class RoundedEdgesNode(Node):
     def __repr__(self):
+        # id1(This is the text in the box)
         return self.comments_to_mermaid() + f"""{self.id_name}""" + (rf"""("{self.display}")""" if self.display else "")
 
 
 @dataclass
-class TrapezNode(Node):
+class TrapezoidNode(Node):
     def __repr__(self):
         return (
+            # A[/Christmas\]
+            self.comments_to_mermaid() + f"""{self.id_name}""" + (rf"""[/"{self.display}"\]""" if self.display else "")
+        )
+
+@dataclass
+class TrapezoidAltNode(Node):
+    def __repr__(self):
+        return (
+            # B[\Go shopping/]
             self.comments_to_mermaid() + f"""{self.id_name}""" + (rf"""[\"{self.display}"/]""" if self.display else "")
         )
 
@@ -81,15 +92,15 @@ class TrapezNode(Node):
 @dataclass
 class AssymetricNode(Node):
     def __repr__(self):
+        # id1>This is the text in the box]
         return self.comments_to_mermaid() + f"""{self.id_name}""" + (rf""">"{self.display}"]""" if self.display else "")
 
 
 @dataclass
 class SubroutineNode(Node):
     def __repr__(self):
-        return (
-            self.comments_to_mermaid() + f"""{self.id_name}""" + (rf"""[["{self.display}"]]""" if self.display else "")
-        )
+        # id1[[This is the text in the box]]
+        return self.comments_to_mermaid() + f"""{self.id_name}""" + (rf"""[["{self.display}"]]""" if self.display else "")
 
 
 @dataclass
