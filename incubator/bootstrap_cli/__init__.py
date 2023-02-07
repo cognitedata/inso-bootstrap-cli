@@ -7,4 +7,4 @@
 
 # keep manually in sync with pyproject.toml until the above approach is working in Docker too
 # TODO: 220419 pa: switched to gh-action semantic-versioning, but still requires manually update here
-__version__ = "2.5.0"
+__version__ = "3.0.0"

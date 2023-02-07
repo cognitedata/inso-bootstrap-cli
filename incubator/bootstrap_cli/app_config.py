@@ -5,6 +5,99 @@ from pydantic import BaseModel, Field
 
 from .app_exceptions import BootstrapConfigError
 
+# because within f'' strings no backslash-character is allowed
+NEWLINE = "\n"
+
+class RoleType(str, Enum):
+    READ = "read"
+    OWNER = "owner"
+    ADMIN = "admin"
+
+# capabilities (acl) which only support  scope: {"all":{}}
+AclAllScopeOnlyTypes = set(
+    [
+        "projects",
+        "sessions",
+        "annotations",
+        "entitymatching",
+        "functions",
+        "types",
+        "threed",
+        "seismic",
+        "digitalTwin",
+        "geospatial",
+        "geospatialCrs",
+        "wells",
+    ]
+)
+# lookup of non-default actions per capability (acl) and role (owner/read/admin)
+ActionDimensions = {
+    # owner datasets might only need READ and OWNER
+    RoleType.OWNER: {  # else ["READ","WRITE"]
+        "raw": ["READ", "WRITE", "LIST"],
+        "datasets": ["READ", "OWNER"],
+        "groups": ["LIST"],
+        "projects": ["LIST"],
+        "robotics": ["READ", "CREATE", "UPDATE", "DELETE"],
+        "sessions": ["LIST", "CREATE"],
+        "threed": ["READ", "CREATE", "UPDATE", "DELETE"],
+    },
+    RoleType.READ: {  # else ["READ"]
+        "raw": ["READ", "LIST"],
+        "groups": ["LIST"],
+        "projects": ["LIST"],
+        "sessions": ["LIST"],
+    },
+    RoleType.ADMIN: {
+        "datasets": ["READ", "WRITE", "OWNER"],
+        "groups": ["LIST", "READ", "CREATE", "UPDATE", "DELETE"],
+        "projects": ["READ", "UPDATE", "LIST"],
+    },
+}
+
+#
+# GENERIC configurations
+# extend when new capability (acl) is available
+# check if action_dimensions must be extended with non-default capabilities:
+#   which are owner: ["READ","WRITE"]
+#   and read: ["READ"])
+#
+AclDefaultTypes = [
+    "assets",
+    "annotations",
+    "dataModels",
+    "dataModelInstances",
+    "datasets",
+    "digitalTwin",
+    "entitymatching",
+    "events",
+    "extractionConfigs",
+    "extractionPipelines",
+    "extractionRuns",
+    "files",
+    "functions",
+    "geospatial",
+    "geospatialCrs",
+    "groups",
+    "labels",
+    "projects",
+    "raw",
+    "relationships",
+    "seismic",
+    "sequences",
+    "sessions",
+    "templateGroups",
+    "templateInstances",
+    "threed",
+    "timeSeries",
+    "transformations",
+    "types",
+    "wells",
+]
+
+# give precedence when merging over acl_default_types
+AclAdminTypes = list(ActionDimensions[RoleType.ADMIN].keys())
+
 
 # mixin 'str' to 'Enum' to support comparison to string-values
 # https://docs.python.org/3/library/enum.html#others
@@ -32,12 +125,6 @@ class ScopeCtxType(str, Enum):
     SPACE = "spaces"
     RAWDB = "raw_dbs"
     GROUP = "groups"
-
-
-class RoleType(str, Enum):
-    READ = "read"
-    OWNER = "owner"
-    ADMIN = "admin"
 
 
 #
