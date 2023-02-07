@@ -8,10 +8,12 @@ from .app_exceptions import BootstrapConfigError
 # because within f'' strings no backslash-character is allowed
 NEWLINE = "\n"
 
+
 class RoleType(str, Enum):
     READ = "read"
     OWNER = "owner"
     ADMIN = "admin"
+
 
 # capabilities (acl) which only support  scope: {"all":{}}
 AclAllScopeOnlyTypes = set(

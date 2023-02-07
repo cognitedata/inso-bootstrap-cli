@@ -1,17 +1,10 @@
 import logging
-
-from typing import Tuple, Dict, Any
 from enum import Enum
+from typing import Any, Dict, Tuple
+
+from incubator.bootstrap_cli.app_config import AclDefaultTypes, RoleType, ScopeCtxType, YesNoType
 
 from .base import BootstrapCommandBase
-
-from incubator.bootstrap_cli.app_config import (
-    RoleType,
-    ScopeCtxType,
-    YesNoType,
-    AclDefaultTypes,
-)
-
 from .mermaid_generator.mermaid import (
     AssymetricNode,
     DottedEdge,
@@ -23,6 +16,7 @@ from .mermaid_generator.mermaid import (
     SubroutineNode,
     TrapezoidAltNode,
 )
+
 
 class BootstrapDiagram(BootstrapCommandBase):
 
@@ -76,7 +70,8 @@ class BootstrapDiagram(BootstrapCommandBase):
 
         # debug new features and override with cli-parameters
         logging.info(
-            f"'diagram' configured for CDF Project: <{diagram_cdf_project}> and 'with_raw_capability': {self.with_raw_capability}"
+            "'diagram' configured for CDF Project: "
+            f"<{diagram_cdf_project}> and 'with_raw_capability': {self.with_raw_capability}"
         )
 
         # store all raw_dbs and datasets in scope of this configuration
@@ -101,8 +96,7 @@ class BootstrapDiagram(BootstrapCommandBase):
                 ScopeCtxType.DATASET: AssymetricNode,
                 ScopeCtxType.RAWDB: SubroutineNode,
                 ScopeCtxType.SPACE: HexagonNode,
-                }[scopectx]
-
+            }[scopectx]
 
         def get_group_name_and_scopes(
             action: str = None, ns_name: str = None, node_name: str = None, root_account: str = None
@@ -152,9 +146,7 @@ class BootstrapDiagram(BootstrapCommandBase):
             elif action and ns_name:
                 # 'all' groups on group-type level
                 # (access to all datasets/ raw-dbs which belong to this group-type)
-                group_name_full_qualified = (
-                    f"{BootstrapCommandBase.GROUP_NAME_PREFIX}{ns_name}:{BootstrapCommandBase.AGGREGATED_LEVEL_NAME}:{action}"
-                )
+                group_name_full_qualified = f"{BootstrapCommandBase.GROUP_NAME_PREFIX}{ns_name}:{BootstrapCommandBase.AGGREGATED_LEVEL_NAME}:{action}"  # noqa
                 scope_ctx_by_action = self.get_scope_ctx_groupedby_action(action, ns_name)
 
             # top level like cdf:all:read
@@ -333,7 +325,7 @@ class BootstrapDiagram(BootstrapCommandBase):
                 edge_type_cls = Edge if action == RoleType.OWNER else DottedEdge
                 graph.edges.append(
                     edge_type_cls(
-                        id_name=f"{BootstrapCommandBase.GROUP_NAME_PREFIX}{BootstrapCommandBase.AGGREGATED_LEVEL_NAME}:{action}",
+                        id_name=f"{BootstrapCommandBase.GROUP_NAME_PREFIX}{BootstrapCommandBase.AGGREGATED_LEVEL_NAME}:{action}", # noqa
                         dest=group_name,
                         annotation="",
                         comments=[],
@@ -352,7 +344,6 @@ class BootstrapDiagram(BootstrapCommandBase):
 
                         if not self.with_datamodel_capability and scope_type == ScopeCtxType.SPACE:
                             continue  # SKIP SPACE
-
 
                         for scope_name in scopes:
 

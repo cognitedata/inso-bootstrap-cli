@@ -1,5 +1,7 @@
 import logging
+
 from .base import BootstrapCommandBase
+
 
 class BootstrapPrepare(BootstrapCommandBase):
     # '''

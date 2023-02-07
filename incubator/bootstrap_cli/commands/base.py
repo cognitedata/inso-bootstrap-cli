@@ -1,10 +1,9 @@
 import logging
 import re
-import yaml
-
 from datetime import datetime
 from typing import Any, Dict, List, Set, Tuple, TypeVar, Union
 
+import yaml
 from cognite.client import CogniteClient
 from cognite.client.data_classes import Database, DatabaseList, DataSet, DataSetList, DataSetUpdate, Group, GroupList
 
@@ -13,34 +12,24 @@ from cognite.client.data_classes import Database, DatabaseList, DataSet, DataSet
 # from fdm_sdk_inject.data_classes.data_model_storages.spaces import DataModelStorageSpace, DataModelStorageSpaceList
 # v3
 from fdm_sdk_inject.data_classes.models.spaces import ModelsSpace, ModelsSpaceList
-
 from incubator.bootstrap_cli import __version__
+from incubator.bootstrap_cli.app_cache import CogniteDeployedCache
 from incubator.bootstrap_cli.app_config import (
-    CommandMode,
-    YesNoType,
-    BootstrapCoreConfig,
-    BootstrapDeleteConfig,
     NEWLINE,
-    RoleType,
-    ScopeCtxType,
-    ActionDimensions,
-    AclDefaultTypes,
-    SharedAccess,
     AclAdminTypes,
     AclAllScopeOnlyTypes,
+    AclDefaultTypes,
+    ActionDimensions,
+    BootstrapCoreConfig,
+    BootstrapDeleteConfig,
+    CommandMode,
+    RoleType,
+    ScopeCtxType,
+    SharedAccess,
+    YesNoType,
 )
-
+from incubator.bootstrap_cli.app_container import ContainerSelector, init_container
 from incubator.bootstrap_cli.app_exceptions import BootstrapValidationError
-
-from incubator.bootstrap_cli.app_container import (
-    ContainerSelector,
-    init_container,
-)
-
-from incubator.bootstrap_cli.app_cache import (
-    CogniteDeployedCache
-)
-
 
 # '''
 #  888888b.                     888             888                              .d8888b.
@@ -56,8 +45,8 @@ from incubator.bootstrap_cli.app_cache import (
 #                                                                      888
 # '''
 
-# type-hint for ExtpipesCore instance response
-T_BootstrapCore = TypeVar("T_BootstrapCore", bound="BootstrapBase")
+# type-hint for BootstrapCommandBase instance response
+T_BootstrapCommandBase = TypeVar("T_BootstrapCommandBase", bound="BootstrapCommandBase")
 
 
 class BootstrapCommandBase:
@@ -164,7 +153,11 @@ class BootstrapCommandBase:
 
     @staticmethod
     def get_allprojects_name_template(ns_name=None):
-        return f"{ns_name}:{BootstrapCommandBase.AGGREGATED_LEVEL_NAME}" if ns_name else BootstrapCommandBase.AGGREGATED_LEVEL_NAME
+        return (
+            f"{ns_name}:{BootstrapCommandBase.AGGREGATED_LEVEL_NAME}"
+            if ns_name
+            else BootstrapCommandBase.AGGREGATED_LEVEL_NAME
+        )
 
     @staticmethod
     def get_dataset_name_template():
@@ -688,9 +681,7 @@ class BootstrapCommandBase:
         elif action and ns_name:
             # 'all' groups on group-type level
             # (access to all datasets/ raw-dbs which belong to this group-type)
-            group_name_full_qualified = (
-                f"{BootstrapCommandBase.GROUP_NAME_PREFIX}{ns_name}:{BootstrapCommandBase.AGGREGATED_LEVEL_NAME}:{action}"
-            )
+            group_name_full_qualified = f"{BootstrapCommandBase.GROUP_NAME_PREFIX}{ns_name}:{BootstrapCommandBase.AGGREGATED_LEVEL_NAME}:{action}"  # noqa
 
             [
                 capabilities.append(  # type: ignore
@@ -1139,7 +1130,7 @@ class BootstrapCommandBase:
     * delete removed from config
     """
 
-    def dry_run(self, dry_run: YesNoType) -> T_BootstrapCore:
+    def dry_run(self, dry_run: YesNoType) -> T_BootstrapCommandBase:
         self.is_dry_run = dry_run == YesNoType.yes
 
         if self.is_dry_run:

@@ -1,12 +1,10 @@
 import logging
 from typing import List
 
+from incubator.bootstrap_cli.app_config import AclDefaultTypes, ScopeCtxType, YesNoType
+
 from .base import BootstrapCommandBase
-from incubator.bootstrap_cli.app_config import (
-    ScopeCtxType,
-    YesNoType,
-    AclDefaultTypes,
-)
+
 
 class BootstrapDeploy(BootstrapCommandBase):
 

@@ -1,9 +1,7 @@
-from typing import Any, Iterator, Optional, Sequence, Union, cast, overload
+from typing import Any, Iterator, Sequence, Union, cast, overload
 
 from cognite.client._api_client import APIClient
-from cognite.client.utils._identifier import IdentifierSequence
 from requests import Response
-
 from rich import print
 
 from fdm_sdk_inject.data_classes.models.spaces import ModelsSpace, ModelsSpaceList
@@ -12,6 +10,7 @@ from fdm_sdk_inject.data_classes.models.spaces import ModelsSpace, ModelsSpaceLi
 # HINTS: used cognite/client/_api/assets.py as template for methods
 #       cognite/client/_api/transformations/jobs.py for folder-structure
 #
+
 
 #
 # helper
@@ -51,11 +50,17 @@ class ModelsSpacesAPI(APIClient):
         """Iterate over spaces
         Fetches spaces as they are iterated over, so you keep a limited number of spaces in memory.
         Args:
-            chunk_size (int, optional): Number of spaces to return in each chunk. Defaults to yielding one data set a time.
-            metadata (Dict[str, str]): Custom, application-specific metadata. String key -> String value.
-            limit (int, optional): Maximum number of spaces to return. Defaults to return all items.
+            chunk_size (int, optional):
+                Number of spaces to return in each chunk. Defaults to yielding one data set a time.
+            metadata (Dict[str, str]):
+                Custom, application-specific metadata. String key -> String value.
+            limit (int, optional):
+                Maximum number of spaces to return. Defaults to return all items.
         Yields:
-            Union[DataModelStorageSpace, DataModelStorageSpaceList]: yields DataModelStorageSpace one by one if chunk is not specified, else DataModelStorageSpaceList objects.
+            Union[DataModelStorageSpace, DataModelStorageSpaceList]:
+                yields DataModelStorageSpace one by one
+                if chunk is not specified,
+                else DataModelStorageSpaceList objects.
         """
         # not supported yet(?)
         # filter = None
@@ -84,7 +89,8 @@ class ModelsSpacesAPI(APIClient):
         ...
 
     def create(self, space: Union[ModelsSpace, Sequence[ModelsSpace]]) -> Union[ModelsSpace, ModelsSpaceList]:
-        """`Add or update (upsert) spaces. For unchanged space specifications, the operation completes without making any changes.
+        """`Add or update (upsert) spaces. For unchanged space specifications,
+        the operation completes without making any changes.
         We will not update the lastUpdatedTime value for spaces that remain unchanged.
         <https://pr-ark-codegen-1646.specs.preview.cogniteapp.com/v1.json.html#tag/Spaces-(New)/operation/ApplySpaces>`_
         Args:
@@ -133,7 +139,8 @@ class ModelsSpacesAPI(APIClient):
         return self._list(list_cls=ModelsSpaceList, resource_cls=ModelsSpace, method="GET", limit=limit)
 
     def delete(self, space: Union[str, Sequence[str]] = None) -> None:
-        """`Delete one or more spaces <https://pr-ark-codegen-1646.specs.preview.cogniteapp.com/v1.json.html#operation/deleteSpaces>`_
+        """`Delete one or more spaces
+        <https://pr-ark-codegen-1646.specs.preview.cogniteapp.com/v1.json.html#operation/deleteSpaces>`_
         Args:
             space (Union[str, Sequence[str]]): External ID or list of external ids
         Returns:
@@ -168,8 +175,6 @@ class ModelsSpacesAPI(APIClient):
         response: Response = self._cognite_client.post(f"{self.url}/delete", parameters)
         response.raise_for_status()
 
-
-
     # TODO: not tested and not used by bootstrap-cli
     # def retrieve(self, external_id: Optional[str] = None) -> Optional[ModelsSpace]:
     #     """`Retrieve a single data set by id. <https://docs.cognite.com/api/v1/#operation/getSpaces>`_
@@ -190,7 +195,8 @@ class ModelsSpacesAPI(APIClient):
     #     self,
     #     external_ids: Optional[Sequence[str]] = None,
     # ) -> ModelsSpaceList:
-    #     """`Retrieve multiple spaces by id. <https://pr-ark-codegen-1692.specs.preview.cogniteapp.com/v1.json.html#operation/byIdsSpaces>`_
+    #     """`Retrieve multiple spaces by id.
+    #     <https://pr-ark-codegen-1692.specs.preview.cogniteapp.com/v1.json.html#operation/byIdsSpaces>`_
     #     Args:
     #         external_ids (Sequence[str], optional): External IDs
     #     Returns:
@@ -203,4 +209,3 @@ class ModelsSpacesAPI(APIClient):
     #     """
     #     identifiers = IdentifierSequence.load(external_ids=external_ids)
     #     return self._retrieve_multiple(list_cls=ModelsSpaceList, resource_cls=ModelsSpace, identifiers=identifiers)
-

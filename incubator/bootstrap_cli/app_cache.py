@@ -1,16 +1,12 @@
 import json
 import logging
-
-from typing import Any, Dict, List, Union
-
-
 from collections import UserList
 from collections.abc import Iterable
+from typing import Any, Dict, List, Union
 
 from cognite.client import CogniteClient, utils
 from cognite.client.data_classes import Database, DataSet, Group
 from cognite.client.data_classes._base import CogniteResource, CogniteResourceList
-
 
 # fdm sdk injection
 # v2
@@ -187,4 +183,3 @@ class CogniteDeployedCache:
             Data Model Spaces({len(self.spaces.get_names()) if self.spaces else 'n/a with this command'})
             """
         )
-

@@ -19,7 +19,8 @@ class ModelsAPI(APIClient):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.spaces = ModelsSpacesAPI(*args, **kwargs)
-        # other modules according to <https://pr-ark-codegen-1692.specs.preview.cogniteapp.com/v1.json.html#tag/Data-Model-Storage-API>
+        # other modules according to
+        # <https://pr-ark-codegen-1692.specs.preview.cogniteapp.com/v1.json.html#tag/Data-Model-Storage-API>
         # self.modules = DataModelStorageModulesAPI(*args, **kwargs)
         # self.nodes = DataModelStorageNodesAPI(*args, **kwargs)
         # self.edges = DataModelStorageEdgesAPI(*args, **kwargs)

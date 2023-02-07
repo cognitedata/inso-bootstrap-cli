@@ -79,7 +79,9 @@ class DataModelStorageSpacesAPI(APIClient):
                 >>> from cognite.client import CogniteClient
                 >>> from cognite.client.data_model_storage import DataModelStorageSpace
                 >>> c = CogniteClient()
-                >>> spaces = [DataModelStorageSpace(external_id="1st level"), DataModelStorageSpace(external_id="2nd level")]
+                >>> spaces = [DataModelStorageSpace(external_id="1st level"),
+                              DataModelStorageSpace(external_id="2nd level")
+                              ]
                 >>> res = c.data_model_storages.spaces.create(spaces)
         """
         return self._create_multiple(
@@ -107,7 +109,8 @@ class DataModelStorageSpacesAPI(APIClient):
         self,
         external_ids: Optional[Sequence[str]] = None,
     ) -> DataModelStorageSpaceList:
-        """`Retrieve multiple spaces by id. <https://pr-ark-codegen-1692.specs.preview.cogniteapp.com/v1.json.html#operation/byIdsSpaces>`_
+        """`Retrieve multiple spaces by id.
+        <https://pr-ark-codegen-1692.specs.preview.cogniteapp.com/v1.json.html#operation/byIdsSpaces>`_
         Args:
             external_ids (Sequence[str], optional): External IDs
         Returns:
@@ -156,7 +159,7 @@ class DataModelStorageSpacesAPI(APIClient):
         )
 
     def delete(self, external_id: Union[str, Sequence[str]] = None) -> None:
-        """`Delete one or more spaces 
+        """`Delete one or more spaces
         <https://pr-ark-codegen-1692.specs.preview.cogniteapp.com/v1.json.html#operation/deleteSpaces>`_
         Args:
             external_id (Union[str, Sequence[str]]): External ID or list of external ids

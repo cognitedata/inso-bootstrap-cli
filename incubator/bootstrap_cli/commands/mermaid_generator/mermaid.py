@@ -61,7 +61,9 @@ class HexagonNode(Node):
     def __repr__(self):
         return (
             # id1{{This is the text in the box}}
-            self.comments_to_mermaid() + f"""{self.id_name}""" + (rf"""{{{{"{self.display}"}}}}""" if self.display else "")
+            self.comments_to_mermaid()
+            + f"""{self.id_name}"""
+            + (rf"""{{{{"{self.display}"}}}}""" if self.display else "")
         )
 
 
@@ -77,15 +79,20 @@ class TrapezoidNode(Node):
     def __repr__(self):
         return (
             # A[/Christmas\]
-            self.comments_to_mermaid() + f"""{self.id_name}""" + (rf"""[/"{self.display}"\]""" if self.display else "")
+            self.comments_to_mermaid()
+            + f"""{self.id_name}"""
+            + (rf"""[/"{self.display}"\]""" if self.display else "")
         )
+
 
 @dataclass
 class TrapezoidAltNode(Node):
     def __repr__(self):
         return (
             # B[\Go shopping/]
-            self.comments_to_mermaid() + f"""{self.id_name}""" + (rf"""[\"{self.display}"/]""" if self.display else "")
+            self.comments_to_mermaid()
+            + f"""{self.id_name}"""
+            + (rf"""[\"{self.display}"/]""" if self.display else "")
         )
 
 
@@ -100,7 +107,9 @@ class AssymetricNode(Node):
 class SubroutineNode(Node):
     def __repr__(self):
         # id1[[This is the text in the box]]
-        return self.comments_to_mermaid() + f"""{self.id_name}""" + (rf"""[["{self.display}"]]""" if self.display else "")
+        return (
+            self.comments_to_mermaid() + f"""{self.id_name}""" + (rf"""[["{self.display}"]]""" if self.display else "")
+        )
 
 
 @dataclass
