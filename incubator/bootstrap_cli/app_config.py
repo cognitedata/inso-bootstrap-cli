@@ -15,48 +15,6 @@ class RoleType(str, Enum):
     ADMIN = "admin"
 
 
-# capabilities (acl) which only support  scope: {"all":{}}
-AclAllScopeOnlyTypes = set(
-    [
-        "projects",
-        "sessions",
-        "annotations",
-        "entitymatching",
-        "functions",
-        "types",
-        "threed",
-        "seismic",
-        "digitalTwin",
-        "geospatial",
-        "geospatialCrs",
-        "wells",
-    ]
-)
-# lookup of non-default actions per capability (acl) and role (owner/read/admin)
-ActionDimensions = {
-    # owner datasets might only need READ and OWNER
-    RoleType.OWNER: {  # else ["READ","WRITE"]
-        "raw": ["READ", "WRITE", "LIST"],
-        "datasets": ["READ", "OWNER"],
-        "groups": ["LIST"],
-        "projects": ["LIST"],
-        "robotics": ["READ", "CREATE", "UPDATE", "DELETE"],
-        "sessions": ["LIST", "CREATE"],
-        "threed": ["READ", "CREATE", "UPDATE", "DELETE"],
-    },
-    RoleType.READ: {  # else ["READ"]
-        "raw": ["READ", "LIST"],
-        "groups": ["LIST"],
-        "projects": ["LIST"],
-        "sessions": ["LIST"],
-    },
-    RoleType.ADMIN: {
-        "datasets": ["READ", "WRITE", "OWNER"],
-        "groups": ["LIST", "READ", "CREATE", "UPDATE", "DELETE"],
-        "projects": ["READ", "UPDATE", "LIST"],
-    },
-}
-
 #
 # GENERIC configurations
 # extend when new capability (acl) is available
@@ -96,6 +54,57 @@ AclDefaultTypes = [
     "types",
     "wells",
 ]
+
+# capabilities (acl) which only support  scope: {"all":{}}
+# a subset of AclDefaultTypes
+AclAllScopeOnlyTypes = set(
+    [
+        "projects",
+        "sessions",
+        "annotations",
+        "entitymatching",
+        "functions",
+        "types",
+        "threed",
+        "seismic",
+        "digitalTwin",
+        "geospatial",
+        "geospatialCrs",
+        "wells",
+    ]
+)
+
+# lookup of non-default actions per capability (acl) and role (owner/read/admin)
+ActionDimensions = {
+    # owner datasets might only need READ and OWNER
+    RoleType.OWNER: {  # else ["READ","WRITE"]
+        "raw": ["READ", "WRITE", "LIST"],
+        "datasets": ["READ", "OWNER"],
+        "groups": ["LIST"],
+        # TODO: requires configuration and support of idscope
+        # "securityCategories": ["MEMBEROF", "LIST"],
+        "projects": ["LIST"],
+        "robotics": ["READ", "CREATE", "UPDATE", "DELETE"],
+        "sessions": ["LIST", "CREATE"],
+        "threed": ["READ", "CREATE", "UPDATE", "DELETE"],
+    },
+    RoleType.READ: {  # else ["READ"]
+        "raw": ["READ", "LIST"],
+        "groups": ["LIST"],
+        # TODO: requires configuration and support of idscope
+        # "securityCategories": ["MEMBEROF", "LIST"],
+        "projects": ["LIST"],
+        "sessions": ["LIST"],
+    },
+    RoleType.ADMIN: {
+        "datasets": ["READ", "WRITE", "OWNER"],
+        "groups": ["LIST", "READ", "CREATE", "UPDATE", "DELETE"],
+        # TODO: can "space" scope creation be limted to root-account
+        # "dataModels": ["READ", "WRITE"],
+        "securityCategories": ["MEMBEROF", "LIST", "CREATE", "DELETE"],
+        "projects": ["READ", "UPDATE", "LIST"],
+    },
+}
 
 # give precedence when merging over acl_default_types
 AclAdminTypes = list(ActionDimensions[RoleType.ADMIN].keys())

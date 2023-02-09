@@ -3,10 +3,10 @@ from typing import List
 
 from incubator.bootstrap_cli.app_config import AclDefaultTypes, ScopeCtxType, YesNoType
 
-from .base import BootstrapCommandBase
+from .base import CommandBase
 
 
-class BootstrapDeploy(BootstrapCommandBase):
+class CommandDeploy(CommandBase):
 
     # '''
     #        .o8                       oooo

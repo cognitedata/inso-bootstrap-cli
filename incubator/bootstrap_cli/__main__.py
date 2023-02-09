@@ -113,10 +113,10 @@ from dotenv import load_dotenv
 from incubator.bootstrap_cli import __version__
 from incubator.bootstrap_cli.app_config import CommandMode, YesNoType
 from incubator.bootstrap_cli.app_exceptions import BootstrapConfigError
-from incubator.bootstrap_cli.commands.delete import BootstrapDelete
-from incubator.bootstrap_cli.commands.deploy import BootstrapDeploy
-from incubator.bootstrap_cli.commands.diagram import BootstrapDiagram
-from incubator.bootstrap_cli.commands.prepare import BootstrapPrepare
+from incubator.bootstrap_cli.commands.delete import CommandDelete
+from incubator.bootstrap_cli.commands.deploy import CommandDeploy
+from incubator.bootstrap_cli.commands.diagram import CommandDiagram
+from incubator.bootstrap_cli.commands.prepare import CommandPrepare
 
 # share the root-logger, which get's later configured by extractor-utils LoggingConfig too
 # that we can switch the logLevel for all logging through the '--debug' cli-flag
@@ -290,7 +290,7 @@ def deploy(
 
     try:
         (
-            BootstrapDeploy(config_file, command=CommandMode.DEPLOY, debug=obj["debug"])
+            CommandDeploy(config_file, command=CommandMode.DEPLOY, debug=obj["debug"])
             .validate_config_length_limits()
             .validate_config_shared_access()
             .validate_config_is_cdf_project_in_mappings()
@@ -340,7 +340,7 @@ def prepare(
 
     try:
         (
-            BootstrapPrepare(config_file, command=CommandMode.PREPARE, debug=obj["debug"])
+            CommandPrepare(config_file, command=CommandMode.PREPARE, debug=obj["debug"])
             # .validate_config() # TODO
             .dry_run(obj["dry_run"])
             .command(idp_source_id=idp_source_id)
@@ -372,7 +372,7 @@ def delete(
 
     try:
         (
-            BootstrapDelete(config_file, command=CommandMode.DELETE, debug=obj["debug"])
+            CommandDelete(config_file, command=CommandMode.DELETE, debug=obj["debug"])
             # .validate_config() # TODO
             .dry_run(obj["dry_run"]).command()
         )
@@ -422,7 +422,7 @@ def diagram(
 
     try:
         (
-            BootstrapDiagram(config_file, command=CommandMode.DIAGRAM, debug=obj["debug"])
+            CommandDiagram(config_file, command=CommandMode.DIAGRAM, debug=obj["debug"])
             .validate_config_length_limits()
             .validate_config_shared_access()
             .validate_cdf_project_available(cdf_project_from_cli=cdf_project)

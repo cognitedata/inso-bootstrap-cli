@@ -1,9 +1,9 @@
 import logging
 
-from .base import BootstrapCommandBase
+from .base import CommandBase
 
 
-class BootstrapDelete(BootstrapCommandBase):
+class CommandDelete(CommandBase):
     # '''
     #        .o8            oooo                .
     #       "888            `888              .o8

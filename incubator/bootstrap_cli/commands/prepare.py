@@ -1,9 +1,9 @@
 import logging
 
-from .base import BootstrapCommandBase
+from .base import CommandBase
 
 
-class BootstrapPrepare(BootstrapCommandBase):
+class CommandPrepare(CommandBase):
     # '''
     #  oo.ooooo.  oooo d8b  .ooooo.  oo.ooooo.   .oooo.   oooo d8b  .ooooo.
     #   888' `88b `888""8P d88' `88b  888' `88b `P  )88b  `888""8P d88' `88b
@@ -20,6 +20,7 @@ class BootstrapPrepare(BootstrapCommandBase):
         group_capabilities = [
             {"datasetsAcl": {"actions": ["READ", "WRITE", "OWNER"], "scope": {"all": {}}}},
             {"rawAcl": {"actions": ["READ", "WRITE", "LIST"], "scope": {"all": {}}}},
+            {"securityCategoriesAcl": {"actions": ["MEMBEROF", "LIST", "CREATE", "DELETE"], "scope": {"all": {}}}},
             # DMS v2+v3 compatible data-modelling fdm scope
             {"dataModelsAcl": {"actions": ["READ", "WRITE"], "scope": {"all": {}}}},
             {"groupsAcl": {"actions": ["LIST", "READ", "CREATE", "UPDATE", "DELETE"], "scope": {"all": {}}}},

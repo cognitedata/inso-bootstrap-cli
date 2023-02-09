@@ -46,10 +46,10 @@ from incubator.bootstrap_cli.app_exceptions import BootstrapValidationError
 # '''
 
 # type-hint for BootstrapCommandBase instance response
-T_BootstrapCommandBase = TypeVar("T_BootstrapCommandBase", bound="BootstrapCommandBase")
+T_CommandBase = TypeVar("T_CommandBase", bound="CommandBase")
 
 
-class BootstrapCommandBase:
+class CommandBase:
 
     # CDF group prefix, i.e. "cdf:", to make bootstrap created CDF groups easy recognizable in Fusion
     GROUP_NAME_PREFIX = ""
@@ -131,21 +131,21 @@ class BootstrapCommandBase:
             self.with_datamodel_capability: bool = features.with_datamodel_capability
 
             # [OPTIONAL] default: "allprojects"
-            BootstrapCommandBase.AGGREGATED_LEVEL_NAME = features.aggregated_level_name
+            CommandBase.AGGREGATED_LEVEL_NAME = features.aggregated_level_name
             # [OPTIONAL] default: "cdf:"
             # support for '' empty string
-            BootstrapCommandBase.GROUP_NAME_PREFIX = f"{features.group_prefix}:" if features.group_prefix else ""
+            CommandBase.GROUP_NAME_PREFIX = f"{features.group_prefix}:" if features.group_prefix else ""
             # [OPTIONAL] default: "dataset"
             # support for '' empty string
-            BootstrapCommandBase.DATASET_SUFFIX = f":{features.dataset_suffix}" if features.dataset_suffix else ""
+            CommandBase.DATASET_SUFFIX = f":{features.dataset_suffix}" if features.dataset_suffix else ""
             # [OPTIONAL] default: "space"
             # support for '' empty string
-            BootstrapCommandBase.SPACE_SUFFIX = f":{features.space_suffix}" if features.space_suffix else ""
+            CommandBase.SPACE_SUFFIX = f":{features.space_suffix}" if features.space_suffix else ""
             # [OPTIONAL] default: "rawdb"
             # support for '' empty string
-            BootstrapCommandBase.RAW_SUFFIX = f":{features.rawdb_suffix}" if features.rawdb_suffix else ""
+            CommandBase.RAW_SUFFIX = f":{features.rawdb_suffix}" if features.rawdb_suffix else ""
             # [OPTIONAL] default: ["", ":state"]
-            BootstrapCommandBase.RAW_VARIANTS = [""] + [f":{suffix}" for suffix in features.rawdb_additional_variants]
+            CommandBase.RAW_VARIANTS = [""] + [f":{suffix}" for suffix in features.rawdb_additional_variants]
 
     @staticmethod
     def acl_template(actions, scope):
@@ -153,15 +153,11 @@ class BootstrapCommandBase:
 
     @staticmethod
     def get_allprojects_name_template(ns_name=None):
-        return (
-            f"{ns_name}:{BootstrapCommandBase.AGGREGATED_LEVEL_NAME}"
-            if ns_name
-            else BootstrapCommandBase.AGGREGATED_LEVEL_NAME
-        )
+        return f"{ns_name}:{CommandBase.AGGREGATED_LEVEL_NAME}" if ns_name else CommandBase.AGGREGATED_LEVEL_NAME
 
     @staticmethod
     def get_dataset_name_template():
-        return "{node_name}" + BootstrapCommandBase.DATASET_SUFFIX
+        return "{node_name}" + CommandBase.DATASET_SUFFIX
 
     @staticmethod
     def get_space_name_template(node_name: str):
@@ -169,11 +165,11 @@ class BootstrapCommandBase:
         FDM_SPACE_RE = re.compile(r"[^a-zA-Z0-9-_]").sub
         # every charchter not matching this pattern will be replaced
         FDM_SPECIAL_CHAR_REPLACEMENT = "-"
-        return FDM_SPACE_RE(FDM_SPECIAL_CHAR_REPLACEMENT, f"{node_name}{BootstrapCommandBase.SPACE_SUFFIX}")
+        return FDM_SPACE_RE(FDM_SPECIAL_CHAR_REPLACEMENT, f"{node_name}{CommandBase.SPACE_SUFFIX}")
 
     @staticmethod
     def get_raw_dbs_name_template():
-        return "{node_name}" + BootstrapCommandBase.RAW_SUFFIX + "{raw_variant}"
+        return "{node_name}" + CommandBase.RAW_SUFFIX + "{raw_variant}"
 
     @staticmethod
     def get_timestamp():
@@ -361,7 +357,7 @@ class BootstrapCommandBase:
                 # the dataset which belongs directly to this node_name
                 [
                     self.get_raw_dbs_name_template().format(node_name=node_name, raw_variant=raw_variant)
-                    for raw_variant in BootstrapCommandBase.RAW_VARIANTS
+                    for raw_variant in CommandBase.RAW_VARIANTS
                 ]
             )
 
@@ -375,7 +371,7 @@ class BootstrapCommandBase:
                         # find the group_config which matches the name,
                         # and check the "shared_access" groups list (else [])
                         for shared_node in self.get_ns_node_shared_access_by_name(node_name).owner
-                        for raw_variant in BootstrapCommandBase.RAW_VARIANTS
+                        for raw_variant in CommandBase.RAW_VARIANTS
                     ]
                 )
                 raw_db_names[RoleType.READ].extend(
@@ -386,7 +382,7 @@ class BootstrapCommandBase:
                         # find the group_config which matches the name,
                         # and check the "shared_access" groups list (else [])
                         for shared_node in self.get_ns_node_shared_access_by_name(node_name).read
-                        for raw_variant in BootstrapCommandBase.RAW_VARIANTS
+                        for raw_variant in CommandBase.RAW_VARIANTS
                     ]
                 )
 
@@ -397,14 +393,14 @@ class BootstrapCommandBase:
                     for ns in self.bootstrap_config.namespaces
                     if ns.ns_name == ns_name
                     for ns_node in ns.ns_nodes
-                    for raw_variant in BootstrapCommandBase.RAW_VARIANTS
+                    for raw_variant in CommandBase.RAW_VARIANTS
                 ]
                 # adding the {ns_name}:{BootstrapCore.AGGREGATED_GROUP_NAME} rawdbs
                 + [  # noqa
                     self.get_raw_dbs_name_template().format(
                         node_name=self.get_allprojects_name_template(ns_name=ns_name), raw_variant=raw_variant
                     )
-                    for raw_variant in BootstrapCommandBase.RAW_VARIANTS
+                    for raw_variant in CommandBase.RAW_VARIANTS
                 ]
             )
             # only owner-groups support "shared_access" rawdbs
@@ -419,7 +415,7 @@ class BootstrapCommandBase:
                         if ns.ns_name == ns_name
                         for ns_node in ns.ns_nodes
                         for shared_access_node in ns_node.shared_access.owner
-                        for raw_variant in BootstrapCommandBase.RAW_VARIANTS
+                        for raw_variant in CommandBase.RAW_VARIANTS
                     ]
                 )
                 raw_db_names[RoleType.READ].extend(
@@ -432,7 +428,7 @@ class BootstrapCommandBase:
                         if ns.ns_name == ns_name
                         for ns_node in ns.ns_nodes
                         for shared_access_node in ns_node.shared_access.read
-                        for raw_variant in BootstrapCommandBase.RAW_VARIANTS
+                        for raw_variant in CommandBase.RAW_VARIANTS
                     ]
                 )
 
@@ -658,7 +654,7 @@ class BootstrapCommandBase:
         # detail level like cdf:src:001:public:read
         if action and ns_name and node_name:
             # group for each dedicated group-core id
-            group_name_full_qualified = f"{BootstrapCommandBase.GROUP_NAME_PREFIX}{node_name}:{action}"
+            group_name_full_qualified = f"{CommandBase.GROUP_NAME_PREFIX}{node_name}:{action}"
 
             [
                 capabilities.append(  # type: ignore
@@ -681,7 +677,9 @@ class BootstrapCommandBase:
         elif action and ns_name:
             # 'all' groups on group-type level
             # (access to all datasets/ raw-dbs which belong to this group-type)
-            group_name_full_qualified = f"{BootstrapCommandBase.GROUP_NAME_PREFIX}{ns_name}:{BootstrapCommandBase.AGGREGATED_LEVEL_NAME}:{action}"  # noqa
+            group_name_full_qualified = (
+                f"{CommandBase.GROUP_NAME_PREFIX}{ns_name}:{CommandBase.AGGREGATED_LEVEL_NAME}:{action}"  # noqa
+            )
 
             [
                 capabilities.append(  # type: ignore
@@ -703,9 +701,7 @@ class BootstrapCommandBase:
         # top level like cdf:all:read
         elif action:
             # 'all' groups on action level (no limits to datasets or raw-dbs)
-            group_name_full_qualified = (
-                f"{BootstrapCommandBase.GROUP_NAME_PREFIX}{BootstrapCommandBase.AGGREGATED_LEVEL_NAME}:{action}"
-            )
+            group_name_full_qualified = f"{CommandBase.GROUP_NAME_PREFIX}{CommandBase.AGGREGATED_LEVEL_NAME}:{action}"
 
             [
                 capabilities.append(  # type: ignore
@@ -725,7 +721,7 @@ class BootstrapCommandBase:
         # root level like cdf:root
         elif root_account:  # no parameters
             # all (no limits)
-            group_name_full_qualified = f"{BootstrapCommandBase.GROUP_NAME_PREFIX}{root_account}"
+            group_name_full_qualified = f"{CommandBase.GROUP_NAME_PREFIX}{root_account}"
             # all default ACLs
             [
                 capabilities.append(  # type: ignore
@@ -874,17 +870,17 @@ class BootstrapCommandBase:
             {  # dictionary generator
                 # key:
                 self.get_dataset_name_template().format(
-                    node_name=f"{ns_name}:{BootstrapCommandBase.AGGREGATED_LEVEL_NAME}"
+                    node_name=f"{ns_name}:{CommandBase.AGGREGATED_LEVEL_NAME}"
                     if ns_name
-                    else BootstrapCommandBase.AGGREGATED_LEVEL_NAME
+                    else CommandBase.AGGREGATED_LEVEL_NAME
                 ):
                 # value
                 {
-                    "description": f"Dataset for '{BootstrapCommandBase.AGGREGATED_LEVEL_NAME}' Owner groups",
+                    "description": f"Dataset for '{CommandBase.AGGREGATED_LEVEL_NAME}' Owner groups",
                     # "metadata": "",
-                    "external_id": f"{ns_name}:{BootstrapCommandBase.AGGREGATED_LEVEL_NAME}"
+                    "external_id": f"{ns_name}:{CommandBase.AGGREGATED_LEVEL_NAME}"
                     if ns_name
-                    else BootstrapCommandBase.AGGREGATED_LEVEL_NAME,
+                    else CommandBase.AGGREGATED_LEVEL_NAME,
                 }
                 # creating 'all' at group type level + top-level
                 for ns_name in list([ns.ns_name for ns in self.bootstrap_config.namespaces]) + [""]
@@ -962,21 +958,21 @@ class BootstrapCommandBase:
                 self.get_raw_dbs_name_template().format(node_name=ns_node.node_name, raw_variant=raw_variant)
                 for ns in self.bootstrap_config.namespaces
                 for ns_node in ns.ns_nodes
-                for raw_variant in BootstrapCommandBase.RAW_VARIANTS
+                for raw_variant in CommandBase.RAW_VARIANTS
             ]
         )
         target_raw_db_names.update(
             # add RAW DBs for 'all' users
             [
                 self.get_raw_dbs_name_template().format(
-                    node_name=f"{ns_name}:{BootstrapCommandBase.AGGREGATED_LEVEL_NAME}"
+                    node_name=f"{ns_name}:{CommandBase.AGGREGATED_LEVEL_NAME}"
                     if ns_name
-                    else BootstrapCommandBase.AGGREGATED_LEVEL_NAME,
+                    else CommandBase.AGGREGATED_LEVEL_NAME,
                     raw_variant=raw_variant,
                 )
                 # creating allprojects at group type level + top-level
                 for ns_name in list([ns.ns_name for ns in self.bootstrap_config.namespaces]) + [""]
-                for raw_variant in BootstrapCommandBase.RAW_VARIANTS
+                for raw_variant in CommandBase.RAW_VARIANTS
             ]
         )
 
@@ -1018,9 +1014,9 @@ class BootstrapCommandBase:
             # add SPACEs for 'all' users
             [
                 self.get_space_name_template(
-                    node_name=f"{ns_name}:{BootstrapCommandBase.AGGREGATED_LEVEL_NAME}"
+                    node_name=f"{ns_name}:{CommandBase.AGGREGATED_LEVEL_NAME}"
                     if ns_name
-                    else BootstrapCommandBase.AGGREGATED_LEVEL_NAME,
+                    else CommandBase.AGGREGATED_LEVEL_NAME,
                 )
                 # creating allprojects at group type level + top-level
                 for ns_name in list([ns.ns_name for ns in self.bootstrap_config.namespaces]) + [""]
@@ -1130,7 +1126,7 @@ class BootstrapCommandBase:
     * delete removed from config
     """
 
-    def dry_run(self, dry_run: YesNoType) -> T_BootstrapCommandBase:
+    def dry_run(self, dry_run: YesNoType) -> T_CommandBase:
         self.is_dry_run = dry_run == YesNoType.yes
 
         if self.is_dry_run:

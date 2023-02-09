@@ -4,7 +4,7 @@ from typing import Any, Dict, Tuple
 
 from incubator.bootstrap_cli.app_config import AclDefaultTypes, RoleType, ScopeCtxType, YesNoType
 
-from .base import BootstrapCommandBase
+from .base import CommandBase
 from .mermaid_generator.mermaid import (
     AssymetricNode,
     DottedEdge,
@@ -18,7 +18,7 @@ from .mermaid_generator.mermaid import (
 )
 
 
-class BootstrapDiagram(BootstrapCommandBase):
+class CommandDiagram(CommandBase):
 
     # '''
     #        .o8   o8o
@@ -139,28 +139,30 @@ class BootstrapDiagram(BootstrapCommandBase):
 
             # detail level like cdf:src:001:public:read
             if action and ns_name and node_name:
-                group_name_full_qualified = f"{BootstrapCommandBase.GROUP_NAME_PREFIX}{node_name}:{action}"
+                group_name_full_qualified = f"{CommandBase.GROUP_NAME_PREFIX}{node_name}:{action}"
                 scope_ctx_by_action = self.get_scope_ctx_groupedby_action(action, ns_name, node_name)
 
             # group-type level like cdf:src:all:read
             elif action and ns_name:
                 # 'all' groups on group-type level
                 # (access to all datasets/ raw-dbs which belong to this group-type)
-                group_name_full_qualified = f"{BootstrapCommandBase.GROUP_NAME_PREFIX}{ns_name}:{BootstrapCommandBase.AGGREGATED_LEVEL_NAME}:{action}"  # noqa
+                group_name_full_qualified = (
+                    f"{CommandBase.GROUP_NAME_PREFIX}{ns_name}:{CommandBase.AGGREGATED_LEVEL_NAME}:{action}"  # noqa
+                )
                 scope_ctx_by_action = self.get_scope_ctx_groupedby_action(action, ns_name)
 
             # top level like cdf:all:read
             elif action:
                 # 'all' groups on action level (no limits to datasets or raw-dbs)
                 group_name_full_qualified = (
-                    f"{BootstrapCommandBase.GROUP_NAME_PREFIX}{BootstrapCommandBase.AGGREGATED_LEVEL_NAME}:{action}"
+                    f"{CommandBase.GROUP_NAME_PREFIX}{CommandBase.AGGREGATED_LEVEL_NAME}:{action}"
                 )
                 # limit all_scopes to 'action'
                 scope_ctx_by_action = {action: self.all_scoped_ctx[action]}
             # root level like cdf:root
             elif root_account:  # no parameters
                 # all (no limits)
-                group_name_full_qualified = f"{BootstrapCommandBase.GROUP_NAME_PREFIX}{root_account}"
+                group_name_full_qualified = f"{CommandBase.GROUP_NAME_PREFIX}{root_account}"
 
             return group_name_full_qualified, scope_ctx_by_action
 
@@ -255,8 +257,8 @@ class BootstrapDiagram(BootstrapCommandBase):
                         # link from all:{ns}
                         # multiline f-string split as it got too long
                         # TODO: refactor into string-templates
-                        id_name=f"{BootstrapCommandBase.GROUP_NAME_PREFIX}{ns_name}:"
-                        f"{BootstrapCommandBase.AGGREGATED_LEVEL_NAME}:{action}",
+                        id_name=f"{CommandBase.GROUP_NAME_PREFIX}{ns_name}:"
+                        f"{CommandBase.AGGREGATED_LEVEL_NAME}:{action}",
                         dest=group_name,
                         annotation="",
                         comments=[],
@@ -325,7 +327,7 @@ class BootstrapDiagram(BootstrapCommandBase):
                 edge_type_cls = Edge if action == RoleType.OWNER else DottedEdge
                 graph.edges.append(
                     edge_type_cls(
-                        id_name=f"{BootstrapCommandBase.GROUP_NAME_PREFIX}{BootstrapCommandBase.AGGREGATED_LEVEL_NAME}:{action}", # noqa
+                        id_name=f"{CommandBase.GROUP_NAME_PREFIX}{CommandBase.AGGREGATED_LEVEL_NAME}:{action}", # noqa
                         dest=group_name,
                         annotation="",
                         comments=[],
@@ -349,7 +351,7 @@ class BootstrapDiagram(BootstrapCommandBase):
 
                             # LIMIT only to direct scopes for readability
                             # which have for example 'src:all:' as prefix
-                            if not scope_name.startswith(f"{ns_name}:{BootstrapCommandBase.AGGREGATED_LEVEL_NAME}:"):
+                            if not scope_name.startswith(f"{ns_name}:{CommandBase.AGGREGATED_LEVEL_NAME}:"):
                                 continue
 
                             #
@@ -411,7 +413,7 @@ class BootstrapDiagram(BootstrapCommandBase):
 
                             # LIMIT only to direct scopes for readability
                             # which have for example 'src:all:' as prefix
-                            if not scope_name.startswith(f"{BootstrapCommandBase.AGGREGATED_LEVEL_NAME}:"):
+                            if not scope_name.startswith(f"{CommandBase.AGGREGATED_LEVEL_NAME}:"):
                                 continue
 
                             # logging.info(f"> {action=} {shared_action=} process {scope_name=} : all {scopes=}")

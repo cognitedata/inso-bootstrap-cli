@@ -63,3 +63,7 @@ build-backend = "poetry.masonry.api"
 version_toml = [
 "pyproject.toml:tool.poetry.version"
 ]
+
+version_variable = [
+    "incubator/bootstrap_cli/__init__.py:__version__",
+]
