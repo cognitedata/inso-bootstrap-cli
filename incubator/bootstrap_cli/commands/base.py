@@ -597,17 +597,21 @@ class CommandBase:
             # { "tableScope": { "dbsToTables": { "foo:db": {}, "bar:db": {} } }
             return {"tableScope": {"dbsToTables": {raw: {} for raw in scope_ctx[ScopeCtxType.RAWDB]}}}
         elif acl_type == "dataModels":
+            # DMS v2:
             # { "dataModelScope": { "externalIds": [ "foo", "bar" ] }
-            return {"dataModelScope": {"externalIds": [space for space in scope_ctx[ScopeCtxType.SPACE]]}}
-            # TODO v3:
+            # return {"dataModelScope": {"externalIds": [space for space in scope_ctx[ScopeCtxType.SPACE]]}}
+
+            # DMS v3:
             # { "spaceIdScope": { "spaceIds": [ "foo", "bar" ] }
-            # return {"spaceIdScope": {"spaceIds": [space for space in scope_ctx[ScopeCtxType.SPACE]]}}
+            return {"spaceIdScope": {"spaceIds": [space for space in scope_ctx[ScopeCtxType.SPACE]]}}
         elif acl_type == "dataModelInstances":
+            # DMS v2:
             # { "spaceScope": { "externalIds": [ "foo", "bar" ] }
-            return {"spaceScope": {"externalIds": [space for space in scope_ctx[ScopeCtxType.SPACE]]}}
-            # TODO v3:
+            # return {"spaceScope": {"externalIds": [space for space in scope_ctx[ScopeCtxType.SPACE]]}}
+
+            # DMS v3:
             # { "spaceIdScope": { "spaceIds": [ "foo", "bar" ] }
-            # return {"spaceIdScope": {"spaceIds": [space for space in scope_ctx[ScopeCtxType.SPACE]]}}
+            return {"spaceIdScope": {"spaceIds": [space for space in scope_ctx[ScopeCtxType.SPACE]]}}
         elif acl_type == "datasets":
             # { "idScope": { "ids": [ 2695894113527579, 4254268848874387 ] } }
             return {"idScope": {"ids": self.dataset_names_to_ids(scope_ctx[ScopeCtxType.DATASET])}}
