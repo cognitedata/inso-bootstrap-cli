@@ -66,7 +66,11 @@ class CommandDelete(CommandBase):
                 if self.is_dry_run:
                     logging.info(f"Dry run - Deprecating raw_dbs: <{raw_db_names}>")
                 else:
-                    self.client.raw.databases.delete(delete_raw_db_names, recursive=True)
+                    # TODO: 230216 pa: changing recursive to False, this risk must be double-checked
+                    # to force deleting of raw-tables and data!
+                    # requires a proper validation? That some rawdbs listed for delete are not empty?
+                    # same for "space"?
+                    self.client.raw.databases.delete(delete_raw_db_names, recursive=False)
                     self.deployed.raw_dbs.delete(resources=self.deployed.raw_dbs.select(values=delete_raw_db_names))
             else:
                 # print(f"RAW DBs already deleted: {raw_db_names}")
