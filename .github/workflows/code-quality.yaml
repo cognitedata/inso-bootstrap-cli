@@ -3,13 +3,17 @@ name: Code Quality checks for PRs
 on:
   pull_request:
 
+env:
+  PYTHON_VERSION: '3.10'
+
 jobs:
   pre-commit:
     name: Pre-Commit checks
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
-    - uses: actions/setup-python@v2
+    - uses: actions/checkout@v3
+    - name: Set up Python ${{ env.PYTHON_VERSION }}
+      uses: actions/setup-python@v4
       with:
-        python-version: '3.9'
-    - uses: pre-commit/action@v2.0.3
+        python-version: ${{ env.PYTHON_VERSION }}
+    - uses: pre-commit/action@v3
