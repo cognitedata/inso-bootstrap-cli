@@ -36,7 +36,7 @@ types-retry = "^0.1.5"
 # cognite-sdk = "^2.38.1"
 # reducing to sdk-core with only extra 'pandas' (avoiding fiona, geopandas dependencies)
 cognite-sdk-core = {extras=["pandas"],version = "^2.39.1"}
-setuptools = "^62.1.0"
+setuptools = "^65.5.1"
 
 [tool.poetry.dev-dependencies]
 black = "^22.3.0"
