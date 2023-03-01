@@ -95,6 +95,10 @@
 # 220826 js: v2.2.0 added two more acls: templateInstances, templateGroups
 #        pa: added two more acls: dataModels, dataModelInstances (for FDM), limited to "all" scope access for now
 # 221121 jr: added wells capabilities to support WDL access
+# 230301 pa: fix regression in lately added 'validate_config_shared_access'
+#       which didn't took aggregated-node-levels into account.
+#       Like `src:all` or `all` (dependent on your features.aggregated-level-name)
+#       2nd fix adding `extractionConfigs` to the list of supported and scoped ACLs
 #
 # TODO:
 #
@@ -221,6 +225,7 @@ acl_default_types = [
     "digitalTwin",
     "entitymatching",
     "events",
+    "extractionConfigs",
     "extractionPipelines",
     "extractionRuns",
     "files",
@@ -620,8 +625,19 @@ class BootstrapCore:
         """
         errors = []
 
-        # collect all node-names
+        # collect all explicit node-names
         ns_node_names = [ns_node.node_name for ns in self.bootstrap_config.namespaces for ns_node in ns.ns_nodes]
+
+        # add aggregated node-names (using AGGREGATED_LEVEL_NAME)
+        ns_node_names.extend(
+            [BootstrapCore.get_allprojects_name_template()]  # top-level
+            + [
+                BootstrapCore.get_allprojects_name_template(ns_name=ns.ns_name)  # ns-level
+                for ns in self.bootstrap_config.namespaces
+            ]
+        )
+
+        _logger.debug(f"{ns_node_names=}")
 
         # check for each node-name if a shared-access exists
         for node_name in ns_node_names:
