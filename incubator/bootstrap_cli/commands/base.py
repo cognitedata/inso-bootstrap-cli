@@ -268,8 +268,17 @@ class CommandBase:
         """
         errors = []
 
-        # collect all node-names
+        # collect all explicit node-names
         ns_node_names = [ns_node.node_name for ns in self.bootstrap_config.namespaces for ns_node in ns.ns_nodes]
+
+        # add aggregated node-names (using AGGREGATED_LEVEL_NAME)
+        ns_node_names.extend(
+            [CommandBase.get_allprojects_name_template()]  # top-level
+            + [
+                CommandBase.get_allprojects_name_template(ns_name=ns.ns_name)  # ns-level
+                for ns in self.bootstrap_config.namespaces
+            ]
+        )
 
         # check for each node-name if a shared-access exists
         for node_name in ns_node_names:

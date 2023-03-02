@@ -130,7 +130,7 @@ def get_cognite_client(cognite_config: CogniteConfig) -> CogniteClient:
         #         config=client.config, api_version=_API_VERSION, cognite_client=client
         #     )
         #    logging.debug("Successfully injected FDM DMS v2 'client.data_model_storages'")
-        if not getattr(client, "models"):
+        if not getattr(client, "models", False):
             # DMS v3
             client.models = ModelsAPI(config=client.config, api_version=_API_VERSION, cognite_client=client)
             logging.debug("Successfully injected FDM DMS v3 'client.models'")
