@@ -1,5 +1,5 @@
 # gcr.io/distroless/python3-debian11 (runtime env is using 3.9 and that's important for native dependencies)
-FROM python:3.9-slim AS builder
+FROM python:3.10-slim AS builder
 
 WORKDIR /
 

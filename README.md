@@ -42,7 +42,7 @@ The CLI restricts the structure of the datasets and the groups it supports, and 
         - [`namespaces` section](#namespaces-section)
     - [Configuration for the `delete` command](#configuration-for-the-delete-command)
         - [`delete_or_deprecate` section](#delete_or_deprecate-section)
-- [Common practices & How-Tos](#common-practices--how-tos)
+- [Common practices \& How-Tos](#common-practices--how-tos)
   - [How to implement Read-only Shared Access](#how-to-implement-read-only-shared-access)
 - [Development / Contribute](#development--contribute)
   - [Inspiration](#inspiration)
@@ -946,9 +946,8 @@ Templates (blueprints) used for implementation are
 - Uses `semantic-release` to create version tags.
 - The rules for commit messages are conventional commits, see [conventionalcommits](https://www.conventionalcommits.org/en/v1.0.0-beta.4/#summary%3E)
 - Remark: If the version needs to change, before merging make sure the commit title has the elements mentioned on `conventionalcommits`
-- Remark: with a new version change, bump will update the version on `pyproject.toml` so there is no need to change version there.
-- Remark: version in `incubator/bootstrap_cli/__init__` is used in main to add version on metadata.
-  This is not a part of semantic release but needs to be updated to the upcoming version before the version update.
+- Remark: with a new version change, bump will update the version on `pyproject.toml` and `__init__:__version__` so there is no need to change version manually there.
+
 
 # Other ways of running
 
