@@ -2,10 +2,9 @@ import logging
 from enum import Enum
 from typing import Any, Dict, Tuple
 
-from incubator.bootstrap_cli.app_config import AclDefaultTypes, RoleType, ScopeCtxType, YesNoType
-
+from ..app_config import AclDefaultTypes, RoleType, ScopeCtxType, YesNoType
 from .base import CommandBase
-from .mermaid_generator.mermaid import (
+from .diagram_utils.mermaid import (
     AssymetricNode,
     DottedEdge,
     Edge,
@@ -220,16 +219,16 @@ class CommandDiagram(CommandBase):
                         id_name=idp_source_name,
                         display=idp_source_name,
                         comments=[f'IdP objectId: {idp_source_id}']
-                        )
-                    )  # fmt: skip
+                    )
+                )  # fmt: skip
                 graph.edges.append(
                     Edge(
                         id_name=idp_source_name,
                         dest=group_name,
                         annotation=None,
                         comments=[]
-                        )
-                    )  # fmt: skip
+                    )
+                )  # fmt: skip
 
             # {'owner': {'raw': ['src:002:weather:rawdb', 'src:002:weather:rawdb:state'],
             #       'datasets': ['src:002:weather:dataset']},
@@ -245,8 +244,8 @@ class CommandDiagram(CommandBase):
                         id_name=group_name,
                         display=group_name,
                         comments=""
-                        )
-                    )  # fmt: skip
+                    )
+                )  # fmt: skip
 
                 #
                 # EDGE FROM PARENT 'src:all' to 'src:001:sap'
@@ -291,7 +290,7 @@ class CommandDiagram(CommandBase):
                                         id_name=f"{scope_name}__{action}__{scope_type}",
                                         display=scope_name,
                                         comments=""
-                                        )
+                                    )
                                 )  # fmt: skip
 
                             #
@@ -317,8 +316,8 @@ class CommandDiagram(CommandBase):
                         id_name=group_name,
                         display=group_name,
                         comments=""
-                        )
-                    )  # fmt: skip
+                    )
+                )  # fmt: skip
 
                 #
                 # EDGE FROM PARENT top LEVEL to NAMESPACE LEVEL
@@ -366,7 +365,7 @@ class CommandDiagram(CommandBase):
                                         id_name=f"{scope_name}__{action}__{scope_type}",
                                         display=scope_name,
                                         comments=""
-                                        )
+                                    )
                                 )  # fmt: skip
 
                             #
@@ -393,8 +392,8 @@ class CommandDiagram(CommandBase):
                         id_name=group_name,
                         display=group_name,
                         comments=""
-                        )
-                    )  # fmt: skip
+                    )
+                )  # fmt: skip
 
                 # add namespace-node and all scopes
                 # shared_action: [read|owner]
@@ -431,7 +430,7 @@ class CommandDiagram(CommandBase):
                                         id_name=f"{scope_name}__{action}__{scope_type}",
                                         display=scope_name,
                                         comments=""
-                                        )
+                                    )
                                 )  # fmt: skip
 
                             #

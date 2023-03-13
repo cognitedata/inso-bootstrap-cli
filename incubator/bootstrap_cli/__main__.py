@@ -114,13 +114,13 @@ from click import Context
 from dotenv import load_dotenv
 
 # cli internal
-from incubator.bootstrap_cli import __version__
-from incubator.bootstrap_cli.app_config import CommandMode, YesNoType
-from incubator.bootstrap_cli.app_exceptions import BootstrapConfigError
-from incubator.bootstrap_cli.commands.delete import CommandDelete
-from incubator.bootstrap_cli.commands.deploy import CommandDeploy
-from incubator.bootstrap_cli.commands.diagram import CommandDiagram
-from incubator.bootstrap_cli.commands.prepare import CommandPrepare
+from . import __version__
+from .app_config import CommandMode, YesNoType
+from .app_exceptions import BootstrapConfigError
+from .commands.delete import CommandDelete
+from .commands.deploy import CommandDeploy
+from .commands.diagram import CommandDiagram
+from .commands.prepare import CommandPrepare
 
 # share the root-logger, which get's later configured by extractor-utils LoggingConfig too
 # that we can switch the logLevel for all logging through the '--debug' cli-flag
@@ -302,7 +302,7 @@ def deploy(
             .command(
                 with_special_groups=with_special_groups,
                 with_raw_capability=with_raw_capability,
-                )
+            )
         )  # fmt:skip
 
         click.echo(click.style("CDF Project bootstrap deployed", fg="blue"))
@@ -436,7 +436,7 @@ def diagram(
                 to_markdown=markdown,
                 with_raw_capability=with_raw_capability,
                 cdf_project=cdf_project,
-                )
+            )
         )  # fmt:skip
 
         # click.echo(

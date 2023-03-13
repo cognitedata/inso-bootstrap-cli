@@ -12,9 +12,10 @@ from cognite.client.data_classes import Database, DatabaseList, DataSet, DataSet
 # from fdm_sdk_inject.data_classes.data_model_storages.spaces import DataModelStorageSpace, DataModelStorageSpaceList
 # v3
 from fdm_sdk_inject.data_classes.models.spaces import ModelsSpace, ModelsSpaceList
-from incubator.bootstrap_cli import __version__
-from incubator.bootstrap_cli.app_cache import CogniteDeployedCache
-from incubator.bootstrap_cli.app_config import (
+
+from .. import __version__
+from ..app_cache import CogniteDeployedCache
+from ..app_config import (
     NEWLINE,
     AclAdminTypes,
     AclAllScopeOnlyTypes,
@@ -28,8 +29,8 @@ from incubator.bootstrap_cli.app_config import (
     SharedAccess,
     YesNoType,
 )
-from incubator.bootstrap_cli.app_container import ContainerSelector, init_container
-from incubator.bootstrap_cli.app_exceptions import BootstrapValidationError
+from ..app_container import ContainerSelector, init_container
+from ..app_exceptions import BootstrapValidationError
 
 # '''
 #  888888b.                     888             888                              .d8888b.
@@ -95,57 +96,59 @@ class CommandBase:
             self.deployed = CogniteDeployedCache(self.client, groups_only=(command == CommandMode.PREPARE))
             self.deployed.log_counts()
 
-        if command == CommandMode.DELETE:
-            self.delete_or_deprecate: BootstrapDeleteConfig = self.container.delete_or_deprecate()
+        # not perfect refactoring yet, to handle the config loading for the different CommandMode-s
+        match command:
+            case CommandMode.DELETE:
+                self.delete_or_deprecate: BootstrapDeleteConfig = self.container.delete_or_deprecate()
 
-        elif command in (CommandMode.DEPLOY, CommandMode.DIAGRAM, CommandMode.PREPARE):
+            case CommandMode.DEPLOY | CommandMode.DIAGRAM | CommandMode.PREPARE:
 
-            # TODO: correct for DIAGRAM and PREPARE?!
-            self.bootstrap_config: BootstrapCoreConfig = self.container.bootstrap()
-            self.idp_cdf_mappings = self.bootstrap_config.idp_cdf_mappings
+                # TODO: correct for DIAGRAM and PREPARE?!
+                self.bootstrap_config: BootstrapCoreConfig = self.container.bootstrap()
+                self.idp_cdf_mappings = self.bootstrap_config.idp_cdf_mappings
 
-            if command == CommandMode.DIAGRAM:
-                # diagram, doesn't contain 'cognite' config
-                # but tries to read 'cognite.project' as default
-                # if no '--cdf-project' cli-parameter is given explicit.
-                # Accessing the 'container.config()' directly to check availability
-                # TODO: how to configure an optional 'cognite' section in container directly?
-                self.cdf_project = self.container.config().get("cognite", {}).get("project")
+                if command == CommandMode.DIAGRAM:
+                    # diagram, doesn't contain 'cognite' config
+                    # but tries to read 'cognite.project' as default
+                    # if no '--cdf-project' cli-parameter is given explicit.
+                    # Accessing the 'container.config()' directly to check availability
+                    # TODO: how to configure an optional 'cognite' section in container directly?
+                    self.cdf_project = self.container.config().get("cognite", {}).get("project")
 
-            #
-            # load 'bootstrap.features'
-            #
-            # unpack and process features
-            features = self.bootstrap_config.features
+                #
+                # load 'bootstrap.features'
+                #
+                # unpack and process features
+                features = self.bootstrap_config.features
 
-            # TODO: not available for 'delete' but there must be a smarter solution
-            logging.debug(
-                "Features from config.yaml or defaults (can be overridden by cli-parameters!): " f"{features=}"
-            )
+                # TODO: not available for 'delete' but there must be a smarter solution
+                logging.debug(
+                    "Features from config.yaml or defaults (can be overridden by cli-parameters!): " f"{features=}"
+                )
 
-            # [OPTIONAL] default: False
-            self.with_special_groups: bool = features.with_special_groups
-            # [OPTIONAL] default: True
-            self.with_raw_capability: bool = features.with_raw_capability
-            # [OPTIONAL] default: False
-            self.with_datamodel_capability: bool = features.with_datamodel_capability
+                # [OPTIONAL] default: False
+                self.with_special_groups: bool = features.with_special_groups
+                # [OPTIONAL] default: True
+                self.with_raw_capability: bool = features.with_raw_capability
+                # [OPTIONAL] default: False
+                self.with_datamodel_capability: bool = features.with_datamodel_capability
 
-            # [OPTIONAL] default: "allprojects"
-            CommandBase.AGGREGATED_LEVEL_NAME = features.aggregated_level_name
-            # [OPTIONAL] default: "cdf:"
-            # support for '' empty string
-            CommandBase.GROUP_NAME_PREFIX = f"{features.group_prefix}:" if features.group_prefix else ""
-            # [OPTIONAL] default: "dataset"
-            # support for '' empty string
-            CommandBase.DATASET_SUFFIX = f":{features.dataset_suffix}" if features.dataset_suffix else ""
-            # [OPTIONAL] default: "space"
-            # support for '' empty string
-            CommandBase.SPACE_SUFFIX = f":{features.space_suffix}" if features.space_suffix else ""
-            # [OPTIONAL] default: "rawdb"
-            # support for '' empty string
-            CommandBase.RAW_SUFFIX = f":{features.rawdb_suffix}" if features.rawdb_suffix else ""
-            # [OPTIONAL] default: ["", ":state"]
-            CommandBase.RAW_VARIANTS = [""] + [f":{suffix}" for suffix in features.rawdb_additional_variants]
+                # [OPTIONAL] default: "allprojects"
+                CommandBase.AGGREGATED_LEVEL_NAME = features.aggregated_level_name
+                # [OPTIONAL] default: "cdf:"
+                # support for '' empty string
+                CommandBase.GROUP_NAME_PREFIX = f"{features.group_prefix}:" if features.group_prefix else ""
+                # [OPTIONAL] default: "dataset"
+                # support for '' empty string
+                CommandBase.DATASET_SUFFIX = f":{features.dataset_suffix}" if features.dataset_suffix else ""
+                # [OPTIONAL] default: "space"
+                # support for '' empty string
+                CommandBase.SPACE_SUFFIX = f":{features.space_suffix}" if features.space_suffix else ""
+                # [OPTIONAL] default: "rawdb"
+                # support for '' empty string
+                CommandBase.RAW_SUFFIX = f":{features.rawdb_suffix}" if features.rawdb_suffix else ""
+                # [OPTIONAL] default: ["", ":state"]
+                CommandBase.RAW_VARIANTS = [""] + [f":{suffix}" for suffix in features.rawdb_additional_variants]
 
     @staticmethod
     def acl_template(actions, scope):
@@ -602,37 +605,40 @@ class CommandBase:
         }  # fmt: skip
 
     def generate_scope(self, acl_type: str, scope_ctx: Dict[ScopeCtxType, List[str]]):
-        if acl_type == "raw":
-            # { "tableScope": { "dbsToTables": { "foo:db": {}, "bar:db": {} } }
-            return {"tableScope": {"dbsToTables": {raw: {} for raw in scope_ctx[ScopeCtxType.RAWDB]}}}
-        elif acl_type == "dataModels":
-            # DMS v2:
-            # { "dataModelScope": { "externalIds": [ "foo", "bar" ] }
-            # return {"dataModelScope": {"externalIds": [space for space in scope_ctx[ScopeCtxType.SPACE]]}}
 
-            # DMS v3:
-            # { "spaceIdScope": { "spaceIds": [ "foo", "bar" ] }
-            return {"spaceIdScope": {"spaceIds": [space for space in scope_ctx[ScopeCtxType.SPACE]]}}
-        elif acl_type == "dataModelInstances":
-            # DMS v2:
-            # { "spaceScope": { "externalIds": [ "foo", "bar" ] }
-            # return {"spaceScope": {"externalIds": [space for space in scope_ctx[ScopeCtxType.SPACE]]}}
-
-            # DMS v3:
-            # { "spaceIdScope": { "spaceIds": [ "foo", "bar" ] }
-            return {"spaceIdScope": {"spaceIds": [space for space in scope_ctx[ScopeCtxType.SPACE]]}}
-        elif acl_type == "datasets":
-            # { "idScope": { "ids": [ 2695894113527579, 4254268848874387 ] } }
-            return {"idScope": {"ids": self.dataset_names_to_ids(scope_ctx[ScopeCtxType.DATASET])}}
-        # adding minimum projects and groups scopes for non-root groups
-        # TODO: adding documentation link
-        elif acl_type in AclAllScopeOnlyTypes:
+        # first handle acl types **without** scope support:
+        if acl_type in AclAllScopeOnlyTypes:
             return {"all": {}}
-        elif acl_type == "groups":
-            return {"currentuserscope": {}}
-        else:  # like 'assets', 'events', 'files', 'sequences', 'timeSeries', ..
-            # { "datasetScope": { "ids": [ 2695894113527579, 4254268848874387 ] } }
-            return {"datasetScope": {"ids": self.dataset_names_to_ids(scope_ctx[ScopeCtxType.DATASET])}}
+
+        # next handle acl types **with** scope support:
+        match acl_type:
+            case "raw":
+                # { "tableScope": { "dbsToTables": { "foo:db": {}, "bar:db": {} } }
+                return {"tableScope": {"dbsToTables": {raw: {} for raw in scope_ctx[ScopeCtxType.RAWDB]}}}
+            case "dataModels":
+                # DMS v2:
+                # { "dataModelScope": { "externalIds": [ "foo", "bar" ] }
+                # return {"dataModelScope": {"externalIds": [space for space in scope_ctx[ScopeCtxType.SPACE]]}}
+
+                # DMS v3:
+                # { "spaceIdScope": { "spaceIds": [ "foo", "bar" ] }
+                return {"spaceIdScope": {"spaceIds": [space for space in scope_ctx[ScopeCtxType.SPACE]]}}
+            case "dataModelInstances":
+                # DMS v2:
+                # { "spaceScope": { "externalIds": [ "foo", "bar" ] }
+                # return {"spaceScope": {"externalIds": [space for space in scope_ctx[ScopeCtxType.SPACE]]}}
+
+                # DMS v3:
+                # { "spaceIdScope": { "spaceIds": [ "foo", "bar" ] }
+                return {"spaceIdScope": {"spaceIds": [space for space in scope_ctx[ScopeCtxType.SPACE]]}}
+            case "datasets":
+                # { "idScope": { "ids": [ 2695894113527579, 4254268848874387 ] } }
+                return {"idScope": {"ids": self.dataset_names_to_ids(scope_ctx[ScopeCtxType.DATASET])}}
+            case "groups":
+                return {"currentuserscope": {}}
+            case _:  # like 'assets', 'events', 'files', 'sequences', 'timeSeries', ..
+                # { "datasetScope": { "ids": [ 2695894113527579, 4254268848874387 ] } }
+                return {"datasetScope": {"ids": self.dataset_names_to_ids(scope_ctx[ScopeCtxType.DATASET])}}
 
     def generate_group_name_and_capabilities(
         self, action: str = None, ns_name: str = None, node_name: str = None, root_account: str = None
@@ -830,6 +836,7 @@ class CommandBase:
             logging.info(f"Dry run - Creating group with name: <{new_group.name}>")
             logging.debug(f"Dry run - Creating group details: <{new_group}>")
         else:
+            logging.debug(f"  creating: {new_group.name} [idp source: {new_group.source_id}]")
             new_group: Union[Group, GroupList] = self.client.iam.groups.create(new_group)
             self.deployed.groups.create(resources=new_group)
             logging.info(f"  {new_group.name} ({new_group.id}) [idp source: {new_group.source_id}]")

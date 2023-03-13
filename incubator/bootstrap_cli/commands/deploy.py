@@ -1,8 +1,7 @@
 import logging
 from typing import List
 
-from incubator.bootstrap_cli.app_config import AclDefaultTypes, ScopeCtxType, YesNoType
-
+from ..app_config import AclDefaultTypes, ScopeCtxType, YesNoType
 from .base import CommandBase
 
 
