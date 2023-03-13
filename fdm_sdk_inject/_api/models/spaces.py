@@ -163,16 +163,16 @@ class ModelsSpacesAPI(APIClient):
         # limit=100, non-chunking
         # https://github.com/cognitedata/tech-demo-powerops/blob/main/cognite/poweropsdemo/cdf/client_fdm_v3.py
 
-        parameters = (
+        payload = (
             # create an item for each elem of sequence
             {"items": [{"space": s} for s in space]}
             if is_identifier_sequence(space)
             else {"items": [{"space": space}]}  # or exactly one elem
         )
 
-        print(f"{parameters=}")
+        print(f"{payload=}")
 
-        response: Response = self._cognite_client.post(f"{self.url}/delete", parameters)
+        response: Response = self._cognite_client.post(f"{self.url}/delete", json=payload)
         response.raise_for_status()
 
     # TODO: not tested and not used by bootstrap-cli
