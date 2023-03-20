@@ -99,6 +99,9 @@
 #       which didn't took aggregated-node-levels into account.
 #       Like `src:all` or `all` (dependent on your features.aggregated-level-name)
 #       2nd fix adding `extractionConfigs` to the list of supported and scoped ACLs
+# 230316 pa: feature-release adding annotationsAcl
+#       supporting all actions, even if action:REVIEW seems not to be used atm
+#       and action:READ is implicit
 #
 # TODO:
 #
@@ -172,6 +175,7 @@ acl_all_scope_only_types = set(
     [
         "projects",
         "sessions",
+        "annotations",
         "entitymatching",
         "functions",
         "types",
@@ -190,6 +194,7 @@ acl_all_scope_only_types = set(
 action_dimensions = {
     # owner datasets might only need READ and OWNER
     "owner": {  # else ["READ","WRITE"]
+        "annotations": ["READ", "WRITE", "SUGGEST", "REVIEW"],
         "raw": ["READ", "WRITE", "LIST"],
         "datasets": ["READ", "OWNER"],
         "groups": ["LIST"],
@@ -219,6 +224,7 @@ action_dimensions = {
 #
 acl_default_types = [
     "assets",
+    "annotations",
     "dataModels",
     "dataModelInstances",
     "datasets",
