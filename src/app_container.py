@@ -151,14 +151,14 @@ class CogniteContainer(BaseContainer):
     )
 
 
-# class DiagramCommandContainer(BaseContainer):
-#     """Container w/o 'cognite_client'
+class DiagramCommandContainer(BaseContainer):
+    """Container w/o 'cognite_client'
 
-#     Args:
-#         BaseContainer (_type_): _description_
-#     """
+    Args:
+        BaseContainer (_type_): _description_
+    """
 
-#     bootstrap = providers.Resource(BootstrapCoreConfig.parse_obj, obj=BaseContainer.config.bootstrap)
+    bootstrap = providers.Resource(BootstrapCoreConfig.parse_obj, obj=BaseContainer.config.bootstrap)
 
 
 class DeployCommandContainer(CogniteContainer):
@@ -171,14 +171,15 @@ class DeployCommandContainer(CogniteContainer):
     bootstrap = providers.Resource(BootstrapCoreConfig.parse_obj, obj=CogniteContainer.config.bootstrap)
 
 
-# class DeleteCommandContainer(CogniteContainer):
-#     delete_or_deprecate = providers.Resource(
-#         BootstrapDeleteConfig.parse_obj, obj=BaseContainer.config.delete_or_deprecate
-#     )
+class DeleteCommandContainer(CogniteContainer):
+    delete_or_deprecate = providers.Resource(
+        BootstrapDeleteConfig.parse_obj, obj=BaseContainer.config.delete_or_deprecate
+    )
 
 
 ContainerSelector = {
-    # CommandMode.DIAGRAM: DiagramCommandContainer,
+    CommandMode.PREPARE: CogniteContainer,
+    CommandMode.DIAGRAM: DiagramCommandContainer,
     CommandMode.DEPLOY: DeployCommandContainer,
-    # CommandMode.DELETE: DeleteCommandContainer,
+    CommandMode.DELETE: DeleteCommandContainer,
 }
