@@ -1,9 +1,10 @@
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import Field
 
 from .app_exceptions import BootstrapConfigError
+from .common.base_model import Model
 
 # because within f'' strings no backslash-character is allowed
 NEWLINE = "\n"
@@ -138,98 +139,27 @@ class ScopeCtxType(str, Enum):
     GROUP = "groups"
 
 
-#
-# pydantic class definitions
-#
-def to_kebap_case(value: str) -> str:
-    """Creates alias names from Python compatible snake_case '_' to yaml typical kebap-style ('-')
-    # https://www.freecodecamp.org/news/snake-case-vs-camel-case-vs-pascal-case-vs-kebab-case-whats-the-difference/
-
-    Args:
-        value (str): the value to generate an alias for
-
-    Returns:
-        str: alias in kebap-style
-    """
-    return value.replace("_", "-")
-
-
-class KebapBaseModel(BaseModel):
-    """Subclass with alias_generator
-    Using BaseModel instead of BaseSettings as latter throws FutureWarnings
-    when using 'Field(alias=..)' or 'alias_generator'
-    """
-
-    class Config:
-        # generate for each field an alias in kebap-case (hyphen)
-        alias_generator = to_kebap_case
-        # an aliased field may be populated by its name as given by the model attribute, as well as the alias
-        # this supports both cases to be mixed!
-        allow_population_by_field_name = True
-
-
-class CogniteIdpConfig(KebapBaseModel):
-    # fields required for OIDC client-credentials authentication
-    client_name: Optional[str]
-    client_id: str
-    secret: str
-    scopes: List[str]
-    token_url: Optional[str]
-
-
-class CogniteConfig(KebapBaseModel):
-    host: str
-    project: str
-    idp_authentication: CogniteIdpConfig
-
-    # compatibility properties to keep get_cognite_client() in sync with other solutions
-    # which are using flat-fields, no nesting and a bit different names
-    @property
-    def base_url(self) -> List[str]:
-        return self.host
-
-    @property
-    def token_url(self) -> str:
-        return self.idp_authentication.token_url
-
-    @property
-    def scopes(self) -> List[str]:
-        return self.idp_authentication.scopes
-
-    @property
-    def client_name(self) -> List[str]:
-        return self.idp_authentication.client_name
-
-    @property
-    def client_id(self) -> List[str]:
-        return self.idp_authentication.client_id
-
-    @property
-    def client_secret(self) -> List[str]:
-        return self.idp_authentication.secret
-
-
-class IdpCdfMapping(KebapBaseModel):
+class IdpCdfMapping(Model):
     cdf_group: str
     idp_source_id: Optional[str]
     idp_source_name: Optional[str]
 
 
-class IdpCdfMappingProjects(KebapBaseModel):
+class IdpCdfMappingProjects(Model):
     cdf_project: str
     mappings: List[IdpCdfMapping]
 
 
-class SharedNode(KebapBaseModel):
+class SharedNode(Model):
     node_name: str
 
 
-class SharedAccess(KebapBaseModel):
+class SharedAccess(Model):
     owner: Optional[List[SharedNode]] = Field(default_factory=list)
     read: Optional[List[SharedNode]] = Field(default_factory=list)
 
 
-class NamespaceNode(KebapBaseModel):
+class NamespaceNode(Model):
     node_name: str
     external_id: Optional[str]
     metadata: Optional[Dict[str, Any]]
@@ -237,13 +167,13 @@ class NamespaceNode(KebapBaseModel):
     shared_access: Optional[SharedAccess] = SharedAccess(owner=[], read=[])
 
 
-class Namespace(KebapBaseModel):
+class Namespace(Model):
     ns_name: str
     description: Optional[str]
     ns_nodes: List[NamespaceNode]
 
 
-class BootstrapFeatures(KebapBaseModel):
+class BootstrapFeatures(Model):
     with_special_groups: Optional[bool] = False
     with_raw_capability: Optional[bool] = True
     # TODO: datamodel / spaces / fdm?
@@ -256,7 +186,7 @@ class BootstrapFeatures(KebapBaseModel):
     rawdb_additional_variants: Optional[List[str]] = ["state"]
 
 
-class BootstrapCoreConfig(KebapBaseModel):
+class BootstrapCoreConfig(Model):
     """
     Configuration parameters for CDF Project Bootstrap,
     deploy(create), prepare, diagram mode
@@ -304,7 +234,7 @@ class BootstrapCoreConfig(KebapBaseModel):
         return mappings[0] if mappings else IdpCdfMapping(cdf_group=cdf_group, idp_source_id=None, idp_source_name=None)
 
 
-class BootstrapDeleteConfig(KebapBaseModel):
+class BootstrapDeleteConfig(Model):
     """
     Configuration parameters for CDF Project Bootstrap 'delete' command
     """

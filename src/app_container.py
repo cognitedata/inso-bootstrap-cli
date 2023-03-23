@@ -12,7 +12,8 @@ from dotenv import load_dotenv
 # v3
 from fdm_sdk_inject._api.models import ModelsAPI
 
-from .app_config import BootstrapCoreConfig, BootstrapDeleteConfig, CogniteConfig, CommandMode
+from .app_config import BootstrapCoreConfig, BootstrapDeleteConfig, CommandMode
+from .common.cognite_client import CogniteConfig, get_cognite_client
 
 
 def init_container(
@@ -95,34 +96,17 @@ def shutdown_container(container):
     container.shutdown_resources()
 
 
-def get_cognite_client(cognite_config: CogniteConfig) -> CogniteClient:
+def get_patched_cognite_client(cognite_config: CogniteConfig) -> CogniteClient:
     """Get an authenticated CogniteClient for the given project and user
     Returns:
         CogniteClient: The authenticated CogniteClient
     """
     try:
-        logging.debug("Attempt to create CogniteClient")
-
-        credentials = OAuthClientCredentials(
-            token_url=cognite_config.token_url,
-            client_id=cognite_config.client_id,
-            client_secret=cognite_config.client_secret,
-            scopes=cognite_config.scopes,
-        )
-        default_client_name = "developer_client"
-
-        cnf = ClientConfig(
-            client_name=cognite_config.client_name or default_client_name,
-            base_url=cognite_config.base_url,
-            project=cognite_config.project,
-            credentials=credentials,
-        )
-        logging.debug(f"get CogniteClient for {cognite_config.project=}")
 
         #
         # FDM SDK injector
         #
-        client = CogniteClient(cnf)
+        client = get_cognite_client(cognite_config)
         _API_VERSION = "v1"
         # if not getattr(client, "data_model_storages", None):
         #     # DMS v2
@@ -162,19 +146,19 @@ class CogniteContainer(BaseContainer):
     cognite_config = providers.Resource(CogniteConfig.parse_obj, obj=BaseContainer.config.cognite)
 
     cognite_client = providers.Factory(
-        get_cognite_client,
+        get_patched_cognite_client,  # get_cognite_client,
         cognite_config,
     )
 
 
-class DiagramCommandContainer(BaseContainer):
-    """Container w/o 'cognite_client'
+# class DiagramCommandContainer(BaseContainer):
+#     """Container w/o 'cognite_client'
 
-    Args:
-        BaseContainer (_type_): _description_
-    """
+#     Args:
+#         BaseContainer (_type_): _description_
+#     """
 
-    bootstrap = providers.Resource(BootstrapCoreConfig.parse_obj, obj=BaseContainer.config.bootstrap)
+#     bootstrap = providers.Resource(BootstrapCoreConfig.parse_obj, obj=BaseContainer.config.bootstrap)
 
 
 class DeployCommandContainer(CogniteContainer):
@@ -187,15 +171,14 @@ class DeployCommandContainer(CogniteContainer):
     bootstrap = providers.Resource(BootstrapCoreConfig.parse_obj, obj=CogniteContainer.config.bootstrap)
 
 
-class DeleteCommandContainer(CogniteContainer):
-    delete_or_deprecate = providers.Resource(
-        BootstrapDeleteConfig.parse_obj, obj=BaseContainer.config.delete_or_deprecate
-    )
+# class DeleteCommandContainer(CogniteContainer):
+#     delete_or_deprecate = providers.Resource(
+#         BootstrapDeleteConfig.parse_obj, obj=BaseContainer.config.delete_or_deprecate
+#     )
 
 
 ContainerSelector = {
-    CommandMode.PREPARE: DeployCommandContainer,
-    CommandMode.DIAGRAM: DiagramCommandContainer,
+    # CommandMode.DIAGRAM: DiagramCommandContainer,
     CommandMode.DEPLOY: DeployCommandContainer,
-    CommandMode.DELETE: DeleteCommandContainer,
+    # CommandMode.DELETE: DeleteCommandContainer,
 }

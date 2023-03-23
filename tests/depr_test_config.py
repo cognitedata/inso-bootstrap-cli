@@ -1,7 +1,6 @@
 import json
 
 from dotenv import load_dotenv
-
 from incubator.bootstrap_cli.__main__ import BootstrapCore
 
 
