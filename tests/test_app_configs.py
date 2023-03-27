@@ -1,16 +1,16 @@
 from pathlib import Path
 
 import pytest
-from incubator.bootstrap_cli.app_config import CommandMode
-from incubator.bootstrap_cli.app_container import (  # PrepareCommandContainer,
+from rich import print
+
+from bootstrap.app_config import CommandMode
+from bootstrap.app_container import (  # PrepareCommandContainer,
     ContainerSelector,
     DeleteCommandContainer,
     DeployCommandContainer,
     DiagramCommandContainer,
     init_container,
 )
-from rich import print
-
 from tests.constants import ROOT_DIRECTORY
 
 print(ROOT_DIRECTORY)

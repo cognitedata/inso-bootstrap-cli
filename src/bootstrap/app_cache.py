@@ -10,7 +10,7 @@ from cognite.client.data_classes._base import CogniteResource, CogniteResourceLi
 
 # fdm sdk injection
 # v2
-# from fdm_sdk_inject.data_classes.data_model_storages.spaces import DataModelStorageSpace, DataModelStorageSpaceList
+# from .fdm_sdk_inject.data_classes.data_model_storages.spaces import DataModelStorageSpace, DataModelStorageSpaceList
 # v3
 from fdm_sdk_inject.data_classes.models.spaces import ModelsSpace
 

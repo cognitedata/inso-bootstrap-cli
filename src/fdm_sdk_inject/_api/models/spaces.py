@@ -4,7 +4,7 @@ from cognite.client._api_client import APIClient
 from requests import Response
 from rich import print
 
-from fdm_sdk_inject.data_classes.models.spaces import ModelsSpace, ModelsSpaceList
+from ...data_classes.models.spaces import ModelsSpace, ModelsSpaceList
 
 #
 # HINTS: used cognite/client/_api/assets.py as template for methods

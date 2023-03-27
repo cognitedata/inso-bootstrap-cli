@@ -18,11 +18,11 @@ RUN poetry export -f requirements.txt --output requirements.txt
 RUN pip install --target=/app -r requirements.txt --no-deps
 
 # Keep the same folder structure for imports
-COPY incubator/bootstrap_cli/ /app/incubator/bootstrap_cli/
+COPY src/ /app
 
 # A distroless container image with Python and some basics like SSL certificates
 # https://github.com/GoogleContainerTools/distroless
 FROM gcr.io/distroless/python3-debian11
 COPY --from=builder /app /app
 ENV PYTHONPATH /app
-ENTRYPOINT [ "python", "/app/incubator/bootstrap_cli/__main__.py" ]
+ENTRYPOINT [ "python", "/app/__main__.py" ]

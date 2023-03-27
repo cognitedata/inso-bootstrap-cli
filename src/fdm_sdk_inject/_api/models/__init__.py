@@ -3,7 +3,7 @@ from typing import Any
 from cognite.client._api_client import APIClient
 
 # from cognite.client._api.data_model_storages.spaces import DataModelStorageSpacesAPI
-from fdm_sdk_inject._api.models.spaces import ModelsSpacesAPI
+from .spaces import ModelsSpacesAPI
 
 # from cognite.client.data_classes.data_model_storages.spaces import (
 # from fdm_sdk_inject.data_classes.models.spaces import (

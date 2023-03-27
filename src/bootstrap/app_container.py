@@ -2,8 +2,7 @@ import logging.config
 from pathlib import Path
 from typing import Dict, Optional
 
-from cognite.client import ClientConfig, CogniteClient
-from cognite.client.credentials import OAuthClientCredentials
+from cognite.client import CogniteClient
 from dependency_injector import containers, providers
 from dotenv import load_dotenv
 
