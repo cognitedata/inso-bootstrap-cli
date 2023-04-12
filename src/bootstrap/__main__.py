@@ -227,7 +227,7 @@ def bootstrap_cli(
     # TODO: dotenv_path: Optional[click.Path] = None,
     dotenv_path: Optional[str] = None,
     debug: bool = False,
-    dry_run: str = "no",
+    dry_run: bool = False,
 ) -> None:
 
     # load .env from file if exists, use given dotenv_path if provided
@@ -284,11 +284,10 @@ def deploy(
 
     try:
         (
-            CommandDeploy(config_file, command=CommandMode.DEPLOY, debug=obj["debug"])
+            CommandDeploy(config_file, command=CommandMode.DEPLOY, debug=obj["debug"], dry_run=obj["dry_run"])
             .validate_config_length_limits()
             .validate_config_shared_access()
             .validate_config_is_cdf_project_in_mappings()
-            .dry_run(obj["dry_run"])
             .command(
                 with_special_groups=with_special_groups,
                 with_raw_capability=with_raw_capability,
@@ -334,9 +333,8 @@ def prepare(
 
     try:
         (
-            CommandPrepare(config_file, command=CommandMode.PREPARE, debug=obj["debug"])
+            CommandPrepare(config_file, command=CommandMode.PREPARE, debug=obj["debug"], dry_run=obj["dry_run"])
             # .validate_config() # TODO
-            .dry_run(obj["dry_run"])
             .command(idp_source_id=idp_source_id)
         )  # fmt:skip
 
@@ -366,9 +364,9 @@ def delete(
 
     try:
         (
-            CommandDelete(config_file, command=CommandMode.DELETE, debug=obj["debug"])
+            CommandDelete(config_file, command=CommandMode.DELETE, debug=obj["debug"], dry_run=obj["dry_run"])
             # .validate_config() # TODO
-            .dry_run(obj["dry_run"]).command()
+            .command()
         )
 
         click.echo(
@@ -421,7 +419,6 @@ def diagram(
             .validate_config_shared_access()
             .validate_cdf_project_available(cdf_project_from_cli=cdf_project)
             .validate_config_is_cdf_project_in_mappings(cdf_project_from_cli=cdf_project)
-            # .dry_run(obj['dry_run'])
             .command(
                 to_markdown=markdown,
                 with_raw_capability=with_raw_capability,

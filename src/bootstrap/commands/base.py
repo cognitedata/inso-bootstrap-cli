@@ -46,7 +46,7 @@ class CommandBase:
     # - additional variant-suffixes can be added like this ["", ":state"]
     RAW_VARIANTS = [""]
 
-    def __init__(self, config_path: str, command: CommandMode, debug: bool, dry_run: bool):
+    def __init__(self, config_path: str, command: CommandMode, debug: bool, dry_run: bool = False):
 
         # validate and load config according to command-mode
         ContainerCls = ContainerSelector[command]
