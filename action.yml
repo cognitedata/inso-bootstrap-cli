@@ -50,7 +50,6 @@ runs:
   using: 'docker'
   image: 'Dockerfile'
   env:
-    BOOTSTRAP_API_KEY: ${{ inputs.api-key }}
     BOOTSTRAP_TOKEN_URL: ${{ inputs.token-url }}
     BOOTSTRAP_PROJECT: ${{ inputs.cdf-project-name }}
     BOOTSTRAP_CLIENT_ID: ${{ inputs.client-id }}

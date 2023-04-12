@@ -165,13 +165,6 @@ logging = logging.getLogger()
     "Default: https://bluefield.cognitedata.com/",
     envvar="BOOTSTRAP_CDF_HOST",
 )
-# TODO: can we deprecate API_KEY option?
-@click.option(
-    "--api-key",
-    help="API key to interact with the CDF API. Provide this or make sure to set the 'BOOTSTRAP_CDF_API_KEY',"
-    "environment variable if you want to authenticate with API keys.",
-    envvar="BOOTSTRAP_CDF_API_KEY",
-)
 @click.option(
     "--client-id",
     help="IdP client ID to interact with the CDF API. Provide this or make sure to set the "
@@ -209,13 +202,12 @@ logging = logging.getLogger()
 @click.option(
     "--debug",
     is_flag=True,
-    help="Print debug information",
+    help="Flag to log additional debug information.",
 )
 @click.option(
     "--dry-run",
-    default="no",
-    type=click.Choice(["yes", "no"], case_sensitive=False),
-    help="Log only planned CDF API actions while doing nothing." " Defaults to 'no'.",
+    is_flag=True,
+    help="Flag to only log planned CDF API actions while doing nothing.",
 )
 @click.pass_context
 def bootstrap_cli(
@@ -225,7 +217,6 @@ def bootstrap_cli(
     cluster: str = "westeurope-1",
     cdf_project_name: Optional[str] = None,
     host: str = None,
-    api_key: Optional[str] = None,
     # cdf idp
     client_id: Optional[str] = None,
     client_secret: Optional[str] = None,
@@ -247,7 +238,6 @@ def bootstrap_cli(
         "cluster": cluster,
         "cdf_project_name": cdf_project_name,
         "host": host,
-        "api_key": api_key,
         # cdf idp
         "client_id": client_id,
         "client_secret": client_secret,

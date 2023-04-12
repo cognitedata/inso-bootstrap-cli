@@ -572,10 +572,6 @@ Options:
                            make sure to set the 'BOOTSTRAP_CDF_HOST' environment
                            variable. Default:
                            https://bluefield.cognitedata.com/
-  --api-key TEXT           API key to interact with the CDF API. Provide this or
-                           make sure to set the
-                           'BOOTSTRAP_CDF_API_KEY' environment variable if you
-                           want to authenticate with API keys.
   --client-id TEXT         IdP client ID to interact with the CDF API. Provide
                            this or make sure to set the 'BOOTSTRAP_IDP_CLIENT_ID'
                            environment variable if you want to authenticate
@@ -594,9 +590,8 @@ Options:
                            method. You can use the 'BOOTSTRAP_IDP_AUDIENCE' environment variable.
   --dotenv-path TEXT       Provide a relative or absolute path to an .env file
                            (for command line usage only).
-  --debug                  Print debug information.
-  --dry-run [yes|no]       Log only planned CDF API actions while doing
-                           nothing. Defaults to 'no'.
+  --debug                  Flag to log additional debug information.
+  --dry-run                Flag to only log planned CDF API actions while doing nothing.
   -h, --help               Show this message and exit.
 
 Commands:

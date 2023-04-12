@@ -32,23 +32,6 @@ from ..app_config import (
 from ..app_container import ContainerSelector, init_container
 from ..app_exceptions import BootstrapValidationError
 
-# '''
-#  888888b.                     888             888                              .d8888b.
-#  888  "88b                    888             888                             d88P  Y88b
-#  888  .88P                    888             888                             888    888
-#  8888888K.   .d88b.   .d88b.  888888 .d8888b  888888 888d888 8888b.  88888b.  888         .d88b.  888d888 .d88b.
-#  888  "Y88b d88""88b d88""88b 888    88K      888    888P"      "88b 888 "88b 888        d88""88b 888P"  d8P  Y8b
-#  888    888 888  888 888  888 888    "Y8888b. 888    888    .d888888 888  888 888    888 888  888 888    88888888
-#  888   d88P Y88..88P Y88..88P Y88b.       X88 Y88b.  888    888  888 888 d88P Y88b  d88P Y88..88P 888    Y8b.
-#  8888888P"   "Y88P"   "Y88P"   "Y888  88888P'  "Y888 888    "Y888888 88888P"   "Y8888P"   "Y88P"  888     "Y8888
-#                                                                      888
-#                                                                      888
-#                                                                      888
-# '''
-
-# type-hint for BootstrapCommandBase instance response
-T_CommandBase = TypeVar("T_CommandBase", bound="CommandBase")
-
 
 class CommandBase:
 
@@ -63,7 +46,7 @@ class CommandBase:
     # - additional variant-suffixes can be added like this ["", ":state"]
     RAW_VARIANTS = [""]
 
-    def __init__(self, config_path: str, command: CommandMode, debug: bool):
+    def __init__(self, config_path: str, command: CommandMode, debug: bool, dry_run: bool):
 
         # validate and load config according to command-mode
         ContainerCls = ContainerSelector[command]
@@ -73,11 +56,13 @@ class CommandBase:
         # self.deployed: Dict[str, Any] = {}
         self.deployed: CogniteDeployedCache = None
         self.all_scoped_ctx: Dict[str, Any] = {}
-        self.is_dry_run: bool = False
+        self.is_dry_run: bool = dry_run
         self.client: CogniteClient = None
         self.cdf_project = None
 
         logging.info(f"Starting CDF Bootstrap version <v{__version__}> for command: <{command}>")
+        if self.is_dry_run:
+            logging.info("DRY-RUN activated: No changes will be made to CDF")
 
         # init command-specific parts
         # if subclass(ContainerCls, CogniteContainer):
@@ -96,7 +81,7 @@ class CommandBase:
             self.deployed = CogniteDeployedCache(self.client, groups_only=(command == CommandMode.PREPARE))
             self.deployed.log_counts()
 
-        # not perfect refactoring yet, to handle the config loading for the different CommandMode-s
+        # not perfect refactoring yet, to handle the container/config parsing and loading for the different CommandModes
         match command:
             case CommandMode.DELETE:
                 self.delete_or_deprecate: BootstrapDeleteConfig = self.container.delete_or_deprecate()
@@ -1139,18 +1124,3 @@ class CommandBase:
         )
         logging.info(f"Delete template:\n{delete_template}")
         # return delete_template
-
-    """
-    ### create / delete
-    * new in config
-    * delete removed from config
-    """
-
-    def dry_run(self, dry_run: YesNoType) -> T_CommandBase:
-        self.is_dry_run = dry_run == YesNoType.yes
-
-        if self.is_dry_run:
-            logging.info("DRY-RUN active: No changes will be made to CDF")
-
-        # return self for command chaining
-        return self
