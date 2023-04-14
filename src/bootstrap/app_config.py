@@ -76,7 +76,7 @@ AclAllScopeOnlyTypes = set(
 )
 
 # lookup of non-default actions per capability (acl) and role (owner/read/admin)
-ActionDimensions = {
+RoleTypeActions = {
     # owner datasets might only need READ and OWNER
     RoleType.OWNER: {  # else ["READ","WRITE"]
         "raw": ["READ", "WRITE", "LIST"],
@@ -108,7 +108,7 @@ ActionDimensions = {
 }
 
 # give precedence when merging over acl_default_types
-AclAdminTypes = list(ActionDimensions[RoleType.ADMIN].keys())
+AclAdminTypes = list(RoleTypeActions[RoleType.ADMIN].keys())
 
 
 # mixin 'str' to 'Enum' to support comparison to string-values

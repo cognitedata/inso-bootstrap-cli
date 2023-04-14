@@ -21,11 +21,11 @@ from ..app_config import (
     AclAdminTypes,
     AclAllScopeOnlyTypes,
     AclDefaultTypes,
-    ActionDimensions,
     BootstrapCoreConfig,
     BootstrapDeleteConfig,
     CommandMode,
     RoleType,
+    RoleTypeActions,
     ScopeCtxType,
     SharedAccess,
     YesNoType,
@@ -142,11 +142,11 @@ class CommandBase:
                 CommandBase.RAW_VARIANTS = [""] + [f":{suffix}" for suffix in features.rawdb_additional_variants]
 
     @staticmethod
-    def acl_template(actions, scope):
+    def acl_template(actions: List[str], scope: Dict[str, Dict[str, Any]]):
         return {"actions": actions, "scope": scope}
 
     @staticmethod
-    def get_allprojects_name_template(ns_name=None):
+    def get_allprojects_name_template(ns_name: str | None = None):
         return f"{ns_name}:{CommandBase.AGGREGATED_LEVEL_NAME}" if ns_name else CommandBase.AGGREGATED_LEVEL_NAME
 
     @staticmethod
@@ -329,35 +329,35 @@ class CommandBase:
         # return self for chainingself.core.
         return self
 
-    def generate_default_action(self, action: RoleType, acl_type: str) -> List[str]:
-        """bootstrap-cli supports two roles: READ, OWNER (called action as parameter)
+    def generate_default_actions(self, role_type: RoleType, acl_type: str) -> List[str]:
+        """bootstrap-cli supports two roles: READ, OWNER (called 'role_type' as parameter)
         Each acl and role resolves to a list of default or custom actions.
-        - Default actions are hard-coded as ["READ", "WRITE"] or ["READ"]
-        - Custom actions are configured 'ActionDimensions'
+        - Default role-types are hard-coded as ["READ", "WRITE"] or ["READ"]
+        - Custom role-types are configured in 'RoleTypeActions'
 
         Args:
-            action (RoleType): a supported bootstrap-role, representing a group of actions
+            role_type (RoleType): a supported bootstrap-role, representing a group of actions
             acl_type (str): an acl from 'AclDefaultTypes'
 
         Returns:
             List[str]: list of action
         """
-        return ActionDimensions[action].get(acl_type, ["READ", "WRITE"] if action == RoleType.OWNER else ["READ"])
+        return RoleTypeActions[role_type].get(acl_type, ["READ", "WRITE"] if role_type == RoleType.OWNER else ["READ"])
 
-    def generate_admin_action(self, acl_admin_type):
-        return ActionDimensions[RoleType.ADMIN][acl_admin_type]
+    def generate_admin_actions(self, acl_admin_type):
+        return RoleTypeActions[RoleType.ADMIN][acl_admin_type]
 
-    def get_ns_node_shared_access_by_name(self, node_name) -> SharedAccess:
+    def get_ns_node_shared_access_by_name(self, node_name: str) -> SharedAccess:
         for ns in self.bootstrap_config.namespaces:
             for ns_node in ns.ns_nodes:
                 if node_name == ns_node.node_name:
                     return ns_node.shared_access
         return SharedAccess(owner=[], read=[])
 
-    def get_raw_dbs_groupedby_action(self, action, ns_name, node_name=None):
-        raw_db_names: Dict[str, Any] = {RoleType.OWNER: [], RoleType.READ: []}
+    def get_raw_dbs_groupedby_role_type(self, role_type: RoleType, ns_name: str, node_name: str | None = None):
+        raw_db_names: Dict[RoleType, List[str]] = {RoleType.OWNER: [], RoleType.READ: []}
         if node_name:
-            raw_db_names[action].extend(
+            raw_db_names[role_type].extend(
                 # the dataset which belongs directly to this node_name
                 [
                     self.get_raw_dbs_name_template().format(node_name=node_name, raw_variant=raw_variant)
@@ -366,7 +366,7 @@ class CommandBase:
             )
 
             # for owner groups add "shared_owner_access" raw_dbs too
-            if action == RoleType.OWNER:
+            if role_type == RoleType.OWNER:
                 raw_db_names[RoleType.OWNER].extend(
                     [
                         self.get_raw_dbs_name_template().format(
@@ -391,7 +391,7 @@ class CommandBase:
                 )
 
         else:  # handling the {ns_name}:{BootstrapCore.AGGREGATED_GROUP_NAME}
-            raw_db_names[action].extend(
+            raw_db_names[role_type].extend(
                 [
                     self.get_raw_dbs_name_template().format(node_name=ns_node.node_name, raw_variant=raw_variant)
                     for ns in self.bootstrap_config.namespaces
@@ -408,7 +408,7 @@ class CommandBase:
                 ]
             )
             # only owner-groups support "shared_access" rawdbs
-            if action == RoleType.OWNER:
+            if role_type == RoleType.OWNER:
                 raw_db_names[RoleType.OWNER].extend(
                     [
                         self.get_raw_dbs_name_template().format(
@@ -436,21 +436,21 @@ class CommandBase:
                     ]
                 )
 
-        # returns clear names grouped by action
+        # returns clear names grouped by role_type
         return raw_db_names
 
-    def get_spaces_groupedby_action(self, action, ns_name, node_name=None):
-        spaces_by_action: Dict[str, Any] = {RoleType.OWNER: [], RoleType.READ: []}
+    def get_spaces_groupedby_role_type(self, role_type, ns_name, node_name=None):
+        spaces_by_role_type: Dict[RoleType, List[str]] = {RoleType.OWNER: [], RoleType.READ: []}
         # for example fac:001:wasit, uc:002:meg, etc.
         if node_name:
-            spaces_by_action[action].extend(
+            spaces_by_role_type[role_type].extend(
                 # the dataset which belongs directly to this node_name
                 [self.get_space_name_template(node_name=node_name)]
             )
 
             # for owner groups add "shared_access" datasets too
-            if action == RoleType.OWNER:
-                spaces_by_action[RoleType.OWNER].extend(
+            if role_type == RoleType.OWNER:
+                spaces_by_role_type[RoleType.OWNER].extend(
                     [
                         self.get_space_name_template(node_name=shared_node.node_name)
                         # find the group_config which matches the id,
@@ -458,7 +458,7 @@ class CommandBase:
                         for shared_node in self.get_ns_node_shared_access_by_name(node_name).owner
                     ]
                 )
-                spaces_by_action[RoleType.READ].extend(
+                spaces_by_role_type[RoleType.READ].extend(
                     [
                         self.get_space_name_template(node_name=shared_node.node_name)
                         # find the group_config which matches the id,
@@ -468,7 +468,7 @@ class CommandBase:
                 )
         # for example src, fac, uc, ca
         else:  # handling the {ns_name}:{BootstrapCore.AGGREGATED_GROUP_NAME}
-            spaces_by_action[action].extend(
+            spaces_by_role_type[role_type].extend(
                 [
                     # all datasets for each of the nodes of the given namespace
                     self.get_space_name_template(node_name=ns_node.node_name)
@@ -480,8 +480,8 @@ class CommandBase:
                 + [self.get_space_name_template(node_name=self.get_allprojects_name_template(ns_name=ns_name))]  # noqa
             )
             # only owner-groups support "shared_access" datasets
-            if action == RoleType.OWNER:
-                spaces_by_action[RoleType.OWNER].extend(
+            if role_type == RoleType.OWNER:
+                spaces_by_role_type[RoleType.OWNER].extend(
                     [
                         self.get_space_name_template(node_name=shared_access_node.node_name)
                         # and check the "shared_access" groups list (else [])
@@ -491,7 +491,7 @@ class CommandBase:
                         for shared_access_node in ns_node.shared_access.owner
                     ]
                 )
-                spaces_by_action[RoleType.READ].extend(
+                spaces_by_role_type[RoleType.READ].extend(
                     [
                         self.get_space_name_template(node_name=shared_access_node.node_name)
                         # and check the "shared_access" groups list (else [])
@@ -503,19 +503,19 @@ class CommandBase:
                 )
 
         # returns clear names
-        return spaces_by_action
+        return spaces_by_role_type
 
-    def get_datasets_groupedby_action(self, action: RoleType, ns_name: str, node_name: str = None):
-        dataset_names: Dict[str, Any] = {RoleType.OWNER: [], RoleType.READ: []}
+    def get_datasets_groupedby_role_type(self, role_type: RoleType, ns_name: str, node_name: str = None):
+        dataset_names: Dict[RoleType, List[str]] = {RoleType.OWNER: [], RoleType.READ: []}
         # for example fac:001:wasit, uc:002:meg, etc.
         if node_name:
-            dataset_names[action].extend(
+            dataset_names[role_type].extend(
                 # the dataset which belongs directly to this node_name
                 [self.get_dataset_name_template().format(node_name=node_name)]
             )
 
             # for owner groups add "shared_access" datasets too
-            if action == RoleType.OWNER:
+            if role_type == RoleType.OWNER:
                 dataset_names[RoleType.OWNER].extend(
                     [
                         self.get_dataset_name_template().format(node_name=shared_node.node_name)
@@ -534,7 +534,7 @@ class CommandBase:
                 )
         # for example src, fac, uc, ca
         else:  # handling the {ns_name}:{BootstrapCore.AGGREGATED_GROUP_NAME}
-            dataset_names[action].extend(
+            dataset_names[role_type].extend(
                 [
                     # all datasets for each of the nodes of the given namespace
                     self.get_dataset_name_template().format(node_name=ns_node.node_name)
@@ -550,7 +550,7 @@ class CommandBase:
                 ]
             )
             # only owner-groups support "shared_access" datasets
-            if action == RoleType.OWNER:
+            if role_type == RoleType.OWNER:
                 dataset_names[RoleType.OWNER].extend(
                     [
                         self.get_dataset_name_template().format(node_name=shared_access_node.node_name)
@@ -583,20 +583,20 @@ class CommandBase:
             if ds.name in dataset_names
         ]
 
-    def get_scope_ctx_groupedby_action(self, action, ns_name, node_name=None):
-        ds_by_action = self.get_datasets_groupedby_action(action, ns_name, node_name)
-        spaces_by_action = self.get_spaces_groupedby_action(action, ns_name, node_name)
-        rawdbs_by_action = self.get_raw_dbs_groupedby_action(action, ns_name, node_name)
+    def get_scope_ctx_groupedby_role_type(self, role_type: RoleType, ns_name: str, node_name: str | None = None):
+        ds_by_role_type = self.get_datasets_groupedby_role_type(role_type, ns_name, node_name)
+        spaces_by_role_type = self.get_spaces_groupedby_role_type(role_type, ns_name, node_name)
+        rawdbs_by_role_type = self.get_raw_dbs_groupedby_role_type(role_type, ns_name, node_name)
         return {
-            action: {
-                ScopeCtxType.RAWDB: rawdbs_by_action[action],
-                ScopeCtxType.DATASET: ds_by_action[action],
-                ScopeCtxType.SPACE: spaces_by_action[action],
+            role_type: {
+                ScopeCtxType.RAWDB: rawdbs_by_role_type[role_type],
+                ScopeCtxType.DATASET: ds_by_role_type[role_type],
+                ScopeCtxType.SPACE: spaces_by_role_type[role_type],
             }
-            for action in [RoleType.OWNER, RoleType.READ]
+            for role_type in [RoleType.OWNER, RoleType.READ]
         }  # fmt: skip
 
-    def generate_scope(self, acl_type: str, scope_ctx: Dict[ScopeCtxType, List[str]]):
+    def generate_scope(self, acl_type: str, scope_ctx: Dict[ScopeCtxType, List[str]]) -> Dict[str, Dict[str, Any]]:
 
         # first handle acl types **without** scope support:
         if acl_type in AclAllScopeOnlyTypes:
@@ -634,21 +634,21 @@ class CommandBase:
 
     def generate_group_name_and_capabilities(
         self,
-        action: str | None = None,
+        role_type: RoleType | None = None,
         ns_name: str | None = None,
         node_name: str | None = None,
         root_account: str | None = None,
     ) -> Tuple[str, List[Dict[str, Any]]]:
         """Create the group-name and its capabilities.
         The function supports following levels expressed by parameter combinations:
-        - core: {action} + {ns_name} + {node_name}
-        - namespace: {action} + {ns_name}
-        - top-level: {action}
+        - core: {role_type} + {ns_name} + {node_name}
+        - namespace: {role_type} + {ns_name}
+        - top-level: {role_type}
         - root: {root_account}
 
         Args:
-            action (str, optional):
-                One of the ActionDimensions [RoleType.READ, RoleType.OWNER].
+            role_type (str, optional):
+                One of the RoleTypeActions [RoleType.READ, RoleType.OWNER].
                 Defaults to None.
             ns_name (str, optional):
                 Namespace like "src" or "uc".
@@ -665,35 +665,38 @@ class CommandBase:
         """
 
         capabilities = []
+        group_name_full_qualified: str = ""
 
         # detail level like cdf:src:001:public:read
-        if action and ns_name and node_name:
+        if role_type and ns_name and node_name:
             # group for each dedicated group-core id
-            group_name_full_qualified = f"{CommandBase.GROUP_NAME_PREFIX}{node_name}:{action}"
+            group_name_full_qualified = f"{CommandBase.GROUP_NAME_PREFIX}{node_name}:{role_type}"
 
             [
                 capabilities.append(  # type: ignore
                     {
                         f"{acl_type}Acl": self.acl_template(
                             # check for acl specific owner actions, else default
-                            actions=self.generate_default_action(shared_action, acl_type),
+                            actions=self.generate_default_actions(shared_role_type, acl_type),
                             scope=self.generate_scope(acl_type, scope_ctx),
                         )
                     }
                 )
                 for acl_type in AclDefaultTypes
-                for shared_action, scope_ctx in self.get_scope_ctx_groupedby_action(action, ns_name, node_name).items()
+                for shared_role_type, scope_ctx in self.get_scope_ctx_groupedby_role_type(
+                    role_type, ns_name, node_name
+                ).items()
                 # don't create empty scopes
                 # enough to check one as they have both same length, but that's more explicit
                 if scope_ctx[ScopeCtxType.RAWDB] and scope_ctx[ScopeCtxType.DATASET]
             ]
 
         # group-type level like cdf:src:all:read
-        elif action and ns_name:
+        elif role_type and ns_name:
             # 'all' groups on group-type level
             # (access to all datasets/ raw-dbs which belong to this group-type)
             group_name_full_qualified = (
-                f"{CommandBase.GROUP_NAME_PREFIX}{ns_name}:{CommandBase.AGGREGATED_LEVEL_NAME}:{action}"  # noqa
+                f"{CommandBase.GROUP_NAME_PREFIX}{ns_name}:{CommandBase.AGGREGATED_LEVEL_NAME}:{role_type}"  # noqa
             )
 
             [
@@ -701,29 +704,31 @@ class CommandBase:
                     {
                         f"{acl_type}Acl": self.acl_template(
                             # check for acl specific owner actions, else default
-                            actions=self.generate_default_action(shared_action, acl_type),
+                            actions=self.generate_default_actions(shared_role_type, acl_type),
                             scope=self.generate_scope(acl_type, scope_ctx),
                         )
                     }
                 )
                 for acl_type in AclDefaultTypes
-                for shared_action, scope_ctx in self.get_scope_ctx_groupedby_action(action, ns_name).items()
+                for shared_role_type, scope_ctx in self.get_scope_ctx_groupedby_role_type(role_type, ns_name).items()
                 # don't create empty scopes
                 # enough to check one as they have both same length, but that's more explicit
                 if scope_ctx[ScopeCtxType.RAWDB] and scope_ctx[ScopeCtxType.DATASET]
             ]
 
         # top level like cdf:all:read
-        elif action:
-            # 'all' groups on action level (no limits to datasets or raw-dbs)
-            group_name_full_qualified = f"{CommandBase.GROUP_NAME_PREFIX}{CommandBase.AGGREGATED_LEVEL_NAME}:{action}"
+        elif role_type:
+            # 'all' groups on role_type level (no limits to datasets or raw-dbs)
+            group_name_full_qualified = (
+                f"{CommandBase.GROUP_NAME_PREFIX}{CommandBase.AGGREGATED_LEVEL_NAME}:{role_type}"
+            )
 
             [
                 capabilities.append(  # type: ignore
                     {
                         f"{acl_type}Acl": self.acl_template(
                             # check for acl specific owner actions, else default
-                            actions=self.generate_default_action(action, acl_type),
+                            actions=self.generate_default_actions(role_type, acl_type),
                             # scope = { "all": {} }
                             # create scope for all raw_dbs and datasets
                             scope=self.generate_scope(acl_type, self.all_scoped_ctx),
@@ -743,7 +748,7 @@ class CommandBase:
                     {
                         f"{acl_type}Acl": self.acl_template(
                             # check for acl specific owner actions, else default
-                            actions=self.generate_default_action(RoleType.OWNER, acl_type),
+                            actions=self.generate_default_actions(RoleType.OWNER, acl_type),
                             scope={"all": {}},
                         )
                     }
@@ -757,7 +762,7 @@ class CommandBase:
                     {
                         f"{acl_admin_type}Acl": self.acl_template(
                             # check for acl specific owner actions, else default
-                            actions=self.generate_admin_action(acl_admin_type),
+                            actions=self.generate_admin_actions(acl_admin_type),
                             scope={"all": {}},
                         )
                     }
@@ -851,7 +856,7 @@ class CommandBase:
 
     def process_group(
         self,
-        action: str | None = None,
+        role_type: RoleType | None = None,
         ns_name: str | None = None,
         node_name: str | None = None,
         root_account: str | None = None,
@@ -859,10 +864,10 @@ class CommandBase:
         # to avoid complex upsert logic, all groups will be recreated and then the old ones deleted
 
         # to be merged with existing code
-        # print(f"=== START: action<{action}> | ns_name<{ns_name}> | node_name<{node_name}> ===")
+        # print(f"=== START: role_type<{role_type}> | ns_name<{ns_name}> | node_name<{node_name}> ===")
 
         group_name, group_capabilities = self.generate_group_name_and_capabilities(
-            action, ns_name, node_name, root_account
+            role_type, ns_name, node_name, root_account
         )
 
         group: Group = self.create_group(group_name, group_capabilities)
@@ -1081,16 +1086,16 @@ class CommandBase:
     # generate all groups - iterating through the 3-level hierarchy
     def generate_groups(self):
         # permutate the combinations
-        for action in [RoleType.READ, RoleType.OWNER]:  # ActionDimensions w/o 'admin'
+        for role_type in [RoleType.READ, RoleType.OWNER]:  # w/o 'admin'
             for ns in self.bootstrap_config.namespaces:
                 for ns_node in ns.ns_nodes:
                     # group for each dedicated group-type id
-                    self.process_group(action, ns.ns_name, ns_node.node_name)
+                    self.process_group(role_type, ns.ns_name, ns_node.node_name)
                 # 'all' groups on group-type level
                 # (access to all datasets/ raw-dbs which belong to this group-type)
-                self.process_group(action, ns.ns_name)
-            # 'all' groups on action level (no limits to datasets or raw-dbs)
-            self.process_group(action)
+                self.process_group(role_type, ns.ns_name)
+            # 'all' groups on role_type level (no limits to datasets or raw-dbs)
+            self.process_group(role_type)
         # creating CDF group for root_account (highest admin-level)
         for root_account in ["root"]:
             self.process_group(root_account=root_account)

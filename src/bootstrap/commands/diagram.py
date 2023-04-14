@@ -139,7 +139,7 @@ class CommandDiagram(CommandBase):
             # detail level like cdf:src:001:public:read
             if action and ns_name and node_name:
                 group_name_full_qualified = f"{CommandBase.GROUP_NAME_PREFIX}{node_name}:{action}"
-                scope_ctx_by_action = self.get_scope_ctx_groupedby_action(action, ns_name, node_name)
+                scope_ctx_by_action = self.get_scope_ctx_groupedby_role_type(action, ns_name, node_name)
 
             # group-type level like cdf:src:all:read
             elif action and ns_name:
@@ -148,7 +148,7 @@ class CommandDiagram(CommandBase):
                 group_name_full_qualified = (
                     f"{CommandBase.GROUP_NAME_PREFIX}{ns_name}:{CommandBase.AGGREGATED_LEVEL_NAME}:{action}"  # noqa
                 )
-                scope_ctx_by_action = self.get_scope_ctx_groupedby_action(action, ns_name)
+                scope_ctx_by_action = self.get_scope_ctx_groupedby_role_type(action, ns_name)
 
             # top level like cdf:all:read
             elif action:
