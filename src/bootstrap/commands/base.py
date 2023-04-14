@@ -142,15 +142,15 @@ class CommandBase:
                 CommandBase.RAW_VARIANTS = [""] + [f":{suffix}" for suffix in features.rawdb_additional_variants]
 
     @staticmethod
-    def acl_template(actions: List[str], scope: Dict[str, Dict[str, Any]]):
+    def acl_template(actions: List[str], scope: Dict[str, Dict[str, Any]]) -> Dict[str, Any]:
         return {"actions": actions, "scope": scope}
 
     @staticmethod
-    def get_allprojects_name_template(ns_name: str | None = None):
+    def get_allprojects_name_template(ns_name: str | None = None) -> str:
         return f"{ns_name}:{CommandBase.AGGREGATED_LEVEL_NAME}" if ns_name else CommandBase.AGGREGATED_LEVEL_NAME
 
     @staticmethod
-    def get_dataset_name_template():
+    def get_dataset_name_template() -> str:
         return "{node_name}" + CommandBase.DATASET_SUFFIX
 
     @staticmethod
@@ -407,39 +407,13 @@ class CommandBase:
                     for raw_variant in CommandBase.RAW_VARIANTS
                 ]
             )
-            # only owner-groups support "shared_access" rawdbs
-            if role_type == RoleType.OWNER:
-                raw_db_names[RoleType.OWNER].extend(
-                    [
-                        self.get_raw_dbs_name_template().format(
-                            node_name=shared_access_node.node_name, raw_variant=raw_variant
-                        )
-                        # and check the "shared_access" groups list (else [])
-                        for ns in self.bootstrap_config.namespaces
-                        if ns.ns_name == ns_name
-                        for ns_node in ns.ns_nodes
-                        for shared_access_node in ns_node.shared_access.owner
-                        for raw_variant in CommandBase.RAW_VARIANTS
-                    ]
-                )
-                raw_db_names[RoleType.READ].extend(
-                    [
-                        self.get_raw_dbs_name_template().format(
-                            node_name=shared_access_node.node_name, raw_variant=raw_variant
-                        )
-                        # and check the "shared_access" groups list (else [])
-                        for ns in self.bootstrap_config.namespaces
-                        if ns.ns_name == ns_name
-                        for ns_node in ns.ns_nodes
-                        for shared_access_node in ns_node.shared_access.read
-                        for raw_variant in CommandBase.RAW_VARIANTS
-                    ]
-                )
+            # **aggregated** ns-groups, don't support shared-access
+            # this bug was fixed for v3
 
         # returns clear names grouped by role_type
         return raw_db_names
 
-    def get_spaces_groupedby_role_type(self, role_type, ns_name, node_name=None):
+    def get_spaces_groupedby_role_type(self, role_type, ns_name, node_name: str | None = None):
         spaces_by_role_type: Dict[RoleType, List[str]] = {RoleType.OWNER: [], RoleType.READ: []}
         # for example fac:001:wasit, uc:002:meg, etc.
         if node_name:
@@ -479,33 +453,12 @@ class CommandBase:
                 # adding the {ns_name}:{BootstrapCore.AGGREGATED_GROUP_NAME} dataset
                 + [self.get_space_name_template(node_name=self.get_allprojects_name_template(ns_name=ns_name))]  # noqa
             )
-            # only owner-groups support "shared_access" datasets
-            if role_type == RoleType.OWNER:
-                spaces_by_role_type[RoleType.OWNER].extend(
-                    [
-                        self.get_space_name_template(node_name=shared_access_node.node_name)
-                        # and check the "shared_access" groups list (else [])
-                        for ns in self.bootstrap_config.namespaces
-                        if ns.ns_name == ns_name
-                        for ns_node in ns.ns_nodes
-                        for shared_access_node in ns_node.shared_access.owner
-                    ]
-                )
-                spaces_by_role_type[RoleType.READ].extend(
-                    [
-                        self.get_space_name_template(node_name=shared_access_node.node_name)
-                        # and check the "shared_access" groups list (else [])
-                        for ns in self.bootstrap_config.namespaces
-                        if ns.ns_name == ns_name
-                        for ns_node in ns.ns_nodes
-                        for shared_access_node in ns_node.shared_access.read
-                    ]
-                )
+            # **aggregated** ns-groups, don't support shared-access
 
         # returns clear names
         return spaces_by_role_type
 
-    def get_datasets_groupedby_role_type(self, role_type: RoleType, ns_name: str, node_name: str = None):
+    def get_datasets_groupedby_role_type(self, role_type: RoleType, ns_name: str, node_name: str | None = None):
         dataset_names: Dict[RoleType, List[str]] = {RoleType.OWNER: [], RoleType.READ: []}
         # for example fac:001:wasit, uc:002:meg, etc.
         if node_name:
@@ -533,7 +486,7 @@ class CommandBase:
                     ]
                 )
         # for example src, fac, uc, ca
-        else:  # handling the {ns_name}:{BootstrapCore.AGGREGATED_GROUP_NAME}
+        else:  # handling the {ns_name}:{BootstrapCore.AGGREGATED_GROUP_NAME} like 'uc:all:owner'
             dataset_names[role_type].extend(
                 [
                     # all datasets for each of the nodes of the given namespace
@@ -549,28 +502,9 @@ class CommandBase:
                     )
                 ]
             )
-            # only owner-groups support "shared_access" datasets
-            if role_type == RoleType.OWNER:
-                dataset_names[RoleType.OWNER].extend(
-                    [
-                        self.get_dataset_name_template().format(node_name=shared_access_node.node_name)
-                        # and check the "shared_access" groups list (else [])
-                        for ns in self.bootstrap_config.namespaces
-                        if ns.ns_name == ns_name
-                        for ns_node in ns.ns_nodes
-                        for shared_access_node in ns_node.shared_access.owner
-                    ]
-                )
-                dataset_names[RoleType.READ].extend(
-                    [
-                        self.get_dataset_name_template().format(node_name=shared_access_node.node_name)
-                        # and check the "shared_access" groups list (else [])
-                        for ns in self.bootstrap_config.namespaces
-                        if ns.ns_name == ns_name
-                        for ns_node in ns.ns_nodes
-                        for shared_access_node in ns_node.shared_access.read
-                    ]
-                )
+
+            # **aggregated** ns-groups, don't support shared-access
+            # this bug was fixed for v3
 
         # returns clear names
         return dataset_names
@@ -583,10 +517,14 @@ class CommandBase:
             if ds.name in dataset_names
         ]
 
-    def get_scope_ctx_groupedby_role_type(self, role_type: RoleType, ns_name: str, node_name: str | None = None):
+    def get_scope_ctx_groupedby_role_type(
+        self, role_type: RoleType, ns_name: str, node_name: str | None = None
+    ) -> Dict[RoleType, Dict[ScopeCtxType, List[str]]]:
+
+        rawdbs_by_role_type = self.get_raw_dbs_groupedby_role_type(role_type, ns_name, node_name)
         ds_by_role_type = self.get_datasets_groupedby_role_type(role_type, ns_name, node_name)
         spaces_by_role_type = self.get_spaces_groupedby_role_type(role_type, ns_name, node_name)
-        rawdbs_by_role_type = self.get_raw_dbs_groupedby_role_type(role_type, ns_name, node_name)
+
         return {
             role_type: {
                 ScopeCtxType.RAWDB: rawdbs_by_role_type[role_type],
@@ -608,19 +546,9 @@ class CommandBase:
                 # { "tableScope": { "dbsToTables": { "foo:db": {}, "bar:db": {} } }
                 return {"tableScope": {"dbsToTables": {raw: {} for raw in scope_ctx[ScopeCtxType.RAWDB]}}}
             case "dataModels":
-                # DMS v2:
-                # { "dataModelScope": { "externalIds": [ "foo", "bar" ] }
-                # return {"dataModelScope": {"externalIds": [space for space in scope_ctx[ScopeCtxType.SPACE]]}}
-
-                # DMS v3:
                 # { "spaceIdScope": { "spaceIds": [ "foo", "bar" ] }
                 return {"spaceIdScope": {"spaceIds": [space for space in scope_ctx[ScopeCtxType.SPACE]]}}
             case "dataModelInstances":
-                # DMS v2:
-                # { "spaceScope": { "externalIds": [ "foo", "bar" ] }
-                # return {"spaceScope": {"externalIds": [space for space in scope_ctx[ScopeCtxType.SPACE]]}}
-
-                # DMS v3:
                 # { "spaceIdScope": { "spaceIds": [ "foo", "bar" ] }
                 return {"spaceIdScope": {"spaceIds": [space for space in scope_ctx[ScopeCtxType.SPACE]]}}
             case "datasets":
