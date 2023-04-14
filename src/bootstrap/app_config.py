@@ -174,7 +174,6 @@ class Namespace(Model):
 
 
 class BootstrapFeatures(Model):
-    with_special_groups: Optional[bool] = False
     with_raw_capability: Optional[bool] = True
     # TODO: datamodel / spaces / fdm?
     with_datamodel_capability: Optional[bool] = False
@@ -197,7 +196,6 @@ class BootstrapCoreConfig(Model):
     features: Optional[BootstrapFeatures] = Field(
         default=BootstrapFeatures(
             **dict(
-                with_special_groups=False,
                 with_raw_capability=True,
                 with_datamodel_capability=False,
                 group_prefix="cdf",

@@ -231,7 +231,8 @@ def bootstrap_cli(
 ) -> None:
 
     # load .env from file if exists, use given dotenv_path if provided
-    load_dotenv(dotenv_path=dotenv_path)
+    # load_dotenv(dotenv_path=dotenv_path, override=True)
+    # dotenv loaded in 'init_container'
 
     context.obj = {
         # cdf
@@ -257,15 +258,6 @@ def bootstrap_cli(
     default="./config-bootstrap.yml",
 )
 @click.option(
-    "--with-special-groups",
-    # having this as a flag is not working for gh-action 'actions.yml' manifest
-    # instead using explicit choice options
-    # is_flag=True,
-    # default="no",
-    type=click.Choice(["yes", "no"], case_sensitive=False),
-    help="Create special CDF groups, without any capabilities (extractions, transformations). Defaults to 'no'",
-)
-@click.option(
     "--with-raw-capability",
     # default="yes", # default defined in 'configuration.BootstrapFeatures'
     type=click.Choice(["yes", "no"], case_sensitive=False),
@@ -276,7 +268,6 @@ def deploy(
     # click.core.Context obj
     obj: Dict,
     config_file: str,
-    with_special_groups: YesNoType,
     with_raw_capability: YesNoType,
 ) -> None:
 
@@ -284,12 +275,17 @@ def deploy(
 
     try:
         (
-            CommandDeploy(config_file, command=CommandMode.DEPLOY, debug=obj["debug"], dry_run=obj["dry_run"])
+            CommandDeploy(
+                config_file,
+                command=CommandMode.DEPLOY,
+                debug=obj["debug"],
+                dry_run=obj["dry_run"],
+                dotenv_path=obj["dotenv_path"]
+            )
             .validate_config_length_limits()
             .validate_config_shared_access()
             .validate_config_is_cdf_project_in_mappings()
             .command(
-                with_special_groups=with_special_groups,
                 with_raw_capability=with_raw_capability,
             )
         )  # fmt:skip
@@ -333,7 +329,13 @@ def prepare(
 
     try:
         (
-            CommandPrepare(config_file, command=CommandMode.PREPARE, debug=obj["debug"], dry_run=obj["dry_run"])
+            CommandPrepare(
+                config_file,
+                command=CommandMode.PREPARE,
+                debug=obj["debug"],
+                dry_run=obj["dry_run"],
+                dotenv_path=obj["dotenv_path"]
+            )
             # .validate_config() # TODO
             .command(idp_source_id=idp_source_id)
         )  # fmt:skip
@@ -364,7 +366,13 @@ def delete(
 
     try:
         (
-            CommandDelete(config_file, command=CommandMode.DELETE, debug=obj["debug"], dry_run=obj["dry_run"])
+            CommandDelete(
+                config_file,
+                command=CommandMode.DELETE,
+                debug=obj["debug"],
+                dry_run=obj["dry_run"],
+                dotenv_path=obj["dotenv_path"],
+            )
             # .validate_config() # TODO
             .command()
         )
@@ -414,7 +422,7 @@ def diagram(
 
     try:
         (
-            CommandDiagram(config_file, command=CommandMode.DIAGRAM, debug=obj["debug"])
+            CommandDiagram(config_file, command=CommandMode.DIAGRAM, debug=obj["debug"], dotenv_path=obj["dotenv_path"])
             .validate_config_length_limits()
             .validate_config_shared_access()
             .validate_cdf_project_available(cdf_project_from_cli=cdf_project)

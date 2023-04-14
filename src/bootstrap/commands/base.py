@@ -1,6 +1,7 @@
 import logging
 import re
 from datetime import datetime
+from pathlib import Path
 from typing import Any, Dict, List, Set, Tuple, TypeVar, Union
 
 import yaml
@@ -46,11 +47,18 @@ class CommandBase:
     # - additional variant-suffixes can be added like this ["", ":state"]
     RAW_VARIANTS = [""]
 
-    def __init__(self, config_path: str, command: CommandMode, debug: bool, dry_run: bool = False):
+    def __init__(
+        self,
+        config_path: str,
+        command: CommandMode,
+        debug: bool,
+        dry_run: bool = False,
+        dotenv_path: str | Path | None = None,
+    ):
 
         # validate and load config according to command-mode
         ContainerCls = ContainerSelector[command]
-        self.container: ContainerCls = init_container(ContainerCls, config_path)
+        self.container: ContainerCls = init_container(ContainerCls, config_path=config_path, dotenv_path=dotenv_path)
 
         # migrating to CogniteDeployedCache
         # self.deployed: Dict[str, Any] = {}
@@ -111,8 +119,6 @@ class CommandBase:
                     "Features from config.yaml or defaults (can be overridden by cli-parameters!): " f"{features=}"
                 )
 
-                # [OPTIONAL] default: False
-                self.with_special_groups: bool = features.with_special_groups
                 # [OPTIONAL] default: True
                 self.with_raw_capability: bool = features.with_raw_capability
                 # [OPTIONAL] default: False
@@ -301,7 +307,8 @@ class CommandBase:
 
         if not cdf_project_from_cli and not self.cdf_project:
             raise ValueError(
-                "No --cdf-project or 'cognite' configuration is given. No idp-cdf-mapping possible in diagram"
+                "No --cdf-project or 'cognite' configuration is given. No 'idp-cdf-mapping' possible in diagram. "
+                "Provide either --cdf-project parameter or a valid 'cognite' configuration."
             )
 
         # return self for chaining
@@ -626,7 +633,11 @@ class CommandBase:
                 return {"datasetScope": {"ids": self.dataset_names_to_ids(scope_ctx[ScopeCtxType.DATASET])}}
 
     def generate_group_name_and_capabilities(
-        self, action: str = None, ns_name: str = None, node_name: str = None, root_account: str = None
+        self,
+        action: str | None = None,
+        ns_name: str | None = None,
+        node_name: str | None = None,
+        root_account: str | None = None,
     ) -> Tuple[str, List[Dict[str, Any]]]:
         """Create the group-name and its capabilities.
         The function supports following levels expressed by parameter combinations:
@@ -770,14 +781,14 @@ class CommandBase:
     def create_group(
         self,
         group_name: str,
-        group_capabilities: Dict[str, Any] = None,
-        idp_mapping: Tuple[str] = None,
+        group_capabilities: List[Dict[str, Any]],
+        idp_mapping: Tuple[str] | None = None,
     ) -> Group:
         """Creating a CDF group
         - with upsert support the same way Fusion updates CDF groups
-          if a group with the same name exists:
-              1. a new group with the same name will be created
-              2. then the old group will be deleted (by its 'id')
+            if a group with the same name exists:
+                1. a new group with the same name will be created
+                2. then the old group will be deleted (by its 'id')
         - with support of explicit given aad-mapping or internal lookup from config
 
         Args:
@@ -797,7 +808,8 @@ class CommandBase:
             # TODO: change from tuple to dataclass
             if len(idp_mapping) != 2:
                 raise ValueError(f"Expected a tuple of length 2, got {idp_mapping=} instead")
-            idp_source_id, idp_source_name = idp_mapping
+            else:
+                idp_source_id, idp_source_name = idp_mapping
         else:
             # check lookup from provided config
             mapping = self.bootstrap_config.get_idp_cdf_mapping_for_group(
@@ -821,10 +833,10 @@ class CommandBase:
             logging.info(f"Dry run - Creating group with name: <{new_group.name}>")
             logging.debug(f"Dry run - Creating group details: <{new_group}>")
         else:
-            logging.debug(f"  creating: {new_group.name} [idp source: {new_group.source_id}]")
+            logging.debug(f"  creating: {new_group.name} [idp source: {new_group.source_id or '-'}]")
             new_group: Union[Group, GroupList] = self.client.iam.groups.create(new_group)
             self.deployed.groups.create(resources=new_group)
-            logging.info(f"  {new_group.name} ({new_group.id}) [idp source: {new_group.source_id}]")
+            logging.info(f"  {new_group.name} ({new_group.id}) [idp source: {new_group.source_id or '-'}]")
 
         # if the group name existed before, delete those groups now
         # same upsert approach Fusion is using to update a CDF group: create new with changes => then delete old one
@@ -838,7 +850,11 @@ class CommandBase:
         return new_group
 
     def process_group(
-        self, action: str = None, ns_name: str = None, node_name: str = None, root_account: str = None
+        self,
+        action: str | None = None,
+        ns_name: str | None = None,
+        node_name: str | None = None,
+        root_account: str | None = None,
     ) -> Group:
         # to avoid complex upsert logic, all groups will be recreated and then the old ones deleted
 
@@ -942,7 +958,7 @@ class CommandBase:
                 .name.set(name)
                 .description.set(dataset.get("description"))
                 .external_id.set(dataset.get("external_id"))
-                .metadata.set(dataset.get("metadata"))
+                .metadata.set(dataset.get("metadata", {}))
                 for name, dataset in existing_datasets.items()
             ]
             if self.is_dry_run:
@@ -983,7 +999,7 @@ class CommandBase:
 
         return target_raw_db_names
 
-    def generate_missing_raw_dbs(self) -> Tuple[List[str], List[str]]:
+    def generate_missing_raw_dbs(self) -> Tuple[Set[str], Set[str]]:
         target_raw_db_names = self.generate_target_raw_dbs()
 
         try:
@@ -1061,24 +1077,6 @@ class CommandBase:
                 self.deployed.spaces.create(resources=created_spaces)
 
         return target_space_names, missing_space_names
-
-    """
-    "Special CDF groups" are groups which don't have capabilities but have an effect by their name only.
-    1. 'transformations' group: grants access to "Fusion > Integrate > Transformations"
-    2. 'extractors' group: grants access to "Fusion > Integrate > Extract Data" which allows dowload of extractors
-
-    Both of them are about getting deprecated in the near future (time of writing: Q4 '21).
-    - 'transformations' can already be replaced with dedicated 'transformationsAcl' capabilities
-    - 'extractors' only used to grant access to extractor-download page
-    """
-
-    def generate_special_groups(self):
-
-        special_group_names = ["extractors", "transformations"]
-        logging.info(f"Generating special groups:\n{special_group_names}")
-
-        for special_group_name in special_group_names:
-            self.create_group(group_name=special_group_name)
 
     # generate all groups - iterating through the 3-level hierarchy
     def generate_groups(self):

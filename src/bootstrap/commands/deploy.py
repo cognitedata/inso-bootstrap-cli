@@ -18,18 +18,11 @@ class CommandDeploy(CommandBase):
     #                        888                       .o..P'
     #                       o888o                      `Y8P'
     # '''
-    def command(self, with_special_groups: YesNoType, with_raw_capability: YesNoType) -> None:
-
-        # store parameter as bool
-        # if provided they override configuration or defaults from yaml-config
-        if with_special_groups:
-            self.with_special_groups = with_special_groups == YesNoType.yes
-        if with_raw_capability:
-            self.with_raw_capability = with_raw_capability == YesNoType.yes
+    def command(self, with_raw_capability: YesNoType) -> None:
 
         # debug new features and override with cli-parameters
-        logging.debug(f"From cli: {with_special_groups=} / {with_raw_capability=}")
-        logging.debug(f"Effective: {self.with_special_groups=} / {self.with_raw_capability=}")
+        logging.debug(f"From cli: {with_raw_capability=}")
+        logging.debug(f"Effective: {self.with_raw_capability=}")
 
         # load deployed groups, datasets, raw_dbs with their ids and metadata
         logging.debug(f"RAW_DBS in CDF:\n{self.deployed.raw_dbs.get_names()}")
@@ -85,10 +78,6 @@ class CommandDeploy(CommandBase):
             ScopeCtxType.DATASET: target_dataset_names,  # all datasets
             ScopeCtxType.SPACE: target_space_names,  # all spaces
         }
-
-        # Special CDF groups and their aad_mappings
-        if with_special_groups == YesNoType.yes:
-            self.generate_special_groups()
 
         # CDF groups from configuration
         self.generate_groups()

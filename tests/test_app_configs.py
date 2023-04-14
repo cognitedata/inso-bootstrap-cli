@@ -50,7 +50,7 @@ def test_deploy_config_01_is_valid(example_file: Path, dotenv_path: Path):
 
     # must contain bootstrap section
     assert container.bootstrap()
-    assert isinstance(container.bootstrap().features.with_special_groups, bool)
+    assert isinstance(container.bootstrap().features.with_raw_capability, bool)
     assert isinstance(container.bootstrap().idp_cdf_mappings, list)
     assert isinstance(container.bootstrap().namespaces, list)
     # must be able to instantiate a CogniteClient (even with mocked client/secret)
