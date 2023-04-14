@@ -2,16 +2,12 @@ import json
 import logging
 from collections import UserList
 from collections.abc import Iterable
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List, Type, Union
 
 from cognite.client import CogniteClient, utils
 from cognite.client.data_classes import Database, DataSet, Group
 from cognite.client.data_classes._base import CogniteResource, CogniteResourceList
 
-# fdm sdk injection
-# v2
-# from .fdm_sdk_inject.data_classes.data_model_storages.spaces import DataModelStorageSpace, DataModelStorageSpaceList
-# v3
 from fdm_sdk_inject.data_classes.models.spaces import ModelsSpace
 
 
@@ -22,7 +18,7 @@ class CogniteResourceCache(UserList):
     """
 
     # not all CDF resources support 'id' for selection, so this is the dynamic lookup for
-    RESOURCE_SELECTOR_MAPPING = {
+    RESOURCE_SELECTOR_MAPPING: dict[Any, str] = {
         DataSet: "id",
         Group: "id",
         Database: "name",
@@ -32,10 +28,10 @@ class CogniteResourceCache(UserList):
 
     def __init__(
         self,
-        RESOURCE: Union[Group, Database, DataSet, ModelsSpace],
-        resources: Union[CogniteResource, CogniteResourceList],
+        RESOURCE: Type[Group] | Type[Database] | Type[DataSet] | Type[ModelsSpace],
+        resources: CogniteResource | CogniteResourceList,
     ) -> None:
-        self.RESOURCE: Union[Group, Database, DataSet, ModelsSpace] = RESOURCE
+        self.RESOURCE = RESOURCE
         self.SELECTOR_FIELD = CogniteResourceCache.RESOURCE_SELECTOR_MAPPING[RESOURCE]
 
         logging.debug(f"Init Resource Cache {RESOURCE=} with SELECTOR_FIELD='{self.SELECTOR_FIELD}'")
@@ -140,10 +136,10 @@ class CogniteDeployedCache:
     def __init__(self, client: CogniteClient, groups_only: bool = False):
 
         # init
-        self.groups: CogniteResourceCache = None
-        self.datasets: CogniteResourceCache = None
-        self.raw_dbs: CogniteResourceCache = None
-        self.spaces: CogniteResourceCache = None
+        self.groups: CogniteResourceCache
+        self.datasets: CogniteResourceCache
+        self.raw_dbs: CogniteResourceCache
+        self.spaces: CogniteResourceCache
 
         """Load CDF groups, datasets and raw databases as CogniteResourceList
         and store them in 'self.deployed' dictionary.
@@ -165,14 +161,9 @@ class CogniteDeployedCache:
 
         self.datasets = CogniteResourceCache(RESOURCE=DataSet, resources=self.client.data_sets.list(limit=NOLIMIT))
         self.raw_dbs = CogniteResourceCache(RESOURCE=Database, resources=self.client.raw.databases.list(limit=NOLIMIT))
-        # v3
         self.spaces = CogniteResourceCache(
             RESOURCE=ModelsSpace, resources=self.client.models.spaces.list(limit=NOLIMIT)
         )
-        # v2
-        # self.spaces = CogniteResourceCache(
-        #     RESOURCE=DataModelStorageSpace, resources=self.client.models.spaces.list(limit=NOLIMIT)
-        # )
 
     def log_counts(self):
         logging.info(

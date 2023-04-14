@@ -2,16 +2,14 @@ import logging
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Set, Tuple, TypeVar, Union
+from typing import Any, Optional, Type, TypeVar
 
 import yaml
 from cognite.client import CogniteClient
 from cognite.client.data_classes import Database, DatabaseList, DataSet, DataSetList, DataSetUpdate, Group, GroupList
+from dependency_injector import containers
 
 # fdm sdk injection
-# v2
-# from fdm_sdk_inject.data_classes.data_model_storages.spaces import DataModelStorageSpace, DataModelStorageSpaceList
-# v3
 from fdm_sdk_inject.data_classes.models.spaces import ModelsSpace, ModelsSpaceList
 
 from .. import __version__
@@ -58,15 +56,14 @@ class CommandBase:
 
         # validate and load config according to command-mode
         ContainerCls = ContainerSelector[command]
-        self.container: ContainerCls = init_container(ContainerCls, config_path=config_path, dotenv_path=dotenv_path)
+        self.container = init_container(ContainerCls, config_path=config_path, dotenv_path=dotenv_path)
 
-        # migrating to CogniteDeployedCache
-        # self.deployed: Dict[str, Any] = {}
-        self.deployed: CogniteDeployedCache = None
-        self.all_scoped_ctx: Dict[str, Any] = {}
+        # instance variable declaration
+        self.deployed: CogniteDeployedCache
+        self.all_scoped_ctx: dict[RoleType, dict[ScopeCtxType, list[str]]]
         self.is_dry_run: bool = dry_run
-        self.client: CogniteClient = None
-        self.cdf_project = None
+        self.client: CogniteClient
+        self.cdf_project: str
 
         logging.info(f"Starting CDF Bootstrap version <v{__version__}> for command: <{command}>")
         if self.is_dry_run:
@@ -142,11 +139,11 @@ class CommandBase:
                 CommandBase.RAW_VARIANTS = [""] + [f":{suffix}" for suffix in features.rawdb_additional_variants]
 
     @staticmethod
-    def acl_template(actions: List[str], scope: Dict[str, Dict[str, Any]]) -> Dict[str, Any]:
+    def acl_template(actions: list[str], scope: dict[str, dict[str, Any]]) -> dict[str, Any]:
         return {"actions": actions, "scope": scope}
 
     @staticmethod
-    def get_allprojects_name_template(ns_name: str | None = None) -> str:
+    def get_allprojects_name_template(ns_name: Optional[str] = None) -> str:
         return f"{ns_name}:{CommandBase.AGGREGATED_LEVEL_NAME}" if ns_name else CommandBase.AGGREGATED_LEVEL_NAME
 
     @staticmethod
@@ -329,7 +326,7 @@ class CommandBase:
         # return self for chainingself.core.
         return self
 
-    def generate_default_actions(self, role_type: RoleType, acl_type: str) -> List[str]:
+    def generate_default_actions(self, role_type: RoleType, acl_type: str) -> list[str]:
         """bootstrap-cli supports two roles: READ, OWNER (called 'role_type' as parameter)
         Each acl and role resolves to a list of default or custom actions.
         - Default role-types are hard-coded as ["READ", "WRITE"] or ["READ"]
@@ -355,7 +352,7 @@ class CommandBase:
         return SharedAccess(owner=[], read=[])
 
     def get_raw_dbs_groupedby_role_type(self, role_type: RoleType, ns_name: str, node_name: str | None = None):
-        raw_db_names: Dict[RoleType, List[str]] = {RoleType.OWNER: [], RoleType.READ: []}
+        raw_db_names: dict[RoleType, list[str]] = {RoleType.OWNER: [], RoleType.READ: []}
         if node_name:
             raw_db_names[role_type].extend(
                 # the dataset which belongs directly to this node_name
@@ -413,8 +410,8 @@ class CommandBase:
         # returns clear names grouped by role_type
         return raw_db_names
 
-    def get_spaces_groupedby_role_type(self, role_type, ns_name, node_name: str | None = None):
-        spaces_by_role_type: Dict[RoleType, List[str]] = {RoleType.OWNER: [], RoleType.READ: []}
+    def get_spaces_groupedby_role_type(self, role_type, ns_name, node_name: Optional[str] = None):
+        spaces_by_role_type: dict[RoleType, list[str]] = {RoleType.OWNER: [], RoleType.READ: []}
         # for example fac:001:wasit, uc:002:meg, etc.
         if node_name:
             spaces_by_role_type[role_type].extend(
@@ -459,7 +456,7 @@ class CommandBase:
         return spaces_by_role_type
 
     def get_datasets_groupedby_role_type(self, role_type: RoleType, ns_name: str, node_name: str | None = None):
-        dataset_names: Dict[RoleType, List[str]] = {RoleType.OWNER: [], RoleType.READ: []}
+        dataset_names: dict[RoleType, list[str]] = {RoleType.OWNER: [], RoleType.READ: []}
         # for example fac:001:wasit, uc:002:meg, etc.
         if node_name:
             dataset_names[role_type].extend(
@@ -519,7 +516,7 @@ class CommandBase:
 
     def get_scope_ctx_groupedby_role_type(
         self, role_type: RoleType, ns_name: str, node_name: str | None = None
-    ) -> Dict[RoleType, Dict[ScopeCtxType, List[str]]]:
+    ) -> dict[RoleType, dict[ScopeCtxType, list[str]]]:
 
         rawdbs_by_role_type = self.get_raw_dbs_groupedby_role_type(role_type, ns_name, node_name)
         ds_by_role_type = self.get_datasets_groupedby_role_type(role_type, ns_name, node_name)
@@ -534,7 +531,7 @@ class CommandBase:
             for role_type in [RoleType.OWNER, RoleType.READ]
         }  # fmt: skip
 
-    def generate_scope(self, acl_type: str, scope_ctx: Dict[ScopeCtxType, List[str]]) -> Dict[str, Dict[str, Any]]:
+    def generate_scope(self, acl_type: str, scope_ctx: dict[ScopeCtxType, list[str]]) -> dict[str, dict[str, Any]]:
 
         # first handle acl types **without** scope support:
         if acl_type in AclAllScopeOnlyTypes:
@@ -566,7 +563,7 @@ class CommandBase:
         ns_name: str | None = None,
         node_name: str | None = None,
         root_account: str | None = None,
-    ) -> Tuple[str, List[Dict[str, Any]]]:
+    ) -> tuple[str, list[dict[str, Any]]]:
         """Create the group-name and its capabilities.
         The function supports following levels expressed by parameter combinations:
         - core: {role_type} + {ns_name} + {node_name}
@@ -699,7 +696,7 @@ class CommandBase:
             ]
         return group_name_full_qualified, capabilities
 
-    def get_group_ids_by_name(self, group_name: str) -> List[int]:
+    def get_group_ids_by_name(self, group_name: str) -> list[int]:
         """Lookup if CDF group name exists (could be more than one!)
         and return list of all CDF group IDs
 
@@ -714,8 +711,8 @@ class CommandBase:
     def create_group(
         self,
         group_name: str,
-        group_capabilities: List[Dict[str, Any]],
-        idp_mapping: Tuple[str] | None = None,
+        group_capabilities: list[dict[str, Any]],
+        idp_mapping: Optional[tuple[str]] = None,
     ) -> Group:
         """Creating a CDF group
         - with upsert support the same way Fusion updates CDF groups
@@ -767,7 +764,7 @@ class CommandBase:
             logging.debug(f"Dry run - Creating group details: <{new_group}>")
         else:
             logging.debug(f"  creating: {new_group.name} [idp source: {new_group.source_id or '-'}]")
-            new_group: Union[Group, GroupList] = self.client.iam.groups.create(new_group)
+            new_group: Group | GroupList = self.client.iam.groups.create(new_group)
             self.deployed.groups.create(resources=new_group)
             logging.info(f"  {new_group.name} ({new_group.id}) [idp source: {new_group.source_id or '-'}]")
 
@@ -801,7 +798,7 @@ class CommandBase:
         group: Group = self.create_group(group_name, group_capabilities)
         return group
 
-    def generate_target_datasets(self) -> Dict[str, Any]:
+    def generate_target_datasets(self) -> dict[str, Any]:
         # list of all targets: autogenerated dataset names
         target_datasets = {
             # dictionary generator
@@ -843,7 +840,7 @@ class CommandBase:
 
         return target_datasets
 
-    def generate_missing_datasets(self) -> Tuple[List[str], List[str]]:
+    def generate_missing_datasets(self) -> tuple[set[str], set[str]]:
         target_datasets = self.generate_target_datasets()
 
         # which targets are not already deployed?
@@ -868,7 +865,7 @@ class CommandBase:
                 logging.info(f"Dry run - Creating missing datasets: {[name for name in missing_datasets]}")
                 logging.debug(f"Dry run - Creating missing datasets (details): <{datasets_to_be_created}>")
             else:
-                created_datasets: Union[DataSet, DataSetList] = self.client.data_sets.create(datasets_to_be_created)
+                created_datasets: DataSet | DataSetList = self.client.data_sets.create(datasets_to_be_created)
                 self.deployed.datasets.create(resources=created_datasets)
 
         # which targets are already deployed?
@@ -900,12 +897,12 @@ class CommandBase:
                 # dump of DataSetUpdate object
                 logging.debug(f"Dry run - Updating existing datasets (details): <{datasets_to_be_updated}>")
             else:
-                updated_datasets: Union[DataSet, DataSetList] = self.client.data_sets.update(datasets_to_be_updated)
+                updated_datasets: DataSet | DataSetList = self.client.data_sets.update(datasets_to_be_updated)
                 self.deployed.datasets.update(resources=updated_datasets)
 
-        return list(target_datasets.keys()), list(missing_datasets.keys())
+        return set(target_datasets.keys()), set(missing_datasets.keys())
 
-    def generate_target_raw_dbs(self) -> Set[str]:
+    def generate_target_raw_dbs(self) -> set[str]:
         # list of all targets: autogenerated raw_db names
         target_raw_db_names = set(
             [
@@ -932,7 +929,7 @@ class CommandBase:
 
         return target_raw_db_names
 
-    def generate_missing_raw_dbs(self) -> Tuple[Set[str], Set[str]]:
+    def generate_missing_raw_dbs(self) -> tuple[set[str], set[str]]:
         target_raw_db_names = self.generate_target_raw_dbs()
 
         try:
@@ -948,14 +945,12 @@ class CommandBase:
                 for raw_db in list(missing_rawdb_names):
                     logging.info(f"Dry run - Creating rawdb: <{raw_db}>")
             else:
-                created_rawdbs: Union[Database, DatabaseList] = self.client.raw.databases.create(
-                    list(missing_rawdb_names)
-                )
+                created_rawdbs: Database | DatabaseList = self.client.raw.databases.create(list(missing_rawdb_names))
                 self.deployed.raw_dbs.create(resources=created_rawdbs)
 
         return target_raw_db_names, missing_rawdb_names
 
-    def generate_target_spaces(self) -> Set[str]:
+    def generate_target_spaces(self) -> set[str]:
         # list of all targets: autogenerated space names
         target_space_names = set(
             [
@@ -979,7 +974,7 @@ class CommandBase:
 
         return target_space_names
 
-    def generate_missing_spaces(self) -> Tuple[List[str], List[str]]:
+    def generate_missing_spaces(self) -> tuple[set[str], set[str]]:
         target_space_names = self.generate_target_spaces()
 
         try:
@@ -990,21 +985,13 @@ class CommandBase:
             missing_space_names = target_space_names
 
         if missing_space_names:
-            # v2
-            # spaces_to_be_created = [DataModelStorageSpace(external_id=name) for name in missing_space_names]
-            # v3
             spaces_to_be_created = [ModelsSpace(space=name, name=name) for name in missing_space_names]
             # create all spaces which are not already deployed
             if self.is_dry_run:
                 for space in list(missing_space_names):
                     logging.info(f"Dry run - Creating space: <{space}>")
             else:
-                # v2
-                # created_spaces: Union[
-                #     DataModelStorageSpace, DataModelStorageSpaceList
-                # ] = self.client.data_model_storages.spaces.create(space=spaces_to_be_created)
-                # v3
-                created_spaces: Union[ModelsSpace, ModelsSpaceList] = self.client.models.spaces.create(
+                created_spaces: ModelsSpace | ModelsSpaceList = self.client.models.spaces.create(
                     space=spaces_to_be_created
                 )
                 self.deployed.spaces.create(resources=created_spaces)

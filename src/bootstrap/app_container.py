@@ -1,14 +1,11 @@
 import logging.config
 from pathlib import Path
-from typing import Dict, Optional
+from typing import TYPE_CHECKING, Dict, Optional, Type
 
 from cognite.client import CogniteClient
 from dependency_injector import containers, providers
 from dotenv import load_dotenv
 
-# v2
-# from fdm_sdk_inject._api.data_model_storages import DataModelStoragesAPI
-# v3
 from fdm_sdk_inject._api.models import ModelsAPI
 
 from .app_config import BootstrapCoreConfig, BootstrapDeleteConfig, CommandMode
@@ -16,10 +13,10 @@ from .common.cognite_client import CogniteConfig, get_cognite_client
 
 
 def init_container(
-    container_cls: containers.Container,
+    container_cls: Type[containers.Container],
     config_path: str | Path = "/etc/f25e/config.yaml",
-    dotenv_path: str | Path = None,
-):
+    dotenv_path: str | Path | None = None,
+) -> containers.Container:
     """Spinning up container and
 
     Args:
@@ -107,16 +104,12 @@ def get_patched_cognite_client(cognite_config: CogniteConfig) -> CogniteClient:
         #
         client = get_cognite_client(cognite_config)
         _API_VERSION = "v1"
-        # if not getattr(client, "data_model_storages", None):
-        #     # DMS v2
-        #     client.data_model_storages = DataModelStoragesAPI(
-        #         config=client.config, api_version=_API_VERSION, cognite_client=client
-        #     )
-        #    logging.debug("Successfully injected FDM DMS v2 'client.data_model_storages'")
         if not getattr(client, "models", False):
             # DMS v3
-            client.models = ModelsAPI(config=client.config, api_version=_API_VERSION, cognite_client=client)
-            logging.debug("Successfully injected FDM DMS v3 'client.models'")
+            client.models = ModelsAPI(  # type: ignore
+                config=client.config, api_version=_API_VERSION, cognite_client=client
+            )
+            logging.debug("Successfully injected minimal FDM DMS v3 'client.models'")
 
         return client
     except Exception as e:
@@ -176,7 +169,7 @@ class DeleteCommandContainer(CogniteContainer):
     )
 
 
-ContainerSelector = {
+ContainerSelector: dict[CommandMode, Type[containers.Container]] = {
     CommandMode.PREPARE: CogniteContainer,
     CommandMode.DIAGRAM: DiagramCommandContainer,
     CommandMode.DEPLOY: DeployCommandContainer,

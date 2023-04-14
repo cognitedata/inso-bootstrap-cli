@@ -4,7 +4,9 @@ from datetime import datetime
 from enum import Enum
 
 # type-hints
-from typing import Dict, List, Type, TypeVar, Union
+from typing import ForwardRef, Optional, Type, TypeVar
+
+from pydantic import BaseModel
 
 
 # helper function
@@ -34,12 +36,11 @@ NEWLINE = "\n"
 # '''
 
 
-@dataclass
-class MermaidFlowchartElement:
+class MermaidFlowchartElement(BaseModel):
     id_name: str
     # TODO: ading default_factory value, will break the code
     # see https://stackoverflow.com/q/51575931/1104502
-    comments: List[str]
+    comments: Optional[list[str]]
 
     # dump comments
     def comments_to_mermaid(self):
@@ -47,7 +48,6 @@ class MermaidFlowchartElement:
 
 
 # https://mermaid.js.org/syntax/flowchart.html#node-shapes
-@dataclass
 class Node(MermaidFlowchartElement):
     display: str
 
@@ -56,7 +56,6 @@ class Node(MermaidFlowchartElement):
         return self.comments_to_mermaid() + f"""{self.id_name}""" + (rf"""["{self.display}"]""" if self.display else "")
 
 
-@dataclass
 class HexagonNode(Node):
     def __repr__(self):
         return (
@@ -67,14 +66,12 @@ class HexagonNode(Node):
         )
 
 
-@dataclass
 class RoundedEdgesNode(Node):
     def __repr__(self):
         # id1(This is the text in the box)
         return self.comments_to_mermaid() + f"""{self.id_name}""" + (rf"""("{self.display}")""" if self.display else "")
 
 
-@dataclass
 class TrapezoidNode(Node):
     def __repr__(self):
         return (
@@ -85,7 +82,6 @@ class TrapezoidNode(Node):
         )
 
 
-@dataclass
 class TrapezoidAltNode(Node):
     def __repr__(self):
         return (
@@ -96,14 +92,12 @@ class TrapezoidAltNode(Node):
         )
 
 
-@dataclass
 class AssymetricNode(Node):
     def __repr__(self):
         # id1>This is the text in the box]
         return self.comments_to_mermaid() + f"""{self.id_name}""" + (rf""">"{self.display}"]""" if self.display else "")
 
 
-@dataclass
 class SubroutineNode(Node):
     def __repr__(self):
         # id1[[This is the text in the box]]
@@ -112,11 +106,10 @@ class SubroutineNode(Node):
         )
 
 
-@dataclass
 class Edge(MermaidFlowchartElement):
     # from / to cannot be used as "from" is a reserved keyword
     dest: str
-    annotation: str
+    annotation: Optional[str]
 
     def __repr__(self):
         return self.comments_to_mermaid() + f"""{self.id_name}-->{self.dest}"""
@@ -128,7 +121,6 @@ class Edge(MermaidFlowchartElement):
         #     )
 
 
-@dataclass
 class DottedEdge(Edge):
     def __repr__(self):
         return self.comments_to_mermaid() + f"""{self.id_name}-.->{self.dest}"""
@@ -137,12 +129,15 @@ class DottedEdge(Edge):
 # type-hint for ExtpipesCore instance response
 T_Subgraph = TypeVar("T_Subgraph", bound="Subgraph")
 
+# https://docs.pydantic.dev/usage/postponed_annotations/#self-referencing-models
+# TODO: not working?
+# Subgraph = ForwardRef('Subgraph')
 
-@dataclass
+
 class Subgraph(MermaidFlowchartElement):
 
-    display: str
-    elements: List[Union[T_Subgraph, Node]]
+    display: Optional[str]
+    elements: list["Subgraph | Node"]
 
     def __contains__(self, name):
         return name in [elem.id_name for elem in self.elements]
@@ -162,6 +157,9 @@ subgraph "{self.id_name}" ["{self.display if self.display else self.id_name}"]
 end
 """
         )
+
+
+Subgraph.update_forward_refs()
 
 
 # '''
@@ -186,13 +184,13 @@ class GraphRegistry:
     """
 
     def __init__(self, elements=[]):
-        self.subgraph_registry: Dict[str, Type[Subgraph]] = {}
+        self.subgraph_registry: dict[str, Subgraph] = {}
         # nested
-        self.elements: List[Union[T_Subgraph, Node, Edge]] = elements
+        self.elements: list[Subgraph | Node | Edge] = elements
         # final block of edges
-        self.edges: List[Edge] = []
+        self.edges: list[Edge] = []
 
-    def get_or_create(self, subgraph_name, subgraph_short_name=None):
+    def get_or_create(self, subgraph_name, subgraph_short_name: Optional[str] = None) -> Subgraph:
         return self.subgraph_registry.setdefault(
             # get if exists
             subgraph_name,

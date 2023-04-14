@@ -1,5 +1,4 @@
 import logging
-from typing import List
 
 from ..app_config import AclDefaultTypes, ScopeCtxType, YesNoType
 from .base import CommandBase
@@ -35,12 +34,11 @@ class CommandDeploy(CommandBase):
         #
         # raw_dbs
         #
-        target_raw_db_names: List[str] = []
-        new_created_raw_db_names: List[str] = []
+        target_raw_db_names: set[str] = set()
         if self.with_raw_capability:
             target_raw_db_names, new_created_raw_db_names = self.generate_missing_raw_dbs()
-            logging.info(f"All RAW_DBS from config:\n{target_raw_db_names}")
-            logging.info(f"New RAW_DBS to CDF:\n{list(new_created_raw_db_names)}")
+            logging.info(f"All RAW_DBS from config:\n{sorted(target_raw_db_names)}")
+            logging.info(f"New RAW_DBS to CDF:\n{sorted(new_created_raw_db_names)}")
         else:
             # no RAW DBs means no access to RAW at all
             # which means no 'rawAcl' capability to create
@@ -51,12 +49,12 @@ class CommandDeploy(CommandBase):
         #
         # spaces
         #
-        target_space_names: List[str] = []
-        new_created_space_names: List[str] = []
+        target_space_names: set[str] = set()
+
         if self.with_datamodel_capability:
             target_space_names, new_created_space_names = self.generate_missing_spaces()
-            logging.info(f"All SPACES from config:\n{target_space_names}")
-            logging.info(f"New SPACES to CDF:\n{list(new_created_space_names)}")
+            logging.info(f"All SPACES from config:\n{sorted(target_space_names)}")
+            logging.info(f"New SPACES to CDF:\n{sorted(new_created_space_names)}")
         else:
             # no SPACESs means no access to FDM at all
             # which means no 'dataModels' and 'dataModelInstances' capabilities to create
@@ -69,8 +67,8 @@ class CommandDeploy(CommandBase):
         # datasets
         #
         target_dataset_names, new_created_dataset_names = self.generate_missing_datasets()
-        logging.info(f"All DATASETS from config:\n{target_dataset_names}")
-        logging.info(f"New DATASETS to CDF:\n{new_created_dataset_names}")
+        logging.info(f"All DATASETS from config:\n{sorted(target_dataset_names)}")
+        logging.info(f"New DATASETS to CDF:\n{sorted(new_created_dataset_names)}")
 
         # store all raw_dbs and datasets in scope of this configuration
         self.all_scoped_ctx = {
@@ -84,12 +82,12 @@ class CommandDeploy(CommandBase):
         if not self.is_dry_run:
             logging.info("Created new CDF groups")
 
-        logging.debug(f"Final RAW_DBS in CDF:\n{self.deployed.raw_dbs.get_names()}")
-        logging.debug(f"Final DATASETS in CDF:\n{self.deployed.datasets.get_names()}")
-        logging.debug(f"Final SPACES in CDF:\n{self.deployed.spaces.get_names()}")
-        logging.debug(f"Final GROUPS in CDF\n{self.deployed.groups.get_names()}")
+        logging.debug(f"Final RAW_DBS in CDF:\n{sorted(self.deployed.raw_dbs.get_names())}")
+        logging.debug(f"Final DATASETS in CDF:\n{sorted(self.deployed.datasets.get_names())}")
+        logging.debug(f"Final SPACES in CDF:\n{sorted(self.deployed.spaces.get_names())}")
+        logging.debug(f"Final GROUPS in CDF\n{sorted(self.deployed.groups.get_names())}")
 
         # dump all configs to yaml, as cope/paste template for delete_or_deprecate step
-        logging.info("Finished creating CDF groups, datasets and RAW Databases")
+        logging.info("Finished creating CDF Groups and required scopes (data-sets, raw-dbs, spaces)")
         self.dump_delete_template_to_yaml()
         # logging.info(f'Bootstrap Pipelines: created: {len(created)}, deleted: {len(delete_ids)}')

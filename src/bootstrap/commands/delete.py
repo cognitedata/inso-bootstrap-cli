@@ -36,9 +36,7 @@ class CommandDelete(CommandBase):
         # spaces
         space_names = self.delete_or_deprecate.spaces
         if space_names:
-            # v2 spaces have 'external_id' only
-            # delete_space_ids = [s.external_id for s in self.deployed.spaces if s.external_id in space_names]
-            # v3 spaces have 'space' not 'external_id'
+            # FDM v3 spaces have 'space' not 'external_id'
             delete_space_ids = [s.space for s in self.deployed.spaces if s.space in space_names]
             if delete_space_ids:
                 # only delete space which exist
@@ -47,7 +45,7 @@ class CommandDelete(CommandBase):
                     logging.info(f"Dry run - Deleting spaces: <{space_names}>")
                 else:
                     # TODO: delete is not supported in v2 only v3
-                    self.client.models.spaces.delete(delete_space_ids)
+                    self.client.models.spaces.delete(delete_space_ids)  # type: ignore
                     self.deployed.spaces.delete(resources=self.deployed.spaces.select(values=delete_space_ids))
 
             else:
@@ -89,6 +87,7 @@ class CommandDelete(CommandBase):
                 for ds in delete_datasets:
                     logging.info(f"DEPRECATE dataset: {ds.name}")
                     update_dataset = self.client.data_sets.retrieve(id=ds.id)
+                    assert update_dataset is not None
                     update_dataset.name = (
                         f"_DEPR_{update_dataset.name}"
                         if not update_dataset.name.startswith("_DEPR_")

@@ -1,6 +1,6 @@
 import logging
 from enum import Enum
-from typing import Any, Dict, Tuple
+from typing import Optional, Type
 
 from ..app_config import AclDefaultTypes, RoleType, ScopeCtxType, YesNoType
 from .base import CommandBase
@@ -35,18 +35,18 @@ class CommandDiagram(CommandBase):
         self,
         to_markdown: YesNoType = YesNoType.no,
         with_raw_capability: YesNoType = YesNoType.yes,
-        cdf_project: str = None,
+        cdf_project: Optional[str] = None,
     ) -> None:
         """Diagram mode used to document the given configuration as a Mermaid diagram.
 
         Args:
             to_markdown (YesNoType, optional):
-              - Encapsulate Mermaid diagram in Markdown syntax.
-              - Defaults to 'YesNoType.no'.
+                - Encapsulate Mermaid diagram in Markdown syntax.
+                - Defaults to 'YesNoType.no'.
             with_raw_capability (YesNoType, optional):
-              - Create RAW DBs and 'rawAcl' capability. Defaults to 'YesNoType.tes'.
+                - Create RAW DBs and 'rawAcl' capability. Defaults to 'YesNoType.tes'.
             cdf_project (str, optional):
-              - Provide the CDF Project to use for the diagram 'idp-cdf-mappings'.
+                - Provide the CDF Project to use for the diagram 'idp-cdf-mappings'.
 
         Example:
             # requires a 'cognite' configuration section
@@ -89,7 +89,7 @@ class CommandDiagram(CommandBase):
             RoleType.READ: all_scopes,
         }
 
-        def scopectx_mermaid_node_mapping(scopectx: ScopeCtxType) -> Node:
+        def scopectx_mermaid_node_mapping(scopectx: ScopeCtxType) -> Type[Node]:
             # hide a dict access in this typed-helper method
             return {
                 ScopeCtxType.DATASET: AssymetricNode,
@@ -98,8 +98,11 @@ class CommandDiagram(CommandBase):
             }[scopectx]
 
         def get_group_name_and_scopes(
-            action: str = None, ns_name: str = None, node_name: str = None, root_account: str = None
-        ) -> Tuple[str, Dict[str, Any]]:
+            role_type: Optional[RoleType] = None,
+            ns_name: Optional[str] = None,
+            node_name: Optional[str] = None,
+            root_account: Optional[str] = None,
+        ) -> tuple[str, dict[RoleType, dict[ScopeCtxType, list[str]]]]:
             """Adopted generate_group_name_and_capabilities() and get_scope_ctx_groupedby_action()
             to respond with
             - the full-qualified CDF group name and
@@ -134,36 +137,40 @@ class CommandDiagram(CommandBase):
                             }}
             """
 
-            group_name_full_qualified, scope_ctx_by_action = None, None
+            group_name_full_qualified: str = ""
+            scope_ctx_by_role_type: dict[RoleType, dict[ScopeCtxType, list[str]]] = {}
 
             # detail level like cdf:src:001:public:read
-            if action and ns_name and node_name:
-                group_name_full_qualified = f"{CommandBase.GROUP_NAME_PREFIX}{node_name}:{action}"
-                scope_ctx_by_action = self.get_scope_ctx_groupedby_role_type(action, ns_name, node_name)
+            if role_type and ns_name and node_name:
+                group_name_full_qualified = f"{CommandBase.GROUP_NAME_PREFIX}{node_name}:{role_type}"
+                scope_ctx_by_role_type = self.get_scope_ctx_groupedby_role_type(role_type, ns_name, node_name)
 
             # group-type level like cdf:src:all:read
-            elif action and ns_name:
+            elif role_type and ns_name:
                 # 'all' groups on group-type level
                 # (access to all datasets/ raw-dbs which belong to this group-type)
                 group_name_full_qualified = (
-                    f"{CommandBase.GROUP_NAME_PREFIX}{ns_name}:{CommandBase.AGGREGATED_LEVEL_NAME}:{action}"  # noqa
+                    f"{CommandBase.GROUP_NAME_PREFIX}{ns_name}:{CommandBase.AGGREGATED_LEVEL_NAME}:{role_type}"  # noqa
                 )
-                scope_ctx_by_action = self.get_scope_ctx_groupedby_role_type(action, ns_name)
+                scope_ctx_by_role_type = self.get_scope_ctx_groupedby_role_type(role_type, ns_name)
 
             # top level like cdf:all:read
-            elif action:
+            elif role_type:
                 # 'all' groups on action level (no limits to datasets or raw-dbs)
                 group_name_full_qualified = (
-                    f"{CommandBase.GROUP_NAME_PREFIX}{CommandBase.AGGREGATED_LEVEL_NAME}:{action}"
+                    f"{CommandBase.GROUP_NAME_PREFIX}{CommandBase.AGGREGATED_LEVEL_NAME}:{role_type}"
                 )
                 # limit all_scopes to 'action'
-                scope_ctx_by_action = {action: self.all_scoped_ctx[action]}
+                scope_ctx_by_role_type = {role_type: self.all_scoped_ctx[role_type]}
             # root level like cdf:root
             elif root_account:  # no parameters
                 # all (no limits)
                 group_name_full_qualified = f"{CommandBase.GROUP_NAME_PREFIX}{root_account}"
 
-            return group_name_full_qualified, scope_ctx_by_action
+            assert group_name_full_qualified
+            assert scope_ctx_by_role_type
+
+            return (group_name_full_qualified, scope_ctx_by_role_type)
 
         class SubgraphTypes(str, Enum):
             idp = "IdP Groups"
@@ -181,16 +188,16 @@ class CommandDiagram(CommandBase):
         # TODO: refactoring required, too much lines
         def group_to_graph(
             graph: GraphRegistry,
-            action: str = None,
-            ns_name: str = None,
-            node_name: str = None,
-            root_account: str = None,
+            role_type: Optional[RoleType] = None,
+            ns_name: Optional[str] = None,
+            node_name: Optional[str] = None,
+            root_account: Optional[str] = None,
         ) -> None:
 
             if root_account:
                 return
 
-            group_name, scope_ctx_by_action = get_group_name_and_scopes(action, ns_name, node_name, root_account)
+            group_name, scope_ctx_by_action = get_group_name_and_scopes(role_type, ns_name, node_name, root_account)
 
             # check lookup from provided config
             mapping = self.bootstrap_config.get_idp_cdf_mapping_for_group(
@@ -205,9 +212,9 @@ class CommandDiagram(CommandBase):
             logging.info(f"{ns_name=} : {group_name=} : {scope_ctx_by_action=} [{idp_source_name=}]")
 
             # preload master subgraphs
-            core_cdf = graph.get_or_create(getattr(SubgraphTypes, f"core_cdf_{action}"))
-            ns_cdf_graph = graph.get_or_create(getattr(SubgraphTypes, f"ns_cdf_{action}"))
-            scope_graph = graph.get_or_create(getattr(SubgraphTypes, f"scope_{action}"))
+            core_cdf = graph.get_or_create(getattr(SubgraphTypes, f"core_cdf_{role_type}"))
+            ns_cdf_graph = graph.get_or_create(getattr(SubgraphTypes, f"ns_cdf_{role_type}"))
+            scope_graph = graph.get_or_create(getattr(SubgraphTypes, f"scope_{role_type}"))
 
             #
             # NODE - IDP GROUP
@@ -238,26 +245,26 @@ class CommandDiagram(CommandBase):
             # NODE - CORE LEVEL
             #   'cdf:src:001:public:read'
             #
-            if action and ns_name and node_name:
+            if role_type and ns_name and node_name:
                 core_cdf.elements.append(
                     RoundedEdgesNode(
                         id_name=group_name,
                         display=group_name,
-                        comments=""
+                        comments=[]
                     )
                 )  # fmt: skip
 
                 #
                 # EDGE FROM PARENT 'src:all' to 'src:001:sap'
                 #
-                edge_type_cls = Edge if action == RoleType.OWNER else DottedEdge
+                edge_type_cls = Edge if role_type == RoleType.OWNER else DottedEdge
                 graph.edges.append(
                     edge_type_cls(
                         # link from all:{ns}
                         # multiline f-string split as it got too long
                         # TODO: refactor into string-templates
                         id_name=f"{CommandBase.GROUP_NAME_PREFIX}{ns_name}:"
-                        f"{CommandBase.AGGREGATED_LEVEL_NAME}:{action}",
+                        f"{CommandBase.AGGREGATED_LEVEL_NAME}:{role_type}",
                         dest=group_name,
                         annotation="",
                         comments=[],
@@ -287,9 +294,9 @@ class CommandDiagram(CommandBase):
                                 node_type_cls = scopectx_mermaid_node_mapping(scope_type)
                                 scope_graph.elements.append(
                                     node_type_cls(
-                                        id_name=f"{scope_name}__{action}__{scope_type}",
+                                        id_name=f"{scope_name}__{role_type}__{scope_type}",
                                         display=scope_name,
-                                        comments=""
+                                        comments=[]
                                     )
                                 )  # fmt: skip
 
@@ -301,7 +308,7 @@ class CommandDiagram(CommandBase):
                             graph.edges.append(
                                 edge_type_cls(
                                     id_name=group_name,
-                                    dest=f"{scope_name}__{action}__{scope_type}",
+                                    dest=f"{scope_name}__{role_type}__{scope_type}",
                                     annotation=shared_action,
                                     comments=[],
                                 )
@@ -310,12 +317,12 @@ class CommandDiagram(CommandBase):
             #
             # NODE - NAMESPACE LEVEL
             #   'src:all:read' or 'src:all:owner'
-            elif action and ns_name:
+            elif role_type and ns_name:
                 ns_cdf_graph.elements.append(
                     Node(
                         id_name=group_name,
                         display=group_name,
-                        comments=""
+                        comments=[]
                     )
                 )  # fmt: skip
 
@@ -323,10 +330,10 @@ class CommandDiagram(CommandBase):
                 # EDGE FROM PARENT top LEVEL to NAMESPACE LEVEL
                 #   'all' to 'src:all'
                 #
-                edge_type_cls = Edge if action == RoleType.OWNER else DottedEdge
+                edge_type_cls = Edge if role_type == RoleType.OWNER else DottedEdge
                 graph.edges.append(
                     edge_type_cls(
-                        id_name=f"{CommandBase.GROUP_NAME_PREFIX}{CommandBase.AGGREGATED_LEVEL_NAME}:{action}", # noqa
+                        id_name=f"{CommandBase.GROUP_NAME_PREFIX}{CommandBase.AGGREGATED_LEVEL_NAME}:{role_type}", # noqa
                         dest=group_name,
                         annotation="",
                         comments=[],
@@ -362,9 +369,9 @@ class CommandDiagram(CommandBase):
                                 node_type_cls = scopectx_mermaid_node_mapping(scope_type)
                                 scope_graph.elements.append(
                                     node_type_cls(
-                                        id_name=f"{scope_name}__{action}__{scope_type}",
+                                        id_name=f"{scope_name}__{role_type}__{scope_type}",
                                         display=scope_name,
-                                        comments=""
+                                        comments=[]
                                     )
                                 )  # fmt: skip
 
@@ -376,7 +383,7 @@ class CommandDiagram(CommandBase):
                             graph.edges.append(
                                 edge_type_cls(
                                     id_name=group_name,
-                                    dest=f"{scope_name}__{action}__{scope_type}",
+                                    dest=f"{scope_name}__{role_type}__{scope_type}",
                                     annotation=shared_action,
                                     comments=[],
                                 )
@@ -386,12 +393,12 @@ class CommandDiagram(CommandBase):
             # NODE - TOP LEVEL
             #   like `cdf:all:read`
             #
-            elif action:
+            elif role_type:
                 ns_cdf_graph.elements.append(
                     Node(
                         id_name=group_name,
                         display=group_name,
-                        comments=""
+                        comments=[]
                     )
                 )  # fmt: skip
 
@@ -427,9 +434,9 @@ class CommandDiagram(CommandBase):
                                 node_type_cls = scopectx_mermaid_node_mapping(scope_type)
                                 scope_graph.elements.append(
                                     node_type_cls(
-                                        id_name=f"{scope_name}__{action}__{scope_type}",
+                                        id_name=f"{scope_name}__{role_type}__{scope_type}",
                                         display=scope_name,
-                                        comments=""
+                                        comments=[]
                                     )
                                 )  # fmt: skip
 
@@ -441,7 +448,7 @@ class CommandDiagram(CommandBase):
                             graph.edges.append(
                                 edge_type_cls(
                                     id_name=group_name,
-                                    dest=f"{scope_name}__{action}__{scope_type}",
+                                    dest=f"{scope_name}__{role_type}__{scope_type}",
                                     annotation=shared_action,
                                     comments=[],
                                 )

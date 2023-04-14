@@ -14,17 +14,15 @@ class CommandPrepare(CommandBase):
     #  o888o                         o888o
     # '''
     def command(self, idp_source_id: str) -> None:
-        group_name = "cdf:bootstrap"
-        # group_name = f"{create_config.environment}:bootstrap"
+        group_name = f"{CommandBase.GROUP_NAME_PREFIX}:bootstrap"
 
         group_capabilities = [
             {"datasetsAcl": {"actions": ["READ", "WRITE", "OWNER"], "scope": {"all": {}}}},
-            {"rawAcl": {"actions": ["READ", "WRITE", "LIST"], "scope": {"all": {}}}},
-            {"securityCategoriesAcl": {"actions": ["MEMBEROF", "LIST", "CREATE", "DELETE"], "scope": {"all": {}}}},
-            # DMS v2+v3 compatible data-modelling fdm scope
             {"dataModelsAcl": {"actions": ["READ", "WRITE"], "scope": {"all": {}}}},
             {"groupsAcl": {"actions": ["LIST", "READ", "CREATE", "UPDATE", "DELETE"], "scope": {"all": {}}}},
             {"projectsAcl": {"actions": ["READ", "UPDATE"], "scope": {"all": {}}}},
+            {"rawAcl": {"actions": ["READ", "WRITE", "LIST"], "scope": {"all": {}}}},
+            {"securityCategoriesAcl": {"actions": ["MEMBEROF", "LIST", "CREATE", "DELETE"], "scope": {"all": {}}}},
         ]
 
         # TODO: replace with dataclass

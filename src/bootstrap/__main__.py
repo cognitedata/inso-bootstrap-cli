@@ -99,6 +99,12 @@
 #       which didn't took aggregated-node-levels into account.
 #       Like `src:all` or `all` (dependent on your features.aggregated-level-name)
 #       2nd fix adding `extractionConfigs` to the list of supported and scoped ACLs
+# 230314 pa: removed --with-special-groups
+#       - bug fix for `{ns}:all:owner` groups (like `uc:all:owner`) which included all shared-access from its nodes
+#       - removed DMS v2 references
+#       - deprecated `--aad-source-id` parameter
+#       - switched typehints to 3.10 supported set,dict,list instead of Set, Dict, List, ..
+#       - switched mermaid.py to pydantic
 #
 # TODO:
 #
@@ -107,11 +113,10 @@
 #   - atm existing datasets (not created by bootstrap) can be referenced too
 
 import logging
-from typing import Dict, Optional
+from typing import Optional
 
 import click
 from click import Context
-from dotenv import load_dotenv
 
 # cli internal
 from . import __version__
@@ -216,7 +221,7 @@ def bootstrap_cli(
     # cdf
     cluster: str = "westeurope-1",
     cdf_project_name: Optional[str] = None,
-    host: str = None,
+    host: Optional[str] = None,
     # cdf idp
     client_id: Optional[str] = None,
     client_secret: Optional[str] = None,
@@ -266,7 +271,7 @@ def bootstrap_cli(
 @click.pass_obj
 def deploy(
     # click.core.Context obj
-    obj: Dict,
+    obj: dict,
     config_file: str,
     with_raw_capability: YesNoType,
 ) -> None:
@@ -307,19 +312,17 @@ def deploy(
     default="./config-bootstrap.yml",
 )
 @click.option(
-    "--aad-source-id",
     "--idp-source-id",
     "idp_source_id",  # explicit named variable for alternatives
     required=True,
     help="Provide the IdP source ID to use for the 'cdf:bootstrap' group. "
     "Typically for a new project it's the same as configured for the initial "
-    "CDF group named 'oidc-admin-group'. "
-    "The parameter option '--aad-source-id' will be deprecated in next major release",
+    "CDF group named 'oidc-admin-group'. ",
 )
 @click.pass_obj
 def prepare(
     # click.core.Context obj
-    obj: Dict,
+    obj: dict,
     config_file: str,
     idp_source_id: str,
     dry_run: YesNoType = YesNoType.no,
@@ -358,7 +361,7 @@ def prepare(
 @click.pass_obj
 def delete(
     # click.core.Context obj
-    obj: Dict,
+    obj: dict,
     config_file: str,
 ) -> None:
 
@@ -411,7 +414,7 @@ def delete(
 @click.pass_obj
 def diagram(
     # click.core.Context obj
-    obj: Dict,
+    obj: dict,
     config_file: str,
     markdown: YesNoType,
     with_raw_capability: YesNoType,
