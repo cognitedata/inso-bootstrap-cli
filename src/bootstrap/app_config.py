@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from pydantic import Field
 
@@ -147,7 +147,8 @@ class IdpCdfMapping(Model):
 
 class IdpCdfMappingProjects(Model):
     cdf_project: str
-    mappings: List[IdpCdfMapping]
+    create_only_mapped_cdf_groups: Optional[bool] = False
+    mappings: list[IdpCdfMapping]
 
 
 class SharedNode(Model):
@@ -155,14 +156,14 @@ class SharedNode(Model):
 
 
 class SharedAccess(Model):
-    owner: Optional[List[SharedNode]] = Field(default_factory=list)
-    read: Optional[List[SharedNode]] = Field(default_factory=list)
+    owner: Optional[list[SharedNode]] = Field(default_factory=list)
+    read: Optional[list[SharedNode]] = Field(default_factory=list)
 
 
 class NamespaceNode(Model):
     node_name: str
     external_id: Optional[str]
-    metadata: Optional[Dict[str, Any]]
+    metadata: Optional[dict[str, Any]]
     description: Optional[str] = ""
     shared_access: Optional[SharedAccess] = SharedAccess(owner=[], read=[])
 
@@ -170,19 +171,18 @@ class NamespaceNode(Model):
 class Namespace(Model):
     ns_name: str
     description: Optional[str]
-    ns_nodes: List[NamespaceNode]
+    ns_nodes: list[NamespaceNode]
 
 
 class BootstrapFeatures(Model):
     with_raw_capability: Optional[bool] = True
-    # TODO: datamodel / spaces / fdm?
-    with_datamodel_capability: Optional[bool] = False
+    with_datamodel_capability: Optional[bool] = True
     group_prefix: Optional[str] = "cdf"
     aggregated_level_name: Optional[str] = "allprojects"
     dataset_suffix: Optional[str] = "dataset"
     space_suffix: Optional[str] = "space"
     rawdb_suffix: Optional[str] = "rawdb"
-    rawdb_additional_variants: Optional[List[str]] = ["state"]
+    rawdb_additional_variants: Optional[list[str]] = ["state"]
 
 
 class BootstrapCoreConfig(Model):
@@ -209,19 +209,34 @@ class BootstrapCoreConfig(Model):
     )
 
     # [] works too > https://stackoverflow.com/a/63808835/1104502
-    namespaces: List[Namespace] = Field(default_factory=list)
-    # alias_generator
-    idp_cdf_mappings: Optional[List[IdpCdfMappingProjects]] = Field(default_factory=list)
+    namespaces: list[Namespace] = []  # Field(default_factory=list)
+
+    idp_cdf_mappings: Optional[list[IdpCdfMappingProjects]] = []
+
+    def create_only_mapped_cdf_groups(self, cdf_project) -> bool:
+        assert self.idp_cdf_mappings is not None
+        idp_cdf_mapping_project = [
+            idp_cdf_mapping_project
+            for idp_cdf_mapping_project in self.idp_cdf_mappings
+            if cdf_project == idp_cdf_mapping_project.cdf_project
+        ]
+        if len(idp_cdf_mapping_project) > 1:
+            raise BootstrapConfigError(f"Found more than one project for cdf_project {cdf_project}")
+
+        # TODO: getting tired of adding `assert is not none` checks before
+        #   because pylance not values the **default** values for `Optional[..]` types
+        return idp_cdf_mapping_project[0].create_only_mapped_cdf_groups
 
     def get_idp_cdf_mapping_for_group(self, cdf_project, cdf_group) -> IdpCdfMapping:
         """
         Return the IdpCdfMapping for the given cdf_project and cdf_group (two nested-loops with filter)
         """
+        assert self.idp_cdf_mappings
         mappings = [
             mapping
-            for idp_cdf_mapping_projects in self.idp_cdf_mappings
-            if cdf_project == idp_cdf_mapping_projects.cdf_project
-            for mapping in idp_cdf_mapping_projects.mappings
+            for idp_cdf_mapping_project in self.idp_cdf_mappings
+            if cdf_project == idp_cdf_mapping_project.cdf_project
+            for mapping in idp_cdf_mapping_project.mappings
             if cdf_group == mapping.cdf_group
         ]
         if len(mappings) > 1:
@@ -237,7 +252,7 @@ class BootstrapDeleteConfig(Model):
     Configuration parameters for CDF Project Bootstrap 'delete' command
     """
 
-    datasets: Optional[List] = []
-    groups: Optional[List] = []
-    raw_dbs: Optional[List] = []
-    spaces: Optional[List] = []
+    datasets: Optional[list] = []
+    groups: Optional[list] = []
+    raw_dbs: Optional[list] = []
+    spaces: Optional[list] = []

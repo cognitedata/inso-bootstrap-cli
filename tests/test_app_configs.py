@@ -48,11 +48,24 @@ def test_deploy_config_01_is_valid(example_file: Path, dotenv_path: Path):
     ContainerCls = ContainerSelector[CommandMode.DEPLOY]
     container: DeployCommandContainer = init_container(ContainerCls, example_file, dotenv_path)
 
+    # to see print putput run `pytest -s`
+    print(container.bootstrap())
+
     # must contain bootstrap section
     assert container.bootstrap()
-    assert isinstance(container.bootstrap().features.with_raw_capability, bool)
-    assert isinstance(container.bootstrap().idp_cdf_mappings, list)
-    assert isinstance(container.bootstrap().namespaces, list)
+
+    bootstrap = container.bootstrap()
+    # check that it is available with at least defaults
+    assert bootstrap.features is not None
+    assert isinstance(bootstrap.features.with_raw_capability, bool)
+
+    # check that it is available with at least defaults
+    assert bootstrap.idp_cdf_mappings is not None
+    assert isinstance(bootstrap.idp_cdf_mappings, list)
+    for idp_cdf_mapping_projects in bootstrap.idp_cdf_mappings:
+        assert isinstance(idp_cdf_mapping_projects.create_only_mapped_cdf_groups, bool)
+
+    assert isinstance(bootstrap.namespaces, list)
     # must be able to instantiate a CogniteClient (even with mocked client/secret)
     assert container.cognite_client().config.project
 

@@ -105,6 +105,17 @@
 #       - deprecated `--aad-source-id` parameter
 #       - switched typehints to 3.10 supported set,dict,list instead of Set, Dict, List, ..
 #       - switched mermaid.py to pydantic
+#       - added support to **only** create CDF Groups with an existing IdP mapping, as only those have an effect
+#         configurable per project in `bootstrap.idp-cdf-mappings[].create-only-mapped-cdf-groups`
+#       - write idp-source-name now in new CDF Group `metadata` with `Dataops_created` and `Dataops_source` too
+#         TODO: SDK v5.10 does not support `metadata` in `Group` dataclass yet
+#           "metadata": {
+#              "idp_source_name": "CDF_DEV_ALLPROJECTS_READ",
+#              "Dataops_created": "2023-04-14 20:59:31",
+#              "idp_source_id": "acd2fe35-aa51-45a7-acef-0d54e2b6b6a8",
+#              "Dataops_source": "bootstrap-cli v2.5.1"
+#           }
+#
 #
 # TODO:
 #

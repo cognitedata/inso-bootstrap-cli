@@ -724,15 +724,18 @@ class CommandBase:
         Args:
             group_name (str): name of the CDF group (always prefixed with GROUP_NAME_PREFIX)
             group_capabilities (List[Dict[str, Any]], optional): Defining the CDF group capabilities.
-            aad_mapping (Tuple[str, str], optional):
-                Tuple of ({AAD SourceID}, {AAD SourceName})
+            idp_mapping (Tuple[str, str], optional):
+                Tuple of ({IdP SourceID}, {IdP SourceName})
                 to link the CDF group to
 
         Returns:
             Group: the new created CDF group
         """
 
+        # configuration per cdf-project if cdf-groups creation should be limited to IdP mapped only
+        create_only_mapped_cdf_groups = self.bootstrap_config.create_only_mapped_cdf_groups(self.cdf_project)
         idp_source_id, idp_source_name = None, None
+
         if idp_mapping:
             # explicit given
             # TODO: change from tuple to dataclass
@@ -751,22 +754,40 @@ class CommandBase:
         # check if group already exists, if yes it will be deleted after a new one is created
         old_group_ids = self.get_group_ids_by_name(group_name)
 
+        metadata = dict(
+            Dataops_created=self.get_timestamp(),
+            Dataops_source=f"bootstrap-cli v{__version__}",
+        )
+        # TODO: SDK v5.10 doesn't support `metadata` yet. Injecting it directly to payload
         new_group = Group(name=group_name, capabilities=group_capabilities)
+        # https://docs.cognite.com/api/v1/#tag/Groups/operation/createGroups
+        new_group.metadata = metadata  # type: ignore
         if idp_source_id:
             # inject (both will be pushed through the API call!)
             new_group.source_id = idp_source_id  # 'S-314159-1234'
-            new_group.source = idp_source_name  # type: ignore
+
+            # `source` -- to store the IdP name -- was removed ~Dec'22 from API v1
+            # new_group.source = idp_source_name
+
+            # new `metadata` was added to store additional information
+            # write merged `metadata` with inline-style `dict(d1, **d2)`
+            new_group.metadata = dict(  # type: ignore
+                metadata, **dict(idp_source_id=idp_source_id, idp_source_name=idp_source_name)
+            )
 
         # print(f"group_create_object:<{group_create_object}>")
         # overwrite new_group as it now contains id too
-        if self.is_dry_run:
-            logging.info(f"Dry run - Creating group with name: <{new_group.name}>")
-            logging.debug(f"Dry run - Creating group details: <{new_group}>")
+        if create_only_mapped_cdf_groups and not idp_source_id:
+            logging.info(f"Skipping group w/o IdP mapping with name: <{new_group.name}>")
         else:
-            logging.debug(f"  creating: {new_group.name} [idp source: {new_group.source_id or '-'}]")
-            new_group: Group | GroupList = self.client.iam.groups.create(new_group)
-            self.deployed.groups.create(resources=new_group)
-            logging.info(f"  {new_group.name} ({new_group.id}) [idp source: {new_group.source_id or '-'}]")
+            if self.is_dry_run:
+                logging.info(f"Dry run - Creating group with name: <{new_group.name}>")
+                logging.debug(f"Dry run - Creating group details: <{new_group}>")
+            else:
+                logging.debug(f"  creating: {new_group.name} [idp source: {new_group.source_id or '-'}]")
+                new_group: Group | GroupList = self.client.iam.groups.create(new_group)
+                self.deployed.groups.create(resources=new_group)
+                logging.info(f"  {new_group.name} ({new_group.id}) [idp source: {new_group.source_id or '-'}]")
 
         # if the group name existed before, delete those groups now
         # same upsert approach Fusion is using to update a CDF group: create new with changes => then delete old one

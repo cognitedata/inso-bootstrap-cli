@@ -15,6 +15,7 @@ bootstrap:
 
   idp-cdf-mappings:
     - cdf-project: shiny-dev
+      create-only-mapped-cdf-groups: true
       mappings:
         - cdf-group: cdf:root
           idp-source-id: 374dc9f6-f3a1-4b34-b897-11111111111
