@@ -2,7 +2,7 @@ import logging
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional, Type, TypeVar
+from typing import Any, Iterable, Optional, Type, TypeVar
 
 import yaml
 from cognite.client import CogniteClient
@@ -60,7 +60,7 @@ class CommandBase:
 
         # instance variable declaration
         self.deployed: CogniteDeployedCache
-        self.all_scoped_ctx: dict[RoleType, dict[ScopeCtxType, list[str]]]
+        self.all_scoped_ctx: dict[ScopeCtxType, list[str]]  # list or set
         self.is_dry_run: bool = dry_run
         self.client: CogniteClient
         self.cdf_project: str
@@ -311,11 +311,12 @@ class CommandBase:
         # return self for chaining
         return self
 
-    def validate_config_is_cdf_project_in_mappings(self, cdf_project_from_cli: str = None):
+    def validate_config_is_cdf_project_in_mappings(self, cdf_project_from_cli: Optional[str] = None):
 
         # check if mapping exists for configured cdf-project
         # or for explicit configured cli parameter ('diagram' only)
         check_cdf_project = cdf_project_from_cli or self.cdf_project
+        assert self.idp_cdf_mappings
         is_cdf_project_in_mappings = check_cdf_project in [mapping.cdf_project for mapping in self.idp_cdf_mappings]
 
         if not is_cdf_project_in_mappings:
@@ -348,6 +349,7 @@ class CommandBase:
         for ns in self.bootstrap_config.namespaces:
             for ns_node in ns.ns_nodes:
                 if node_name == ns_node.node_name:
+                    assert ns_node.shared_access
                     return ns_node.shared_access
         return SharedAccess(owner=[], read=[])
 
@@ -1012,7 +1014,7 @@ class CommandBase:
                 for space in list(missing_space_names):
                     logging.info(f"Dry run - Creating space: <{space}>")
             else:
-                created_spaces: ModelsSpace | ModelsSpaceList = self.client.models.spaces.create(
+                created_spaces: ModelsSpace | ModelsSpaceList = self.client.models.spaces.create(  # type:ignore
                     space=spaces_to_be_created
                 )
                 self.deployed.spaces.create(resources=created_spaces)

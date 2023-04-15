@@ -156,8 +156,8 @@ class SharedNode(Model):
 
 
 class SharedAccess(Model):
-    owner: Optional[list[SharedNode]] = Field(default_factory=list)
-    read: Optional[list[SharedNode]] = Field(default_factory=list)
+    owner: Optional[list[SharedNode]] = []
+    read: Optional[list[SharedNode]] = []
 
 
 class NamespaceNode(Model):

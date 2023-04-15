@@ -72,9 +72,9 @@ class CommandDeploy(CommandBase):
 
         # store all raw_dbs and datasets in scope of this configuration
         self.all_scoped_ctx = {
-            ScopeCtxType.RAWDB: target_raw_db_names,  # all raw_dbs
-            ScopeCtxType.DATASET: target_dataset_names,  # all datasets
-            ScopeCtxType.SPACE: target_space_names,  # all spaces
+            ScopeCtxType.RAWDB: list(target_raw_db_names),  # all raw_dbs
+            ScopeCtxType.DATASET: list(target_dataset_names),  # all datasets
+            ScopeCtxType.SPACE: list(target_space_names),  # all spaces
         }
 
         # CDF groups from configuration

@@ -1,10 +1,9 @@
 # std-lib
-from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 
 # type-hints
-from typing import ForwardRef, Optional, Type, TypeVar
+from typing import Optional, TypeVar
 
 from pydantic import BaseModel
 
@@ -38,8 +37,6 @@ NEWLINE = "\n"
 
 class MermaidFlowchartElement(BaseModel):
     id_name: str
-    # TODO: ading default_factory value, will break the code
-    # see https://stackoverflow.com/q/51575931/1104502
     comments: Optional[list[str]]
 
     # dump comments
@@ -51,13 +48,13 @@ class MermaidFlowchartElement(BaseModel):
 class Node(MermaidFlowchartElement):
     display: str
 
-    def __repr__(self):
+    def __str__(self):
         # TODO: how to add comments from super class the right way?
         return self.comments_to_mermaid() + f"""{self.id_name}""" + (rf"""["{self.display}"]""" if self.display else "")
 
 
 class HexagonNode(Node):
-    def __repr__(self):
+    def __str__(self):
         return (
             # id1{{This is the text in the box}}
             self.comments_to_mermaid()
@@ -67,13 +64,13 @@ class HexagonNode(Node):
 
 
 class RoundedEdgesNode(Node):
-    def __repr__(self):
+    def __str__(self):
         # id1(This is the text in the box)
         return self.comments_to_mermaid() + f"""{self.id_name}""" + (rf"""("{self.display}")""" if self.display else "")
 
 
 class TrapezoidNode(Node):
-    def __repr__(self):
+    def __str__(self):
         return (
             # A[/Christmas\]
             self.comments_to_mermaid()
@@ -83,7 +80,7 @@ class TrapezoidNode(Node):
 
 
 class TrapezoidAltNode(Node):
-    def __repr__(self):
+    def __str__(self):
         return (
             # B[\Go shopping/]
             self.comments_to_mermaid()
@@ -93,13 +90,13 @@ class TrapezoidAltNode(Node):
 
 
 class AssymetricNode(Node):
-    def __repr__(self):
+    def __str__(self):
         # id1>This is the text in the box]
         return self.comments_to_mermaid() + f"""{self.id_name}""" + (rf""">"{self.display}"]""" if self.display else "")
 
 
 class SubroutineNode(Node):
-    def __repr__(self):
+    def __str__(self):
         # id1[[This is the text in the box]]
         return (
             self.comments_to_mermaid() + f"""{self.id_name}""" + (rf"""[["{self.display}"]]""" if self.display else "")
@@ -111,7 +108,7 @@ class Edge(MermaidFlowchartElement):
     dest: str
     annotation: Optional[str]
 
-    def __repr__(self):
+    def __str__(self):
         return self.comments_to_mermaid() + f"""{self.id_name}-->{self.dest}"""
         # cannot render a 🕑 on an edge annotation
         # return (
@@ -122,7 +119,7 @@ class Edge(MermaidFlowchartElement):
 
 
 class DottedEdge(Edge):
-    def __repr__(self):
+    def __str__(self):
         return self.comments_to_mermaid() + f"""{self.id_name}-.->{self.dest}"""
 
 
@@ -136,8 +133,8 @@ T_Subgraph = TypeVar("T_Subgraph", bound="Subgraph")
 
 class Subgraph(MermaidFlowchartElement):
 
-    display: Optional[str]
     elements: list["Subgraph | Node"]
+    display: Optional[str] = None
 
     def __contains__(self, name):
         return name in [elem.id_name for elem in self.elements]
@@ -146,7 +143,7 @@ class Subgraph(MermaidFlowchartElement):
         if name in self.elements:
             return [elem.id_name for elem in self.elements if elem.id_name == name][0]  # exactly one expected
 
-    def __repr__(self):
+    def __str__(self):
         return (
             self.comments_to_mermaid()
             # supporting subgraph id and short-name syntax
@@ -184,20 +181,22 @@ class GraphRegistry:
     """
 
     def __init__(self, elements=[]):
-        self.subgraph_registry: dict[str, Subgraph] = {}
+        self.subgraph_registry: dict[Enum, Subgraph] = {}
         # nested
         self.elements: list[Subgraph | Node | Edge] = elements
         # final block of edges
         self.edges: list[Edge] = []
 
-    def get_or_create(self, subgraph_name, subgraph_short_name: Optional[str] = None) -> Subgraph:
+    def get_or_create(self, subgraph_type: Enum, subgraph_short_name: Optional[str] = None) -> Subgraph:
         return self.subgraph_registry.setdefault(
             # get if exists
-            subgraph_name,
+            subgraph_type,
             # create if new
-            Subgraph(id_name=subgraph_name.name, display=subgraph_short_name, elements=[], comments=[])
-            if isinstance(subgraph_name, Enum)
-            else Subgraph(id_name=subgraph_name, elements=[], comments=[]),
+            Subgraph(
+                id_name=subgraph_type.name, display=subgraph_short_name or subgraph_type.value, elements=[], comments=[]
+            )
+            if isinstance(subgraph_type, Enum)
+            else Subgraph(id_name=subgraph_type, elements=[], comments=[]),
         )
 
     #     def __str__(self):

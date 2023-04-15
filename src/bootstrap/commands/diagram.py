@@ -1,6 +1,6 @@
 import logging
 from enum import Enum
-from typing import Optional, Type
+from typing import Iterable, Optional, Type
 
 from ..app_config import AclDefaultTypes, RoleType, ScopeCtxType, YesNoType
 from .base import CommandBase
@@ -15,6 +15,20 @@ from .diagram_utils.mermaid import (
     SubroutineNode,
     TrapezoidAltNode,
 )
+
+
+class SubgraphTypes(str, Enum):
+    idp = "IdP Groups"
+    owner = "'Owner' Groups"
+    read = "'Read' Groups"
+    # OWNER
+    ns_owner = "Namespace Level (Owner)"
+    node_owner = "Node Level (Owner)"
+    scope_owner = "Scopes (Owner)"
+    # READ
+    ns_read = "Namespace Level (Read)"
+    node_read = "Node Level (Read)"
+    scope_read = "Scopes (Read)"
 
 
 class CommandDiagram(CommandBase):
@@ -61,6 +75,10 @@ class CommandDiagram(CommandBase):
         # availability is validate_cdf_project_available()
         diagram_cdf_project = cdf_project or self.cdf_project
 
+        # configuration per cdf-project if cdf-groups creation should be limited to IdP mapped only
+        # TODO: implement only diagram nodes with IdP mapping
+        # create_only_mapped_cdf_groups = self.bootstrap_config.create_only_mapped_cdf_groups(diagram_cdf_project)
+
         # same handling as in 'deploy' command
         # store parameter as bool
         # if available it overrides configuration or defaults from yaml-config
@@ -76,7 +94,8 @@ class CommandDiagram(CommandBase):
         # store all raw_dbs and datasets in scope of this configuration
         # TODO: wrong structure, actions (RoleType) are added by get_scope_ctx_groupedby_action(..)
         # diagram uses this data different then deploy
-        self.all_scoped_ctx = {
+        # FIXED: made local `all_scoped_ctx_by_role_type` instead using `self.all_scoped_ctx`
+        all_scoped_ctx_by_role_type: dict[RoleType, dict[ScopeCtxType, list[str]]] = {
             RoleType.OWNER: (
                 all_scopes := {
                     # generate_target_raw_dbs -> returns a Set[str]
@@ -161,7 +180,7 @@ class CommandDiagram(CommandBase):
                     f"{CommandBase.GROUP_NAME_PREFIX}{CommandBase.AGGREGATED_LEVEL_NAME}:{role_type}"
                 )
                 # limit all_scopes to 'action'
-                scope_ctx_by_role_type = {role_type: self.all_scoped_ctx[role_type]}
+                scope_ctx_by_role_type = {role_type: all_scoped_ctx_by_role_type[role_type]}
             # root level like cdf:root
             elif root_account:  # no parameters
                 # all (no limits)
@@ -171,19 +190,6 @@ class CommandDiagram(CommandBase):
             assert scope_ctx_by_role_type
 
             return (group_name_full_qualified, scope_ctx_by_role_type)
-
-        class SubgraphTypes(str, Enum):
-            idp = "IdP Groups"
-            owner = "'Owner' Groups"
-            read = "'Read' Groups"
-            # OWNER
-            core_cdf_owner = "Node Level (Owner)"
-            ns_cdf_owner = "Namespace Level (Owner)"
-            scope_owner = "Scopes (Owner)"
-            # READ
-            core_cdf_read = "Node Level (Read)"
-            ns_cdf_read = "Namespace Level (Read)"
-            scope_read = "Scopes (Read)"
 
         # TODO: refactoring required, too much lines
         def group_to_graph(
@@ -197,7 +203,7 @@ class CommandDiagram(CommandBase):
             if root_account:
                 return
 
-            group_name, scope_ctx_by_action = get_group_name_and_scopes(role_type, ns_name, node_name, root_account)
+            group_name, scope_ctx_by_role_type = get_group_name_and_scopes(role_type, ns_name, node_name, root_account)
 
             # check lookup from provided config
             mapping = self.bootstrap_config.get_idp_cdf_mapping_for_group(
@@ -209,19 +215,19 @@ class CommandDiagram(CommandBase):
             # idp_source_id, idp_source_name = self.aad_mapping_lookup.get(node_name, [None, None])
             idp_source_id, idp_source_name = mapping.idp_source_id, mapping.idp_source_name
 
-            logging.info(f"{ns_name=} : {group_name=} : {scope_ctx_by_action=} [{idp_source_name=}]")
+            logging.info(f"{ns_name=} : {group_name=} : {scope_ctx_by_role_type=} [{idp_source_name=}]")
 
             # preload master subgraphs
-            core_cdf = graph.get_or_create(getattr(SubgraphTypes, f"core_cdf_{role_type}"))
-            ns_cdf_graph = graph.get_or_create(getattr(SubgraphTypes, f"ns_cdf_{role_type}"))
-            scope_graph = graph.get_or_create(getattr(SubgraphTypes, f"scope_{role_type}"))
+            ns_subgraph = graph.get_or_create(getattr(SubgraphTypes, f"ns_{role_type}"))
+            node_subgraph = graph.get_or_create(getattr(SubgraphTypes, f"node_{role_type}"))
+            scope_subgraph = graph.get_or_create(getattr(SubgraphTypes, f"scope_{role_type}"))
 
             #
             # NODE - IDP GROUP
             #
-            idp = graph.get_or_create(SubgraphTypes.idp)
-            if idp_source_name and (idp_source_name not in idp):
-                idp.elements.append(
+            idp_subgraph = graph.get_or_create(SubgraphTypes.idp)
+            if idp_source_name and (idp_source_name not in idp_subgraph):
+                idp_subgraph.elements.append(
                     TrapezoidAltNode(
                         id_name=idp_source_name,
                         display=idp_source_name,
@@ -242,11 +248,11 @@ class CommandDiagram(CommandBase):
             # 'read': {'raw': [], 'datasets': []}}
 
             #
-            # NODE - CORE LEVEL
+            # NODE - NS:NODE LEVEL
             #   'cdf:src:001:public:read'
             #
             if role_type and ns_name and node_name:
-                core_cdf.elements.append(
+                node_subgraph.elements.append(
                     RoundedEdgesNode(
                         id_name=group_name,
                         display=group_name,
@@ -271,9 +277,9 @@ class CommandDiagram(CommandBase):
                     )
                 )  # fmt: skip
 
-                # add core and all scopes
+                # add ns:node and all scopes
                 # shared_action: [read|owner]
-                for shared_action, scope_ctx in scope_ctx_by_action.items():
+                for shared_role_type, scope_ctx in scope_ctx_by_role_type.items():
                     # scope_type: [raw|datasets]
                     # scopes: List[str]
                     for scope_type, scopes in scope_ctx.items():
@@ -290,9 +296,9 @@ class CommandDiagram(CommandBase):
                             # NODE DATASET or RAW scope
                             #    'src:001:sap:rawdb'
                             #
-                            if scope_name not in scope_graph:
+                            if scope_name not in scope_subgraph:
                                 node_type_cls = scopectx_mermaid_node_mapping(scope_type)
-                                scope_graph.elements.append(
+                                scope_subgraph.elements.append(
                                     node_type_cls(
                                         id_name=f"{scope_name}__{role_type}__{scope_type}",
                                         display=scope_name,
@@ -304,12 +310,12 @@ class CommandDiagram(CommandBase):
                             # EDGE FROM actual processed group-node to added scope
                             #   cdf:src:001:sap:read to 'src:001:sap:rawdb'
                             #
-                            edge_type_cls = Edge if shared_action == RoleType.OWNER else DottedEdge
+                            edge_type_cls = Edge if shared_role_type == RoleType.OWNER else DottedEdge
                             graph.edges.append(
                                 edge_type_cls(
                                     id_name=group_name,
                                     dest=f"{scope_name}__{role_type}__{scope_type}",
-                                    annotation=shared_action,
+                                    annotation=shared_role_type,
                                     comments=[],
                                 )
                             )  # fmt: skip
@@ -318,7 +324,7 @@ class CommandDiagram(CommandBase):
             # NODE - NAMESPACE LEVEL
             #   'src:all:read' or 'src:all:owner'
             elif role_type and ns_name:
-                ns_cdf_graph.elements.append(
+                ns_subgraph.elements.append(
                     Node(
                         id_name=group_name,
                         display=group_name,
@@ -342,7 +348,7 @@ class CommandDiagram(CommandBase):
 
                 # add namespace-node and all scopes
                 # shared_action: [read|owner]
-                for shared_action, scope_ctx in scope_ctx_by_action.items():
+                for shared_role_type, scope_ctx in scope_ctx_by_role_type.items():
                     # scope_type: [raw|datasets]
                     # scopes: List[str]
                     for scope_type, scopes in scope_ctx.items():
@@ -364,10 +370,10 @@ class CommandDiagram(CommandBase):
                             # NODE DATASET or RAW scope
                             #    'src:all:rawdb'
                             #
-                            if scope_name not in scope_graph:
+                            if scope_name not in scope_subgraph:
 
                                 node_type_cls = scopectx_mermaid_node_mapping(scope_type)
-                                scope_graph.elements.append(
+                                scope_subgraph.elements.append(
                                     node_type_cls(
                                         id_name=f"{scope_name}__{role_type}__{scope_type}",
                                         display=scope_name,
@@ -379,12 +385,12 @@ class CommandDiagram(CommandBase):
                             # EDGE FROM actual processed group-node to added scope
                             #   cdf:src:all:read to 'src:all:rawdb'
                             #
-                            edge_type_cls = Edge if shared_action == RoleType.OWNER else DottedEdge
+                            edge_type_cls = Edge if shared_role_type == RoleType.OWNER else DottedEdge
                             graph.edges.append(
                                 edge_type_cls(
                                     id_name=group_name,
                                     dest=f"{scope_name}__{role_type}__{scope_type}",
-                                    annotation=shared_action,
+                                    annotation=shared_role_type,
                                     comments=[],
                                 )
                             )  # fmt: skip
@@ -394,7 +400,7 @@ class CommandDiagram(CommandBase):
             #   like `cdf:all:read`
             #
             elif role_type:
-                ns_cdf_graph.elements.append(
+                ns_subgraph.elements.append(
                     Node(
                         id_name=group_name,
                         display=group_name,
@@ -404,7 +410,7 @@ class CommandDiagram(CommandBase):
 
                 # add namespace-node and all scopes
                 # shared_action: [read|owner]
-                for shared_action, scope_ctx in scope_ctx_by_action.items():
+                for shared_role_type, scope_ctx in scope_ctx_by_role_type.items():
                     # scope_type: [raw|datasets]
                     # scopes: List[str]
                     for scope_type, scopes in scope_ctx.items():
@@ -427,12 +433,12 @@ class CommandDiagram(CommandBase):
                             # NODE DATASET or RAW scope
                             #    'all:rawdb'
                             #
-                            if scope_name not in scope_graph:
+                            if scope_name not in scope_subgraph:
 
                                 # logging.info(f">> add {scope_name=}__{action=}")
 
                                 node_type_cls = scopectx_mermaid_node_mapping(scope_type)
-                                scope_graph.elements.append(
+                                scope_subgraph.elements.append(
                                     node_type_cls(
                                         id_name=f"{scope_name}__{role_type}__{scope_type}",
                                         display=scope_name,
@@ -444,12 +450,12 @@ class CommandDiagram(CommandBase):
                             # EDGE FROM actual processed group-node to added scope
                             #   cdf:all:read to 'all:rawdb'
                             #
-                            edge_type_cls = Edge if shared_action == RoleType.OWNER else DottedEdge
+                            edge_type_cls = Edge if shared_role_type == RoleType.OWNER else DottedEdge
                             graph.edges.append(
                                 edge_type_cls(
                                     id_name=group_name,
                                     dest=f"{scope_name}__{role_type}__{scope_type}",
-                                    annotation=shared_action,
+                                    annotation=shared_role_type,
                                     comments=[],
                                 )
                             )  # fmt: skip
@@ -469,21 +475,21 @@ class CommandDiagram(CommandBase):
         # sorting relationship output into potential subgraphs
         graph = GraphRegistry()
         # top subgraphs (three columns layout)
-        # provide Subgraphs with a 'subgraph_name' and a 'subgraph_short_name'
-        # using the SubgraphTypes enum 'name' (default) and 'value' properties
+        # creating Subgraphs with a 'subgraph_name' and a 'subgraph_short_name'
+        # using the SubgraphTypes Enum 'name' (default) and 'value' properties
         idp_group = graph.get_or_create(
-            SubgraphTypes.idp, f"{SubgraphTypes.idp.value} for CDF: '{diagram_cdf_project}'"
+            SubgraphTypes.idp, subgraph_short_name=f"{SubgraphTypes.idp.value} for CDF: '{diagram_cdf_project}'"
         )
-        owner = graph.get_or_create(SubgraphTypes.owner, SubgraphTypes.owner.value)
-        read = graph.get_or_create(SubgraphTypes.read, SubgraphTypes.read.value)
+        owner = graph.get_or_create(SubgraphTypes.owner)
+        read = graph.get_or_create(SubgraphTypes.read)
 
         # nested subgraphs
-        core_cdf_owner = graph.get_or_create(SubgraphTypes.core_cdf_owner, SubgraphTypes.core_cdf_owner.value)
-        ns_cdf_owner = graph.get_or_create(SubgraphTypes.ns_cdf_owner, SubgraphTypes.ns_cdf_owner.value)
-        core_cdf_read = graph.get_or_create(SubgraphTypes.core_cdf_read, SubgraphTypes.core_cdf_read.value)
-        ns_cdf_read = graph.get_or_create(SubgraphTypes.ns_cdf_read, SubgraphTypes.ns_cdf_read.value)
-        scope_owner = graph.get_or_create(SubgraphTypes.scope_owner, SubgraphTypes.scope_owner.value)
-        scope_read = graph.get_or_create(SubgraphTypes.scope_read, SubgraphTypes.scope_read.value)
+        ns_owner = graph.get_or_create(SubgraphTypes.ns_owner)
+        ns_read = graph.get_or_create(SubgraphTypes.ns_read)
+        node_owner = graph.get_or_create(SubgraphTypes.node_owner)
+        node_read = graph.get_or_create(SubgraphTypes.node_read)
+        scope_owner = graph.get_or_create(SubgraphTypes.scope_owner)
+        scope_read = graph.get_or_create(SubgraphTypes.scope_read)
 
         # add the three top level groups to our graph
         graph.elements.extend(
@@ -497,31 +503,31 @@ class CommandDiagram(CommandBase):
         # add/nest the owner-subgraphs to its parent subgraph
         owner.elements.extend(
             [
-                core_cdf_owner,
-                ns_cdf_owner,
+                node_owner,
+                ns_owner,
                 scope_owner,
             ]
         )
         # add/nest the read-subgraphs to its parent subgraph
         read.elements.extend(
             [
-                core_cdf_read,
-                ns_cdf_read,
+                node_read,
+                ns_read,
                 scope_read,
             ]
         )
 
         # permutate the combinations
-        for action in [RoleType.READ, RoleType.OWNER]:  # action_dimensions w/o 'admin'
+        for role_type in [RoleType.READ, RoleType.OWNER]:  # action_dimensions w/o 'admin'
             for ns in self.bootstrap_config.namespaces:
                 for ns_node in ns.ns_nodes:
                     # group for each dedicated group-type id
-                    group_to_graph(graph, action, ns.ns_name, ns_node.node_name)
+                    group_to_graph(graph, role_type, ns.ns_name, ns_node.node_name)
                 # 'all' groups on group-type level
                 # (access to all datasets/ raw-dbs which belong to this group-type)
-                group_to_graph(graph, action, ns.ns_name)
+                group_to_graph(graph, role_type, ns.ns_name)
             # 'all' groups on action level (no limits to datasets or raw-dbs)
-            group_to_graph(graph, action)
+            group_to_graph(graph, role_type)
         # all (no limits + admin)
         # 211013 pa: for AAD root:client and root:user can be merged into 'root'
         # for root_account in ["root:client", "root:user"]:
