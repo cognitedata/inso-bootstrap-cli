@@ -9,9 +9,6 @@ inputs:
   cdf-project-name:
     description: 'CDF project name (only required when using OAuth2 credentials)'
     required: false
-  api-key:
-    description: 'API key for authenticating with CDF'
-    required: false
   # cdf idp
   client-id:
     description: 'OAuth2 client ID'

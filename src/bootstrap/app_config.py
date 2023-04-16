@@ -193,6 +193,7 @@ class BootstrapCoreConfig(Model):
 
     # providing a default for optional 'features' set not avaialble
     # 1:1 default values as used in 'BootstrapFeatures'
+    # TODO: remove Field() wrapper?
     features: Optional[BootstrapFeatures] = Field(
         default=BootstrapFeatures(
             **dict(

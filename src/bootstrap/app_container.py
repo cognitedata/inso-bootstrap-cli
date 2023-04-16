@@ -31,7 +31,7 @@ def init_container(
     load_dotenv(dotenv_path, override=True)
 
     container = container_cls()
-    container.config.from_yaml(config_path, required=True)
+    container.config.from_yaml(config_path, required=True)  # type: ignore
     container.init_resources()  # i.e.logging
 
     # logging.debug(f"{container.config()=}")

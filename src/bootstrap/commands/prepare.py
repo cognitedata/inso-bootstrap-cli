@@ -1,5 +1,7 @@
 import logging
 
+from bootstrap.app_config import IdpCdfMapping
+
 from .base import CommandBase
 
 
@@ -26,12 +28,15 @@ class CommandPrepare(CommandBase):
         ]
 
         # TODO: replace with dataclass
-        idp_mapping = [
-            # sourceId
-            idp_source_id,
-            # sourceName
-            f"IdP group ID: {idp_source_id}",
-        ]
+        idp_mapping = IdpCdfMapping(
+            cdf_group=group_name, idp_source_id=idp_source_id, idp_source_name=f"IdP group ID: {idp_source_id}"
+        )
+        # idp_mapping = [
+        #     # sourceId
+        #     idp_source_id,
+        #     # sourceName
+        #     f"IdP group ID: {idp_source_id}",
+        # ]
 
         logging.debug(f"GROUPS in CDF:\n{self.deployed.groups}")
 
