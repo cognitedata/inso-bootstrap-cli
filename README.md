@@ -561,45 +561,50 @@ Usage: bootstrap-cli [OPTIONS] COMMAND [ARGS]...
 
 Options:
   --version                Show the version and exit.
-  --cdf-project-name TEXT  The CDF project to interact with the CDF API.
-                           You can use the 'BOOTSTRAP_CDF_PROJECT' environment variable instead. Required for OAuth2 and optional for
-                           API keys.
-  --cluster TEXT           The CDF cluster where the CDF project is hosted (e.g.
-                           greenfield, europe-west1-1). Provide this or set the 'BOOTSTRAP_CDF_CLUSTER' environment variable.
-                           Default: westeurope-1
-  --host TEXT              The CDF host where CDF project is hosted (e.g.
-                           https://bluefield.cognitedata.com). Provide this or
-                           make sure to set the 'BOOTSTRAP_CDF_HOST' environment
-                           variable. Default:
-                           https://bluefield.cognitedata.com/
+  --cdf-project-name TEXT  CDF Project to interact with the CDF API, the
+                           'BOOTSTRAP_CDF_PROJECT',environment variable can be
+                           used instead. Required for OAuth2 and optional for
+                           api-keys.
+  --cluster TEXT           The CDF cluster where CDF Project is hosted (e.g.
+                           greenfield, europe-west1-1),Provide this or make
+                           sure to set the 'BOOTSTRAP_CDF_CLUSTER' environment
+                           variable. Default: api
+  --host TEXT              The CDF host where CDF Project is hosted (e.g.
+                           https://api.cognitedata.com),Provide this or make
+                           sure to set the 'BOOTSTRAP_CDF_HOST' environment
+                           variable.Default: https://api.cognitedata.com/
   --client-id TEXT         IdP client ID to interact with the CDF API. Provide
-                           this or make sure to set the 'BOOTSTRAP_IDP_CLIENT_ID'
-                           environment variable if you want to authenticate
-                           with OAuth2.
-  --client-secret TEXT     IdP client secret to interact with the CDF API. Provide
-                           this or set the 'BOOTSTRAP_IDP_CLIENT_SECRET' environment
-                           variable if you want to authenticate with OAuth2.
+                           this or make sure to set the
+                           'BOOTSTRAP_IDP_CLIENT_ID' environment variable if
+                           you want to authenticate with OAuth2.
+  --client-secret TEXT     IdP client secret to interact with the CDF API.
+                           Provide this or make sure to set the
+                           'BOOTSTRAP_IDP_CLIENT_SECRET' environment variable
+                           if you want to authenticate with OAuth2.
   --token-url TEXT         IdP token URL to interact with the CDF API. Provide
-                           this or make sure to set the 'BOOTSTRAP_IDP_TOKEN_URL'
-                           environment variable if you want to authenticate
-                           with OAuth2.
-  --scopes TEXT            IdP scopes to interact with the CDF API, relevant for the
-                           OAuth2 authentication method. You can use the  'BOOTSTRAP_IDP_SCOPES' environment variable instead.
-  --audience TEXT          IdP audience to interact with the CDF API, relevant for
-                           the OAuth2 authentication
-                           method. You can use the 'BOOTSTRAP_IDP_AUDIENCE' environment variable.
+                           this or make sure to set the
+                           'BOOTSTRAP_IDP_TOKEN_URL' environment variable if
+                           you want to authenticate with OAuth2.
+  --scopes TEXT            IdP scopes to interact with the CDF API, relevant
+                           for OAuth2 authentication method. The
+                           'BOOTSTRAP_IDP_SCOPES' environment variable can be
+                           used instead.
+  --audience TEXT          IdP Audience to interact with the CDF API, relevant
+                           for OAuth2 authentication method. The
+                           'BOOTSTRAP_IDP_AUDIENCE' environment variable can
+                           be used instead.
   --dotenv-path TEXT       Provide a relative or absolute path to an .env file
-                           (for command line usage only).
+                           (for command line usage only)
   --debug                  Flag to log additional debug information.
-  --dry-run                Flag to only log planned CDF API actions while doing nothing.
+  --dry-run                Flag to only log planned CDF API actions while
+                           doing nothing.
   -h, --help               Show this message and exit.
 
 Commands:
-  delete   Delete mode used to delete CDF groups, datasets and Raw.
-  deploy   Deploy a set of bootstrap from a configuration file.
-  diagram  Diagram mode used to document the configuration as Mermaid diagram.
-  prepare  Prepare an elevated CDF group, 'cdf:bootstrap', and link it to an
-           IdP group.
+  delete   Delete mode used to delete CDF groups, datasets and RAW...
+  deploy   Deploy a bootstrap configuration from a configuration file.
+  diagram  Diagram mode documents the given configuration as a Mermaid...
+  prepare  Prepares an elevated CDF group 'cdf:bootstrap', using the same...
 ```
 
 ### `Prepare` command
@@ -629,18 +634,17 @@ The command also requires an IdP group ID to link to. For new CDF projects, this
 ```text
 Usage: bootstrap-cli prepare [OPTIONS] [CONFIG_FILE]
 
-  Prepares an elevated CDF group. 'cdf:bootstrap', using the same IdP group link
-  as used for the initial 'oidc-admin-group' and with additional capabilities
-  to run the 'deploy' and 'delete' commands. You only need to run the 'prepare' command once per CDF project.
+  Prepares an elevated CDF group 'cdf:bootstrap', using the same AAD group
+  link as used for the initial 'oidc-admin-group' and with additional
+  capabilities to run the 'deploy' and 'delete' commands next. You only need
+  to run the 'prepare' command once per CDF project.
 
 Options:
-  --aad-source-id, --idp-source-id TEXT
-                                  Provide the IdP source ID to use for the
-                                  'cdf:bootstrap' group. Typically for a new
-                                  project it's the same as configured for the
-                                  initial CDF group named 'oidc-admin-group'.
-                                  The '--aad-source-id' parameter option will be deprecated in the next major release [required].
-  -h, --help                      Show this message and exit.
+  --idp-source-id TEXT  Provide the IdP source ID to use for the
+                        'cdf:bootstrap' group. Typically for a new project
+                        it's the same as configured for the initial CDF group
+                        named 'oidc-admin-group'.   [required]
+  -h, --help            Show this message and exit.
 ```
 
 ### `Deploy` command
@@ -654,11 +658,8 @@ Usage: bootstrap-cli deploy [OPTIONS] [CONFIG_FILE]
   Deploy a bootstrap configuration from a configuration file.
 
 Options:
-  --with-special-groups [yes|no]  Create special CDF groups without any
-                                  capabilities (extractions, transformations).
-                                  Defaults to 'no'.
-  --with-raw-capability [yes|no]  Create RAW databases and 'rawAcl' capability.
-                                  Defaults to 'yes'.
+  --with-raw-capability [yes|no]  Create RAW databases and 'rawAcl'
+                                  capability. Defaults to 'yes'
   -h, --help                      Show this message and exit.
 ```
 
@@ -670,9 +671,9 @@ Note that the CDF groups and RAW databases are deleted, whereas datasets are arc
 ```text
 Usage: bootstrap-cli delete [OPTIONS] [CONFIG_FILE]
 
-  Delete mode to delete CDF groups, datasets and RAW DBs. CDF
-  groups and RAW databases are deleted, while datasets are archived
-  and deprecated (datasets cannot be deleted).
+  Delete mode used to delete CDF groups, datasets and RAW databases. CDF
+  groups and RAW databases are deleted, while datasets are archived and
+  deprecated (datasets cannot be deleted).
 
 Options:
   -h, --help  Show this message and exit.
@@ -685,15 +686,15 @@ Use the `diagram` command to create a Mermaid diagram to visualize the end state
 ```text
 Usage: bootstrap-cli diagram [OPTIONS] [CONFIG_FILE]
 
-  Diagram mode documents the configuration as a Mermaid diagram.
+  Diagram mode documents the given configuration as a Mermaid diagram
 
 Options:
   --markdown [yes|no]             Encapsulate the Mermaid diagram in Markdown
-                                  syntax. Defaults to 'no'.
-  --with-raw-capability [yes|no]  Create RAW databases and 'rawAcl' capability.
-                                  Defaults to 'yes'.
+                                  syntax. Defaults to 'no'
+  --with-raw-capability [yes|no]  Create RAW Databases and 'rawAcl'
+                                  capability. Defaults to 'yes'
   --cdf-project TEXT              [optional] Provide the CDF project name to
-                                  use for the 'idp-cdf-mappings' diagram.
+                                  use for the diagram 'idp-cdf-mappings'.
   -h, --help                      Show this message and exit.
 ```
 
@@ -728,13 +729,40 @@ cognite:
     scopes:
       - ${BOOTSTRAP_IDP_SCOPES}
     token_url: ${BOOTSTRAP_IDP_TOKEN_URL}
+```
 
-logger:
-  file:
-    path: ./logs/test-deploy.log
-    level: INFO
-  console:
-    level: INFO
+```yaml
+# new since v3
+# https://docs.python.org/3/library/logging.config.html#logging-config-dictschema
+logging:
+  version: 1
+  formatters:
+    formatter:
+      # class: "tools.formatter.StackdriverJsonFormatter"
+      format: "[%(asctime)s] [%(levelname)s] [%(name)s]: %(message)s"
+  handlers:
+    file:
+      class: "logging.FileHandler"
+      filename: ./logs/deploy-trading.log
+      formatter: "formatter"
+      mode: "w"
+      level: "DEBUG"
+    console:
+      class: "logging.StreamHandler"
+      level: "DEBUG"
+      formatter: "formatter"
+      stream: "ext://sys.stderr"
+  root:
+    level: "DEBUG"
+    handlers: [ "console", "file" ]
+
+# the old v1/v2 `logger` config is still supported, but the Python `logging` section is recommended to use
+# logger:
+#   file:
+#     path: ./logs/create-dev-logs.log
+#     level: INFO
+#   console:
+#     level: INFO
 ```
 
 #### Environment variables
@@ -770,6 +798,17 @@ The `features` section covers general options like prefixes, suffixes, etc.
 
 The list of features:
 
+(new since v3)
+
+- `with-datamodel-capability`
+  - Create DataModel and DataModelInstances capabilities and CDF space (like CDF datasets, but for scoping of Data Modelling).
+  Defaults to true.
+
+- `space-suffix`
+  Suffix added to all space names. The recommended value is `spc`.
+  Defaults to `space`.
+
+(new since v2)
 - `with-special-groups`
   - Create special CDF groups without any capabilities (extractions, transformations). Defaults to false.
 - `with-raw-capability`
@@ -795,11 +834,15 @@ Example:
 ```yaml
 idp-cdf-mappings:
   - cdf-project: shiny-dev
+    # new since v3
+    # only create CDF Groups which are mapped to an IdP, default is false
+    create-only-mapped-cdf-groups: true
     mappings:
       - cdf-group: cdf:all:owner
       - idp-source-id: 123456-7890-abcd-1234-314159
       - idp-source-name: CDF_DEV_ALL_OWNER
   - cdf-project: shiny-prod
+    create-only-mapped-cdf-groups: false
     mappings:
       - cdf-group: cdf:all:owner
       - idp-source-id: 123456-7890-abcd-1234-314159
@@ -845,7 +888,7 @@ namespaces:
             - node-name: in:001:name
 ```
 
-For a more complete example of a `deploy` configuration, see `configs/config-deploy-example-v2.yml`.
+For a more complete example of a `deploy` configuration, see `configs/config-deploy-example-v3.yml`.
 
 ### Configuration for the `delete` command
 

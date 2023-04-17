@@ -162,7 +162,7 @@ class CogniteDeployedCache:
         self.datasets = CogniteResourceCache(RESOURCE=DataSet, resources=self.client.data_sets.list(limit=NOLIMIT))
         self.raw_dbs = CogniteResourceCache(RESOURCE=Database, resources=self.client.raw.databases.list(limit=NOLIMIT))
         self.spaces = CogniteResourceCache(
-            RESOURCE=ModelsSpace, resources=self.client.models.spaces.list(limit=NOLIMIT)
+            RESOURCE=ModelsSpace, resources=self.client.models.spaces.list(limit=NOLIMIT)  # type: ignore
         )
 
     def log_counts(self):

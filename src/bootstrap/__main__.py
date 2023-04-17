@@ -167,18 +167,18 @@ logging = logging.getLogger()
 # TODO: is cluster and alternative for host?
 @click.option(
     "--cluster",
-    default="westeurope-1",
+    default="api",
     help="The CDF cluster where CDF Project is hosted (e.g. greenfield, europe-west1-1),"
     "Provide this or make sure to set the 'BOOTSTRAP_CDF_CLUSTER' environment variable. "
-    "Default: westeurope-1",
+    "Default: api",
     envvar="BOOTSTRAP_CDF_CLUSTER",
 )
 @click.option(
     "--host",
-    default="https://bluefield.cognitedata.com/",
-    help="The CDF host where CDF Project is hosted (e.g. https://bluefield.cognitedata.com),"
+    default="https://api.cognitedata.com/",
+    help="The CDF host where CDF Project is hosted (e.g. https://api.cognitedata.com),"
     "Provide this or make sure to set the 'BOOTSTRAP_CDF_HOST' environment variable."
-    "Default: https://bluefield.cognitedata.com/",
+    "Default: https://api.cognitedata.com/",
     envvar="BOOTSTRAP_CDF_HOST",
 )
 @click.option(
