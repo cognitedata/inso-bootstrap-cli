@@ -13,7 +13,7 @@ NEWLINE = "\n"
 class RoleType(str, Enum):
     READ = "read"
     OWNER = "owner"
-    ADMIN = "admin"
+    ADMIN = "admin" # aka root-account
 
 
 #
@@ -44,6 +44,7 @@ AclDefaultTypes = [
     "projects",
     "raw",
     "relationships",
+    "robotics",
     "seismic",
     "sequences",
     "sessions",
@@ -79,12 +80,11 @@ AclAllScopeOnlyTypes = set(
 RoleTypeActions = {
     # owner datasets might only need READ and OWNER
     RoleType.OWNER: {  # else ["READ","WRITE"]
-        "raw": ["READ", "WRITE", "LIST"],
+        "annotations": ["READ", "WRITE", "SUGGEST", "REVIEW"],
         "datasets": ["READ", "OWNER"],
         "groups": ["LIST"],
-        # TODO: requires configuration and support of idscope
-        # "securityCategories": ["MEMBEROF", "LIST"],
         "projects": ["LIST"],
+        "raw": ["READ", "WRITE", "LIST"],
         "robotics": ["READ", "CREATE", "UPDATE", "DELETE"],
         "sessions": ["LIST", "CREATE"],
         "threed": ["READ", "CREATE", "UPDATE", "DELETE"],
@@ -92,11 +92,10 @@ RoleTypeActions = {
     RoleType.READ: {  # else ["READ"]
         "raw": ["READ", "LIST"],
         "groups": ["LIST"],
-        # TODO: requires configuration and support of idscope
-        # "securityCategories": ["MEMBEROF", "LIST"],
         "projects": ["LIST"],
         "sessions": ["LIST"],
     },
+    # aka root-account
     RoleType.ADMIN: {
         "datasets": ["READ", "WRITE", "OWNER"],
         "groups": ["LIST", "READ", "CREATE", "UPDATE", "DELETE"],

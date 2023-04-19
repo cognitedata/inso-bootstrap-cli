@@ -115,6 +115,10 @@
 #              "idp_source_id": "acd2fe35-aa51-45a7-acef-0d54e2b6b6a8",
 #              "Dataops_source": "bootstrap-cli v2.5.1"
 #           }
+# 230316 pa: feature-release adding annotationsAcl
+#       supporting all actions, even if action:REVIEW seems not to be used atm
+#       and action:READ is implicit
+# 230418 pa: feature-release adding roboticsAcl
 #
 #
 # TODO:
