@@ -40,7 +40,7 @@ click = "^8.1.3"
 # types-retry = "^0.1.5"
 cognite-sdk = {version = "^5.2.0", extras = ["pandas"]}
 # TODO: 230125 was this required for windows build?!
-setuptools = "^62.1.0"
+setuptools = "^67"
 rich = "^13.2.0"
 
 [tool.poetry.dev-dependencies]
