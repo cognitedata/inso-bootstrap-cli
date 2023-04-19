@@ -102,6 +102,7 @@
 # 230316 pa: feature-release adding annotationsAcl
 #       supporting all actions, even if action:REVIEW seems not to be used atm
 #       and action:READ is implicit
+# 230418 pa: feature-release adding roboticsAcl
 #
 # TODO:
 #
@@ -199,6 +200,7 @@ action_dimensions = {
         "datasets": ["READ", "OWNER"],
         "groups": ["LIST"],
         "projects": ["LIST"],
+        "robotics": ["READ", "CREATE", "UPDATE", "DELETE"],
         "sessions": ["LIST", "CREATE"],
         "threed": ["READ", "CREATE", "UPDATE", "DELETE"],
     },
@@ -243,6 +245,7 @@ acl_default_types = [
     "projects",
     "raw",
     "relationships",
+    "robotics",
     "seismic",
     "sequences",
     "sessions",
