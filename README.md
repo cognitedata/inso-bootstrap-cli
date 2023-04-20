@@ -1048,7 +1048,18 @@ Follow the initial setup first.
 ```bash
 export PYTHONPATH=.
 
-python incubator/bootstrap_cli/__main__.py deploy configs/ config-deploy-example.yml
+python incubator/bootstrap_cli/__main__.py deploy configs/config-deploy-example.yml
+```
+
+or with more parameters and using the `poetry shell`:
+
+```bash
+poetry shell
+
+bootstrap-cli --help
+bootstrap-cli deploy --help
+
+bootstrap-cli --dry-run --dotenv-path custom/folder/.env deploy --with-raw-capability no configs/config-deploy-example.yml
 ```
 
 ## Run locally with Docker
@@ -1060,16 +1071,5 @@ python incubator/bootstrap_cli/__main__.py deploy configs/ config-deploy-example
 docker build -t incubator/bootstrap-cli:v1.0 -t incubator/bootstrap-cli:latest .
 
 # ${PWD} because only absolute paths can be mounted
-docker run --volume ${PWD}/configs:/configs --volume ${PWD}/logs:/logs  --env-file=.env incubator/bootstrap-cli deploy /configs/config-deploy-example.yml
-```
-
-Debug the Docker container
-
-- requires override of `ENTRYPOINT`
-- to get full functional `bash` a `Dockerfile.debug` is provided
-
-```bash
-➟  docker build -t incubator/bootstrap-cli:debug -f Dockerfile.debug .
-
-➟  docker run --volume ${PWD}/configs:/configs --volume ${PWD}/logs:/logs  --env-file=.env -it --entrypoint /bin/bash incubator/bootstrap-cli:debug
+docker run --volume ${PWD}/configs:/configs --volume ${PWD}/logs:/logs  --env-file=.env incubator/bootstrap-cli -dry-run deploy /configs/config-deploy-example.yml
 ```
