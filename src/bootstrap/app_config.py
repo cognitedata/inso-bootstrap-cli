@@ -13,7 +13,7 @@ NEWLINE = "\n"
 class RoleType(str, Enum):
     READ = "read"
     OWNER = "owner"
-    ADMIN = "admin" # aka root-account
+    ADMIN = "admin"  # aka root-account
 
 
 #

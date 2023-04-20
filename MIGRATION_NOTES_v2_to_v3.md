@@ -27,4 +27,3 @@
 ### deprecated / removed
 - `--with-special-groups`
 - `--aad-source-id` as an alternative to `--idp-source-id`. Only latter is supported now.
-

@@ -109,7 +109,7 @@ Spinning up container and
 - `container_cls` _containers.Container_ - support different
 - `config_path` _str | Path, optional_ - _description_. Defaults to "/etc/f25e/config.yaml".
 - `dotenv_path` _str | Path, optional_ - _description_. Defaults to None.
-  
+
 
 **Returns**:
 
@@ -322,7 +322,7 @@ Creates alias names from Python compatible snake_case '_' to yaml typical kebap-
 **Arguments**:
 
 - `value` _str_ - the value to generate an alias for
-  
+
 
 **Returns**:
 
@@ -428,7 +428,7 @@ Each acl and role resolves to a list of default or custom actions.
 
 - `action` _RoleType_ - a supported bootstrap-role, representing a group of actions
 - `acl_type` _str_ - an acl from 'AclDefaultTypes'
-  
+
 
 **Returns**:
 
@@ -467,7 +467,7 @@ The function supports following levels expressed by parameter combinations:
   root_account (str, optional):
   Name of the root-account.
   Defaults to None.
-  
+
 
 **Returns**:
 
@@ -487,7 +487,7 @@ and return list of all CDF group IDs
 **Arguments**:
 
 - `group_name` _str_ - CDF group name to check
-  
+
 
 **Returns**:
 
@@ -517,7 +517,7 @@ if a group with the same name exists:
   aad_mapping (Tuple[str, str], optional):
   Tuple of ({AAD SourceID}, {AAD SourceName})
   to link the CDF group to
-  
+
 
 **Returns**:
 
@@ -556,7 +556,7 @@ Diagram mode used to document the given configuration as a Mermaid diagram.
   - Create RAW DBs and 'rawAcl' capability. Defaults to 'YesNoType.tes'.
   cdf_project (str, optional):
   - Provide the CDF Project to use for the diagram 'idp-cdf-mappings'.
-  
+
 
 **Example**:
 
@@ -596,4 +596,3 @@ A graph reqistry is
 <a id="bootstrap.commands.diagram_utils"></a>
 
 # bootstrap.commands.diagram\_utils
-
