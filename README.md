@@ -961,13 +961,14 @@ This configuration provides a `cdf:in:002:supply:owner` CDF Group
 
    ```sh
    poetry install
+   poetry shell
    ```
 
 3. Install the pre-commit hook:
 
    ```sh
-   poetry run pre-commit install #Only needed if not installed
-   poetry run pre-commit run --all-files
+   # installs it automatically if missing
+   pre-commit run --all-files
    ```
 
 ## Inspiration
@@ -982,9 +983,12 @@ Templates (blueprints) used for implementation are
 ## Semantic versioning
 
 - Uses `semantic-release` to create version tags.
-- The rules for commit messages are conventional commits, see [conventionalcommits](https://www.conventionalcommits.org/en/v1.0.0-beta.4/#summary%3E)
+- The rules for commit messages are conventional commits, see [conventional-commits](https://www.conventionalcommits.org/en/v1.0.0-beta.4/#summary%3E)
 - Remark: If the version needs to change, before merging make sure the commit title has the elements mentioned on `conventionalcommits`
-- Remark: with a new version change, bump will update the version on `pyproject.toml` and `__init__:__version__` so there is no need to change version manually there.
+- Remark: `.github/workflows/bump.yaml` will update the version number automatically
+  - in `pyproject.toml`
+  - and `__init__:__version__`
+  so there is no need to change version manually there.
 
 
 # Other ways of running
@@ -1001,64 +1005,53 @@ Follow the initial setup first.
 
 1. Fill out relevant configurations from `configs`:
 
-   - Fill out the `bootstrap`section from `config-deploy-example-v2.yml`, pr
+   - Fill out the `bootstrap`section in `config-deploy-example-v3.yml`
    - Fill out `delete_or_deprecate` from `config-delete-example.yml`.
 
 2. For local testing, copy `.env_example` to `.env`.
 
-   - Complete CDF and IdP configuration in `.env`.
+   - INsert your CDF and IdP configurations in `.env`.
 
 ## Run locally with Poetry
 
-- You can find more information about running on native Windows / PowerShell / multiple Python versions [here](POETRY_ON_WINDOWS.md).
-
-> **WINDOWS USER:** the provided `pyproject.toml` and `poetry.lock` files are built to support "\*nix" (MacOS, WSL2, Linux) first.
->
-> On Windows (native, not WSL2) you have to delete the `poetry.lock` file first before you run `poetry install`.
->
-> We have plans to support Windows with an executable, which eliminates the need for a Python installed too.
-
 ```bash
   # typical commands
-  poetry build
   poetry install
-  poetry update
+  poetry shell
 ```
 
 - Deploy mode:
 
 ```bash
-  poetry run bootstrap-cli deploy configs/config-deploy-example.yml
+  bootstrap-cli deploy configs/config-deploy-example.yml
 ```
 
 - Prepare mode:
 
 ```bash
-  poetry run bootstrap-cli prepare configs/config-deploy-example.yml
+  bootstrap-cli prepare configs/config-deploy-example.yml
 ```
 
 - Delete mode:
 
 ```bash
-  poetry run bootstrap-cli delete configs/config-delete-example.yml
+  bootstrap-cli delete configs/config-delete-example.yml
 ```
 
 ## Run locally with Python
-
-```bash
-export PYTHONPATH=.
-
-python incubator/bootstrap_cli/__main__.py deploy configs/config-deploy-example.yml
-```
-
-or with more parameters and using the `poetry shell`:
+ and activated a `poetry shell`:
 
 ```bash
 poetry shell
 
+# chekcking the global, and commandl-level parameters
 bootstrap-cli --help
 bootstrap-cli deploy --help
 
+# minimum
+bootstrap-cli deploy configs/config-deploy-example.yml
+
+# with global and command-level parameters
 bootstrap-cli --dry-run --dotenv-path custom/folder/.env deploy --with-raw-capability no configs/config-deploy-example.yml
 ```
 
