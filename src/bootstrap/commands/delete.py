@@ -93,7 +93,7 @@ class CommandDelete(CommandBase):
                         if not update_dataset.name.startswith("_DEPR_")
                         else f"{update_dataset.name}"
                     )  # don't stack the DEPR prefixes
-                    update_dataset.description = "Deprecated {}".format(self.get_timestamp())
+                    update_dataset.description = f"Deprecated {self.get_timestamp()}"
                     update_dataset.metadata = dict(update_dataset.metadata, archived=True)  # or dict(a, **b)
                     update_dataset.external_id = f"_DEPR_{update_dataset.external_id}_[{self.get_timestamp()}]"
                     if self.is_dry_run:
