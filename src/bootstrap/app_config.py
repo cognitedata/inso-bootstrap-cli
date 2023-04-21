@@ -146,7 +146,7 @@ class IdpCdfMapping(Model):
 
 class IdpCdfMappingProjects(Model):
     cdf_project: str
-    create_only_mapped_cdf_groups: Optional[bool] = False
+    create_only_mapped_cdf_groups: Optional[bool] = True
     mappings: list[IdpCdfMapping]
 
 

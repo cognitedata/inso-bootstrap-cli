@@ -835,7 +835,7 @@ Example:
 idp-cdf-mappings:
   - cdf-project: shiny-dev
     # new since v3
-    # only create CDF Groups which are mapped to an IdP, default is false
+    # switch to only create CDF Groups which are mapped to an IdP, default is true
     create-only-mapped-cdf-groups: true
     mappings:
       - cdf-group: cdf:all:owner

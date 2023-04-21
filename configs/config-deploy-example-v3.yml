@@ -85,7 +85,7 @@ bootstrap:
     # The BOOTSTRAP_CDF_PROJECT env-variable is available and is used to select.
     - cdf-project: shiny-dev
       # new since v3
-      # only creates CDF Groups which are mapped to an IdP, default is false
+    # switch to only create CDF Groups which are mapped to an IdP, default is true
       create-only-mapped-cdf-groups: true
       mappings:
         - cdf-group: cdf:root

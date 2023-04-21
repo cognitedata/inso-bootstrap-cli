@@ -12,7 +12,11 @@
 - `bootstrap.features.with-datamodel-capability` default: `true`
 - `bootstrap.features.space-suffix` default: `spc`
 
-- `bootstrap.idp-cdf-mappings[].create-only-mapped-cdf-groups` default `false`
+- `bootstrap.idp-cdf-mappings[].create-only-mapped-cdf-groups` default `true`
+  - switch to only create CDF Groups which are mapped to an IdP.
+    This is reducing the amount of created CDF Groups to the minimum.
+    It is the defaultnow to only create CDF Groups, which have an effect.
+
 
 ### deprecated
 - `bootstrap.features.with-special-groups` is not required in Cognite Data Fusion anymore
