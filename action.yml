@@ -34,7 +34,7 @@ inputs:
     required: true
   with_special_groups:
     description: >-
-      yes/no string-flag, deprecated since v3
+      yes/no string-flag, deprecated and ignored since v3
     required: false
     default: 'no'
   with_raw_capability:

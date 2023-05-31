@@ -2,13 +2,12 @@ import json
 import logging
 from collections import UserList
 from collections.abc import Iterable
-from typing import Any, Dict, List, Type, Union
+from typing import Any, Type
 
 from cognite.client import CogniteClient, utils
-from cognite.client.data_classes import Database, DataSet, Group
+from cognite.client.data_classes import Database, DataSet, Group, Space
 from cognite.client.data_classes._base import CogniteResource, CogniteResourceList
-
-from fdm_sdk_inject.data_classes.models.spaces import ModelsSpace
+from cognite.client.utils._time import convert_time_attributes_to_datetime
 
 
 class CogniteResourceCache(UserList):
@@ -23,12 +22,12 @@ class CogniteResourceCache(UserList):
         Group: "id",
         Database: "name",
         # DataModelStorageSpace: "external_id",
-        ModelsSpace: "space",
+        Space: "space",
     }  # noqa
 
     def __init__(
         self,
-        RESOURCE: Type[Group] | Type[Database] | Type[DataSet] | Type[ModelsSpace],
+        RESOURCE: Type[Group] | Type[Database] | Type[DataSet] | Type[Space],
         resources: CogniteResource | CogniteResourceList,
     ) -> None:
         self.RESOURCE = RESOURCE
@@ -41,15 +40,15 @@ class CogniteResourceCache(UserList):
         self.data = [r for r in resources] if isinstance(resources, CogniteResourceList) else [resources]
 
     def __str__(self) -> str:
-        """From CogniteResourceList
+        """From CogniteResourceList v6.2.1
 
         Returns:
             _type_: _description_
         """
-        item = utils._time.convert_time_attributes_to_datetime(self.dump())
+        item = convert_time_attributes_to_datetime(self.dump())
         return json.dumps(item, default=utils._auxiliary.json_dump_default, indent=4)
 
-    def dump(self, camel_case: bool = False) -> List[Dict[str, Any]]:
+    def dump(self, camel_case: bool = False) -> list[dict[str, Any]]:
         """Dump the instance into a json serializable Python data type.
         Args:
             camel_case (bool): Use camelCase for attribute names. Defaults to False.
@@ -58,7 +57,7 @@ class CogniteResourceCache(UserList):
         """
         return [resource.dump(camel_case) for resource in self.data]
 
-    def get_names(self) -> List[str]:
+    def get_names(self) -> list[str]:
         """Convenience function to get list of names
 
         Returns:
@@ -69,7 +68,7 @@ class CogniteResourceCache(UserList):
             """CogniteResources have different identifiers
 
             Args:
-                resource (CogniteResource):  DataSet, Group, Database, DataModelStorageSpace (v2), ModelsSpace (v3)
+                resource (CogniteResource):  DataSet, Group, Database, DataModelStorageSpace (v2), Space (v3)
 
             Returns:
                 str: best representation we found in order 'space', 'name', 'external_id'
@@ -85,7 +84,7 @@ class CogniteResourceCache(UserList):
     def select(self, values):
         return [c for c in self.data if getattr(c, self.SELECTOR_FIELD) in values]
 
-    def create(self, resources: Union[CogniteResource, CogniteResourceList, List]) -> None:
+    def create(self, resources: CogniteResource | CogniteResourceList | list) -> None:
         """map 'mode' to internal update function ('_' prefixed)
 
         Args:
@@ -96,7 +95,7 @@ class CogniteResourceCache(UserList):
         resources = resources if isinstance(resources, Iterable) else [resources]
         self.data.extend([r for r in resources])
 
-    def delete(self, resources: Union[CogniteResource, CogniteResourceList, List]) -> None:
+    def delete(self, resources: CogniteResource | CogniteResourceList | list) -> None:
         """Find existing resource and replace it
         a) delete
         b) call create
@@ -111,7 +110,7 @@ class CogniteResourceCache(UserList):
         matching_in_cache = self.select(values=[getattr(r, self.SELECTOR_FIELD) for r in resources])
         [self.data.remove(m) for m in matching_in_cache]
 
-    def update(self, resources: Union[CogniteResource, CogniteResourceList, List]) -> None:
+    def update(self, resources: CogniteResource | CogniteResourceList | list) -> None:
         """Find existing resource and replace it
         a) delete
         b) call create
@@ -134,7 +133,6 @@ class CogniteDeployedCache:
     """
 
     def __init__(self, client: CogniteClient, groups_only: bool = False):
-
         # init
         self.groups: CogniteResourceCache
         self.datasets: CogniteResourceCache
@@ -162,7 +160,7 @@ class CogniteDeployedCache:
         self.datasets = CogniteResourceCache(RESOURCE=DataSet, resources=self.client.data_sets.list(limit=NOLIMIT))
         self.raw_dbs = CogniteResourceCache(RESOURCE=Database, resources=self.client.raw.databases.list(limit=NOLIMIT))
         self.spaces = CogniteResourceCache(
-            RESOURCE=ModelsSpace, resources=self.client.models.spaces.list(limit=NOLIMIT)  # type: ignore
+            RESOURCE=Space, resources=self.client.data_modeling.spaces.list(limit=NOLIMIT)  # type: ignore
         )
 
     def log_counts(self):

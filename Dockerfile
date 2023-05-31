@@ -7,7 +7,7 @@
 
 ARG APP_NAME=inso_bootstrap_cli # matching the pyproject.toml name
 ARG APP_PATH=/opt/$APP_NAME
-ARG PYTHON_VERSION=3.10
+ARG PYTHON_VERSION=3.11
 ARG POETRY_VERSION=1.3.2
 
 #
@@ -57,7 +57,6 @@ ENV PATH="$POETRY_HOME/bin:$PATH"
 
 WORKDIR $APP_PATH
 RUN poetry install
-
 ENTRYPOINT ["poetry", "run", "bootstrap-cli"]
 
 #
@@ -92,6 +91,11 @@ WORKDIR $APP_PATH
 COPY --from=build $APP_PATH/dist/*.whl ./
 COPY --from=build $APP_PATH/requirements.txt ./
 RUN pip install ./$APP_NAME*.whl -r requirements.txt
+
+# to allow reuse of logger-configs using ./logs/..
+RUN mkdir  $APP_PATH/logs
+# allow writing to logs
+RUN chmod 666 $APP_PATH/logs
 
 # Entrypoint script - tailored to run bootstrap-cli and await parameters
 COPY ./docker-bootstrap-entrypoint.sh /docker-entrypoint.sh

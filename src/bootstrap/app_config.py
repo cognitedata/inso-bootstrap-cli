@@ -1,4 +1,4 @@
-from enum import Enum
+from enum import ReprEnum  # new in 3.11
 from typing import Any, Optional
 
 from pydantic import Field
@@ -10,7 +10,7 @@ from .common.base_model import Model
 NEWLINE = "\n"
 
 
-class RoleType(str, Enum):
+class RoleType(str, ReprEnum):
     READ = "read"
     OWNER = "owner"
     ADMIN = "admin"  # aka root-account
@@ -110,28 +110,28 @@ RoleTypeActions = {
 AclAdminTypes = list(RoleTypeActions[RoleType.ADMIN].keys())
 
 
-# mixin 'str' to 'Enum' to support comparison to string-values
+# mixin 'str' to 'ReprEnum' to support comparison to string-values
 # https://docs.python.org/3/library/enum.html#others
 # https://stackoverflow.com/a/63028809/1104502
-class YesNoType(str, Enum):
+class YesNoType(str, ReprEnum):
     yes = "yes"
     no = "no"
 
 
-class CommandMode(str, Enum):
+class CommandMode(str, ReprEnum):
     PREPARE = "prepare"
     DEPLOY = "deploy"
     DELETE = "delete"
     DIAGRAM = "diagram"
 
 
-class CacheUpdateMode(str, Enum):
+class CacheUpdateMode(str, ReprEnum):
     CREATE = "create"
     UPDATE = "update"
     DELETE = "delete"
 
 
-class ScopeCtxType(str, Enum):
+class ScopeCtxType(str, ReprEnum):
     DATASET = "datasets"
     SPACE = "spaces"
     RAWDB = "raw_dbs"

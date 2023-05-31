@@ -1,5 +1,5 @@
 import logging.config
-from typing import List, Optional
+from typing import Optional
 
 # TODO: PEP 484 Stub Files issue?
 from cognite.client import ClientConfig, CogniteClient
@@ -13,7 +13,7 @@ class CogniteIdpConfig(Model):
     client_name: Optional[str]
     client_id: str
     secret: str
-    scopes: List[str]
+    scopes: list[str]
     token_url: str
 
 
@@ -33,12 +33,12 @@ class CogniteConfig(Model):
         return self.idp_authentication.token_url
 
     @property
-    def scopes(self) -> List[str]:
+    def scopes(self) -> list[str]:
         return self.idp_authentication.scopes
 
     @property
     def client_name(self) -> str:
-        return self.idp_authentication.client_name or "cognite-sdk-client"
+        return self.idp_authentication.client_name or "bootstrap-client"
 
     @property
     def client_id(self) -> str:
@@ -81,7 +81,6 @@ def get_cognite_client(cognite_config: CogniteConfig) -> CogniteClient:
         CogniteClient: The authenticated CogniteClient
     """
     try:
-
         logging.debug("Attempt to create CogniteClient")
 
         credentials = OAuthClientCredentials(

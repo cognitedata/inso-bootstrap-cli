@@ -1,3 +1,5 @@
+# migration notes
+
 ## capabilities
 
 - `threed` (3D) is now fully-scoped with datasets (was before `all` scoped)
@@ -9,6 +11,7 @@
 ### new
 
 (support for new Cognite Data Fusion feature ["Data Modelling"](https://docs.cognite.com/cdf/data_modeling/))
+
 - `bootstrap.features.with-datamodel-capability` default: `true`
 - `bootstrap.features.space-suffix` default: `spc`
 
@@ -17,17 +20,19 @@
     This is reducing the amount of created CDF Groups to the minimum.
     It is the defaultnow to only create CDF Groups, which have an effect.
 
-
 ### deprecated
-- `bootstrap.features.with-special-groups` is not required in Cognite Data Fusion anymore
 
+- `bootstrap.features.with-special-groups` is not required in Cognite Data Fusion anymore.
 
 ## cli
+
+We switched from Python 3.10 to 3.11, which has to be available for local installation.
 
 ### changed
 
 - `--dry-run` is now a simple flag and does not require a value anymore
 
 ### deprecated / removed
+
 - `--with-special-groups`
 - `--aad-source-id` as an alternative to `--idp-source-id`. Only latter is supported now.

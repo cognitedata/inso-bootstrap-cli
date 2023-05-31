@@ -14,7 +14,6 @@ class CommandDelete(CommandBase):
     #  `Y8bod88P" `Y8bod8P' o888o `Y8bod8P'   "888" `Y8bod8P'
     # '''
     def command(self):
-
         # groups
         group_names = self.delete_or_deprecate.groups
         if group_names:
@@ -36,7 +35,6 @@ class CommandDelete(CommandBase):
         # spaces
         space_names = self.delete_or_deprecate.spaces
         if space_names:
-            # FDM v3 spaces have 'space' not 'external_id'
             delete_space_ids = [s.space for s in self.deployed.spaces if s.space in space_names]
             if delete_space_ids:
                 # only delete space which exist
@@ -45,7 +43,7 @@ class CommandDelete(CommandBase):
                     logging.info(f"Dry run - Deleting spaces: <{space_names}>")
                 else:
                     # TODO: delete is not supported in v2 only v3
-                    self.client.models.spaces.delete(delete_space_ids)  # type: ignore
+                    self.client.data_modeling.spaces.delete(delete_space_ids)  # type: ignore
                     self.deployed.spaces.delete(resources=self.deployed.spaces.select(values=delete_space_ids))
 
             else:

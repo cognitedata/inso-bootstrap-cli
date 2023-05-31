@@ -1,12 +1,9 @@
 import logging.config
 from pathlib import Path
-from typing import TYPE_CHECKING, Dict, Optional, Type
+from typing import TYPE_CHECKING, Optional, Type
 
-from cognite.client import CogniteClient
 from dependency_injector import containers, providers
 from dotenv import load_dotenv
-
-from fdm_sdk_inject._api.models import ModelsAPI
 
 from .app_config import BootstrapCoreConfig, BootstrapDeleteConfig, CommandMode
 from .common.cognite_client import CogniteConfig, get_cognite_client
@@ -39,7 +36,7 @@ def init_container(
     return container
 
 
-def init_logging(logging_config: Optional[Dict], deprecated_logger_config: Optional[Dict]):
+def init_logging(logging_config: Optional[dict], deprecated_logger_config: Optional[dict]):
     # https://docs.python.org/3/howto/logging-cookbook.html#logging-to-a-single-file-from-multiple-processes
     # from logging-cookbook examples for 'logging_config' dict
     # TODO: needed to handle missing log folders?
@@ -92,31 +89,6 @@ def shutdown_container(container):
     container.shutdown_resources()
 
 
-def get_patched_cognite_client(cognite_config: CogniteConfig) -> CogniteClient:
-    """Get an authenticated CogniteClient for the given project and user
-    Returns:
-        CogniteClient: The authenticated CogniteClient
-    """
-    try:
-
-        #
-        # FDM SDK injector
-        #
-        client = get_cognite_client(cognite_config)
-        _API_VERSION = "v1"
-        if not getattr(client, "models", False):
-            # DMS v3
-            client.models = ModelsAPI(  # type: ignore
-                config=client.config, api_version=_API_VERSION, cognite_client=client
-            )
-            logging.debug("Successfully injected minimal FDM DMS v3 'client.models'")
-
-        return client
-    except Exception as e:
-        logging.critical(f"Unable to create CogniteClient: {e}")
-        raise
-
-
 class BaseContainer(containers.DeclarativeContainer):
     wiring_config = containers.WiringConfiguration(
         modules=[
@@ -138,7 +110,7 @@ class CogniteContainer(BaseContainer):
     cognite_config = providers.Resource(CogniteConfig.parse_obj, obj=BaseContainer.config.cognite)
 
     cognite_client = providers.Factory(
-        get_patched_cognite_client,  # get_cognite_client,
+        get_cognite_client,
         cognite_config,
     )
 

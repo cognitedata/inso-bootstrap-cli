@@ -48,8 +48,7 @@ The CLI restricts the structure of the datasets and the groups it supports, and 
   - [Inspiration](#inspiration)
   - [Semantic versioning](#semantic-versioning)
 - [Other ways of running](#other-ways-of-running)
-  - [Run locally with Poetry](#run-locally-with-poetry)
-  - [Run locally with Python](#run-locally-with-python)
+  - [Run locally with Poetry (requires Python 3.11 being available)](#run-locally-with-poetry-requires-python-311-being-available)
   - [Run locally with Docker](#run-locally-with-docker)
 
 <!-- /code_chunk_output -->
@@ -990,7 +989,6 @@ Templates (blueprints) used for implementation are
   - and `__init__:__version__`
   so there is no need to change version manually there.
 
-
 # Other ways of running
 
 - It provides a configuration-driven deployment for Cognite Bootstrap Pipelines (named `bootstrap` in short)
@@ -1010,50 +1008,43 @@ Follow the initial setup first.
 
 2. For local testing, copy `.env_example` to `.env`.
 
-   - INsert your CDF and IdP configurations in `.env`.
+   - Insert your CDF and IdP configurations in `.env`.
 
-## Run locally with Poetry
+## Run locally with Poetry (requires Python 3.11 being available)
 
-```bash
+  ```bash
   # typical commands
   poetry install
   poetry shell
-```
+  ```
 
 - Deploy mode:
 
-```bash
+  ```bash
   bootstrap-cli deploy configs/config-deploy-example.yml
-```
+
+  # checking the global, and command-level parameters
+  bootstrap-cli --help
+  bootstrap-cli deploy --help
+
+  # minimum
+  bootstrap-cli deploy configs/config-deploy-example.yml
+
+  # with global and command-level parameters
+  bootstrap-cli --dry-run --dotenv-path ./custom-folder/.env deploy --with-raw-capability no configs/config-deploy-example.yml
+  ```
 
 - Prepare mode:
 
-```bash
+  ```bash
   bootstrap-cli prepare configs/config-deploy-example.yml
-```
+  ```
 
 - Delete mode:
 
-```bash
+  ```bash
   bootstrap-cli delete configs/config-delete-example.yml
-```
-
-## Run locally with Python
- and activated a `poetry shell`:
-
-```bash
-poetry shell
-
-# chekcking the global, and commandl-level parameters
-bootstrap-cli --help
-bootstrap-cli deploy --help
-
-# minimum
-bootstrap-cli deploy configs/config-deploy-example.yml
-
-# with global and command-level parameters
-bootstrap-cli --dry-run --dotenv-path custom/folder/.env deploy --with-raw-capability no configs/config-deploy-example.yml
-```
+  ```
 
 ## Run locally with Docker
 
@@ -1061,8 +1052,8 @@ bootstrap-cli --dry-run --dotenv-path custom/folder/.env deploy --with-raw-capab
 - volumes for `configs` (to read) and `logs` folder (to write)
 
 ```bash
-docker build -t incubator/bootstrap-cli:v1.0 -t incubator/bootstrap-cli:latest .
+docker build -t incubator/bootstrap-cli:latest .
 
 # ${PWD} because only absolute paths can be mounted
-docker run --volume ${PWD}/configs:/configs --volume ${PWD}/logs:/logs  --env-file=.env incubator/bootstrap-cli -dry-run deploy /configs/config-deploy-example.yml
+docker run --volume ${PWD}/configs:/configs --volume ${PWD}/logs:/logs  --env-file=.env incubator/bootstrap-cli --dry-run deploy /configs/config-deploy-example.yml
 ```

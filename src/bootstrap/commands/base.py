@@ -2,15 +2,21 @@ import logging
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Iterable, Optional, Type, TypeVar
+from typing import Any, Optional
 
 import yaml
 from cognite.client import CogniteClient
-from cognite.client.data_classes import Database, DatabaseList, DataSet, DataSetList, DataSetUpdate, Group, GroupList
-from dependency_injector import containers
-
-# fdm sdk injection
-from fdm_sdk_inject.data_classes.models.spaces import ModelsSpace, ModelsSpaceList
+from cognite.client.data_classes import (
+    Database,
+    DatabaseList,
+    DataSet,
+    DataSetList,
+    DataSetUpdate,
+    Group,
+    GroupList,
+    Space,
+    SpaceList,
+)
 
 from .. import __version__
 from ..app_cache import CogniteDeployedCache
@@ -33,7 +39,6 @@ from ..app_exceptions import BootstrapValidationError
 
 
 class CommandBase:
-
     # CDF group prefix, i.e. "cdf:", to make bootstrap created CDF groups easy recognizable in Fusion
     GROUP_NAME_PREFIX = ""
 
@@ -53,7 +58,6 @@ class CommandBase:
         dry_run: bool = False,
         dotenv_path: str | Path | None = None,
     ):
-
         # validate and load config according to command-mode
         ContainerCls = ContainerSelector[command]
         self.container = init_container(ContainerCls, config_path=config_path, dotenv_path=dotenv_path)
@@ -95,7 +99,6 @@ class CommandBase:
                 self.delete_or_deprecate: BootstrapDeleteConfig = self.container.delete_or_deprecate()
 
             case CommandMode.DEPLOY | CommandMode.DIAGRAM | CommandMode.PREPARE:
-
                 # TODO: correct for DIAGRAM and PREPARE?!
                 self.bootstrap_config: BootstrapCoreConfig = self.container.bootstrap()
                 self.idp_cdf_mappings = self.bootstrap_config.idp_cdf_mappings
@@ -156,10 +159,10 @@ class CommandBase:
     @staticmethod
     def get_space_name_template(node_name: str):
         # 'space' have to match this regex: ^[a-zA-Z0-9][a-zA-Z0-9_-]{0,41}[a-zA-Z0-9]?$
-        FDM_SPACE_RE = re.compile(r"[^a-zA-Z0-9-_]").sub
+        SPACES_RE = re.compile(r"[^a-zA-Z0-9-_]").sub
         # every charchter not matching this pattern will be replaced
-        FDM_SPECIAL_CHAR_REPLACEMENT = "-"
-        return FDM_SPACE_RE(FDM_SPECIAL_CHAR_REPLACEMENT, f"{node_name}{CommandBase.SPACE_SUFFIX}")
+        SPACES_SPECIAL_CHAR_REPLACEMENT = "-"
+        return SPACES_RE(SPACES_SPECIAL_CHAR_REPLACEMENT, f"{node_name}{CommandBase.SPACE_SUFFIX}")
 
     @staticmethod
     def get_raw_dbs_name_template():
@@ -315,7 +318,6 @@ class CommandBase:
         return self
 
     def validate_config_is_cdf_project_in_mappings(self, cdf_project_from_cli: Optional[str] = None):
-
         # check if mapping exists for configured cdf-project
         # or for explicit configured cli parameter ('diagram' only)
         check_cdf_project = cdf_project_from_cli or self.cdf_project
@@ -522,7 +524,6 @@ class CommandBase:
     def get_scope_ctx_groupedby_role_type(
         self, role_type: RoleType, ns_name: str, node_name: str | None = None
     ) -> dict[RoleType, dict[ScopeCtxType, list[str]]]:
-
         rawdbs_by_role_type = self.get_raw_dbs_groupedby_role_type(role_type, ns_name, node_name)
         ds_by_role_type = self.get_datasets_groupedby_role_type(role_type, ns_name, node_name)
         spaces_by_role_type = self.get_spaces_groupedby_role_type(role_type, ns_name, node_name)
@@ -537,7 +538,6 @@ class CommandBase:
         }  # fmt: skip
 
     def generate_scope(self, acl_type: str, scope_ctx: dict[ScopeCtxType, list[str]]) -> dict[str, dict[str, Any]]:
-
         # first handle acl types **without** scope support:
         if acl_type in AclAllScopeOnlyTypes:
             return {"all": {}}
@@ -1011,13 +1011,13 @@ class CommandBase:
             missing_space_names = target_space_names
 
         if missing_space_names:
-            spaces_to_be_created = [ModelsSpace(space=name, name=name) for name in missing_space_names]
+            spaces_to_be_created = [Space(space=name, name=name) for name in missing_space_names]
             # create all spaces which are not already deployed
             if self.is_dry_run:
                 for space in list(missing_space_names):
                     logging.info(f"Dry run - Creating space: <{space}>")
             else:
-                created_spaces: ModelsSpace | ModelsSpaceList = self.client.models.spaces.create(  # type:ignore
+                created_spaces: Space | SpaceList = self.client.data_modeling.spaces.create(  # type:ignore
                     space=spaces_to_be_created
                 )
                 self.deployed.spaces.create(resources=created_spaces)

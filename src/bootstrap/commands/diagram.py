@@ -1,5 +1,5 @@
 import logging
-from enum import Enum
+from enum import ReprEnum  # new in 3.11
 from typing import Iterable, Optional, Type
 
 from ..app_config import AclDefaultTypes, RoleType, ScopeCtxType, YesNoType
@@ -17,7 +17,7 @@ from .diagram_utils.mermaid import (
 )
 
 
-class SubgraphTypes(str, Enum):
+class SubgraphTypes(str, ReprEnum):
     idp = "IdP Groups"
     owner = "'Owner' Groups"
     read = "'Read' Groups"
@@ -32,7 +32,6 @@ class SubgraphTypes(str, Enum):
 
 
 class CommandDiagram(CommandBase):
-
     # '''
     #        .o8   o8o
     #       "888   `"'
@@ -199,7 +198,6 @@ class CommandDiagram(CommandBase):
             node_name: Optional[str] = None,
             root_account: Optional[str] = None,
         ) -> None:
-
             if root_account:
                 return
 
@@ -283,7 +281,6 @@ class CommandDiagram(CommandBase):
                     # scope_type: [raw|datasets]
                     # scopes: List[str]
                     for scope_type, scopes in scope_ctx.items():
-
                         if not self.with_raw_capability and scope_type in (ScopeCtxType.RAWDB, ScopeCtxType.SPACE):
                             continue  # for simple diagram SKIP RAW and SPACE
 
@@ -291,7 +288,6 @@ class CommandDiagram(CommandBase):
                             continue  # SKIP SPACE
 
                         for scope_name in scopes:
-
                             #
                             # NODE DATASET or RAW scope
                             #    'src:001:sap:rawdb'
@@ -352,7 +348,6 @@ class CommandDiagram(CommandBase):
                     # scope_type: [raw|datasets]
                     # scopes: List[str]
                     for scope_type, scopes in scope_ctx.items():
-
                         if not self.with_raw_capability and scope_type in (ScopeCtxType.RAWDB, ScopeCtxType.SPACE):
                             continue  # for simple diagram SKIP RAW and SPACE
 
@@ -360,7 +355,6 @@ class CommandDiagram(CommandBase):
                             continue  # SKIP SPACE
 
                         for scope_name in scopes:
-
                             # LIMIT only to direct scopes for readability
                             # which have for example 'src:all:' as prefix
                             if not scope_name.startswith(f"{ns_name}:{CommandBase.AGGREGATED_LEVEL_NAME}:"):
@@ -371,7 +365,6 @@ class CommandDiagram(CommandBase):
                             #    'src:all:rawdb'
                             #
                             if scope_name not in scope_subgraph:
-
                                 node_type_cls = scopectx_mermaid_node_mapping(scope_type)
                                 scope_subgraph.elements.append(
                                     node_type_cls(
@@ -414,7 +407,6 @@ class CommandDiagram(CommandBase):
                     # scope_type: [raw|datasets]
                     # scopes: List[str]
                     for scope_type, scopes in scope_ctx.items():
-
                         if not self.with_raw_capability and scope_type in (ScopeCtxType.RAWDB, ScopeCtxType.SPACE):
                             continue  # for simple diagram SKIP RAW and SPACE
 
@@ -422,7 +414,6 @@ class CommandDiagram(CommandBase):
                             continue  # SKIP SPACE
 
                         for scope_name in scopes:
-
                             # LIMIT only to direct scopes for readability
                             # which have for example 'src:all:' as prefix
                             if not scope_name.startswith(f"{CommandBase.AGGREGATED_LEVEL_NAME}:"):
@@ -434,7 +425,6 @@ class CommandDiagram(CommandBase):
                             #    'all:rawdb'
                             #
                             if scope_name not in scope_subgraph:
-
                                 # logging.info(f">> add {scope_name=}__{action=}")
 
                                 node_type_cls = scopectx_mermaid_node_mapping(scope_type)
@@ -476,7 +466,7 @@ class CommandDiagram(CommandBase):
         graph = GraphRegistry()
         # top subgraphs (three columns layout)
         # creating Subgraphs with a 'subgraph_name' and a 'subgraph_short_name'
-        # using the SubgraphTypes Enum 'name' (default) and 'value' properties
+        # using the SubgraphTypes ReprEnum 'name' (default) and 'value' properties
         idp_group = graph.get_or_create(
             SubgraphTypes.idp, subgraph_short_name=f"{SubgraphTypes.idp.value} for CDF: '{diagram_cdf_project}'"
         )

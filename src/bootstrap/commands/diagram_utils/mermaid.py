@@ -1,6 +1,6 @@
 # std-lib
 from datetime import datetime
-from enum import Enum
+from enum import ReprEnum  # new in 3.11
 
 # type-hints
 from typing import Optional, TypeVar
@@ -132,7 +132,6 @@ T_Subgraph = TypeVar("T_Subgraph", bound="Subgraph")
 
 
 class Subgraph(MermaidFlowchartElement):
-
     elements: list["Subgraph | Node"]
     display: Optional[str] = None
 
@@ -181,13 +180,13 @@ class GraphRegistry:
     """
 
     def __init__(self, elements=[]):
-        self.subgraph_registry: dict[Enum, Subgraph] = {}
+        self.subgraph_registry: dict[ReprEnum, Subgraph] = {}
         # nested
         self.elements: list[Subgraph | Node | Edge] = elements
         # final block of edges
         self.edges: list[Edge] = []
 
-    def get_or_create(self, subgraph_type: Enum, subgraph_short_name: Optional[str] = None) -> Subgraph:
+    def get_or_create(self, subgraph_type: ReprEnum, subgraph_short_name: Optional[str] = None) -> Subgraph:
         return self.subgraph_registry.setdefault(
             # get if exists
             subgraph_type,
@@ -195,7 +194,7 @@ class GraphRegistry:
             Subgraph(
                 id_name=subgraph_type.name, display=subgraph_short_name or subgraph_type.value, elements=[], comments=[]
             )
-            if isinstance(subgraph_type, Enum)
+            if isinstance(subgraph_type, ReprEnum)
             else Subgraph(id_name=subgraph_type, elements=[], comments=[]),
         )
 
@@ -204,7 +203,6 @@ class GraphRegistry:
     #             print(elem.name)
 
     def to_mermaid(self) -> str:
-
         mermaid_flowchart = "\n".join(
             (
                 ["graph LR", f"%% {timestamp()} - Script generated Mermaid diagram"]
