@@ -1055,5 +1055,5 @@ Follow the initial setup first.
 docker build -t incubator/bootstrap-cli:latest .
 
 # ${PWD} because only absolute paths can be mounted
-docker run --volume ${PWD}/configs:/configs --volume ${PWD}/logs:/logs  --env-file=.env incubator/bootstrap-cli --dry-run deploy /configs/config-deploy-example.yml
+docker run --volume ${PWD}/configs:/configs --env-file=.env incubator/bootstrap-cli --dry-run deploy /configs/config-deploy-example.yml
 ```
