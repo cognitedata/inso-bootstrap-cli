@@ -1,29 +1,29 @@
-name: 'Deploy CDF Groups with Datasets, RAW DBs'
-description: 'Deploy (aka bootstrap) CDF Groups, Data-Sets and RAW DBs from a yaml manifest'
+name: "Deploy CDF Groups with Datasets, Spaces and RAW DBs scoping"
+description: "Deploy (aka bootstrap) CDF Groups, Data-Sets, Spaces and RAW DBs from a yaml manifest"
 inputs:
   # cdf
   cluster:
-    description: 'CDF Cluster'
+    description: "CDF Cluster"
     required: false
-    default: 'westeurope-1'
+    default: "westeurope-1"
   cdf-project-name:
-    description: 'CDF project name (only required when using OAuth2 credentials)'
+    description: "CDF project name"
     required: false
   # cdf idp
   client-id:
-    description: 'OAuth2 client ID'
+    description: "OAuth2 client ID"
     required: false
   client-secret:
-    description: 'OAuth2 client secret'
+    description: "OAuth2 client secret"
     required: false
   scopes:
-    description: 'List of OAuth2 scopes (space separated)'
+    description: "List of OAuth2 scopes (space separated)"
     required: false
   token-url:
-    description: 'Token url to use for fetching OAuth2 tokens'
+    description: "Token url to use for fetching OAuth2 tokens"
     required: false
   audience:
-    description: 'OAuth2 audience'
+    description: "OAuth2 audience"
     required: false
   # 'deploy' command parameters
   config_file:
@@ -32,20 +32,10 @@ inputs:
       This is relative to $GITHUB_WORKSPACE,
       which will be the root of the repository when using actions/checkout with default settings.
     required: true
-  with_special_groups:
-    description: >-
-      yes/no string-flag, deprecated and ignored since v3
-    required: false
-    default: 'no'
-  with_raw_capability:
-    description: >-
-      yes/no string-flag, for creating RAW DBs and 'rawAcl' capability.
-    required: false
-    default: 'yes'
 
 runs:
-  using: 'docker'
-  image: 'Dockerfile'
+  using: "docker"
+  image: docker://cognite/function-action:v3.0.0-beta.2-github
   env:
     BOOTSTRAP_TOKEN_URL: ${{ inputs.token-url }}
     BOOTSTRAP_PROJECT: ${{ inputs.cdf-project-name }}
@@ -55,7 +45,5 @@ runs:
     BOOTSTRAP_AUDIENCE: ${{ inputs.audience }}
     BOOTSTRAP_CLUSTER: "${{ inputs.cluster }}"
   args:
-    - "--debug"
     - "deploy"
-    - "--with-raw-capability=${{ inputs.with_raw_capability }}"
     - "${{ inputs.config_file }}"
