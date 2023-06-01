@@ -3,19 +3,22 @@ set -e
 cd "${0%/*}/.."
 
 TAG="${VERSION:-latest}"
-IMAGE="${IMAGE:-f25e-job-template}"
-JOBNAME="${JOBNAME:-hello}"
+IMAGE="${IMAGE:-bootstrap-cli}"
 
 echo "Running image '$IMAGE:$TAG'"
-echo "Running job '$JOBNAME'"
 echo "$(pwd)"
 
 set +e
+# adopt the parameters and config as you need
 docker run \
-  --mount type=bind,source=$(pwd)/config_examples/hello_minimal.yaml,target=/etc/f25e/config.yaml,readonly \
-  --entrypoint web \
+  --mount type=bind,source=$(pwd)/configs/config-deploy-example-v3.yml,target=/etc/config.yaml,readonly \
+  --entrypoint run \
+  --env-file=.env_trading_root \
   --rm \
-  $IMAGE
+  $IMAGE \
+  --dry-run \
+  deploy \
+  /etc/config.yaml
 
 set -e
 
