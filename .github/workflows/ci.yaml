@@ -2,12 +2,21 @@ name: ci
 
 on:
   workflow_dispatch:
+    inputs:
+      version:
+        description: 'image version (tag)'
   ## no automated run atm, only manual
   # push:
   #   branches:
   #     - main
 
 jobs:
+  printInputs:
+    runs-on: ubuntu-latest
+    steps:
+    - run: |
+        echo "Version: ${{ inputs.version }}"
+
   build:
     environment: main
     runs-on: ubuntu-latest
@@ -23,11 +32,12 @@ jobs:
 
       # hardcoded for now, migrating gh-actions using dockerhub image
       # has to match action.yaml
-      - run: echo "version=v3.0.0-beta.2-github"  >> $GITHUB_ENV
+      # - run: echo "version=v3.0.0-beta.2-github"  >> $GITHUB_ENV
 
       # image version then used by solutions-registry helm chart.
       - run: pack/build.sh
         env:
           PUBLISH: true
-          VERSION: ${{ env.version }}
+          # VERSION: ${{ env.version }}
+          VERSION: ${{ inputs.version }}
           IMAGE: docker://cognite/bootstrap-cli
