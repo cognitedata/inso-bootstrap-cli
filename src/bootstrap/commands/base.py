@@ -1017,7 +1017,7 @@ class CommandBase:
                 for space in list(missing_space_names):
                     logging.info(f"Dry run - Creating space: <{space}>")
             else:
-                created_spaces: Space | SpaceList = self.client.data_modeling.spaces.create(  # type:ignore
+                created_spaces: Space | SpaceList = self.client.data_modeling.spaces.apply(  # type:ignore
                     space=spaces_to_be_created
                 )
                 self.deployed.spaces.create(resources=created_spaces)
