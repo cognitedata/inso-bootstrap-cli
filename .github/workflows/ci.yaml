@@ -1,0 +1,33 @@
+name: ci
+
+on:
+  workflow_dispatch:
+  ## no automated run atm, only manual
+  # push:
+  #   branches:
+  #     - main
+
+jobs:
+  build:
+    environment: main
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      # https://github.com/docker/login-action#docker-hub
+      - name: Docker login
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USER }}
+          password: ${{ secrets.DOCKERHUB_ACCESS_TOKEN }}
+
+      # hardcoded for now, migrating gh-actions using dockerhub image
+      # has to match action.yaml
+      - run: echo "version=v3.0.0-beta.2-github"  >> $GITHUB_ENV
+
+      # image version then used by solutions-registry helm chart.
+      - run: pack/build.sh
+        env:
+          PUBLISH: true
+          VERSION: ${{ env.version }}
+          IMAGE: docker://cognite/bootstrap-cli
