@@ -1,5 +1,8 @@
 # migration notes
 
+Switch from Python 3.10 to 3.11, which has to be available for local installation.
+Switch from `Dockerfile` to Buildpacks for Docker image building.
+
 ## capabilities
 
 - `threed` (3D) is now fully-scoped with datasets (was before `all` scoped)
@@ -26,8 +29,6 @@
 
 ## cli
 
-We switched from Python 3.10 to 3.11, which has to be available for local installation.
-
 ### changed
 
 - `--dry-run` is now a simple flag and does not require a value anymore
@@ -35,4 +36,4 @@ We switched from Python 3.10 to 3.11, which has to be available for local instal
 ### deprecated / removed
 
 - `--with-special-groups`
-- `--aad-source-id` as an alternative to `--idp-source-id`. Only latter is supported now.
+- `--aad-source-id` which was as an alternative for `--idp-source-id`. Only latter is supported now.

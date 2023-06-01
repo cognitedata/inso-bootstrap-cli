@@ -50,6 +50,7 @@ The CLI restricts the structure of the datasets and the groups it supports, and 
 - [Other ways of running](#other-ways-of-running)
   - [Run locally with Poetry (requires Python 3.11 being available)](#run-locally-with-poetry-requires-python-311-being-available)
   - [Run locally with Docker](#run-locally-with-docker)
+  - [Run locally with Docker images using buildpacks](#run-locally-with-docker-images-using-buildpacks)
 
 <!-- /code_chunk_output -->
 
@@ -124,7 +125,14 @@ If any of the groups, datasets, or RAW databases already exist, the CLI updates/
 
 ### GitHub Actions
 
-Below is an example GitHub Actions workflow:
+Below is an example GitHub Actions workflow.
+
+Check the latest releases available:
+
+- <https://github.com/cognitedata/inso-bootstrap-cli/releases>
+
+Choose one and explicit tag your `uses: cognitedata/inso-bootstrap-cli@v2.7.0` GitHub Action step with it.
+This is the recommended practice to avoid breaking-changes or work-in-progress versions, which you can get with using `@main` as tag.
 
 ```yaml
 name: actions
@@ -151,10 +159,9 @@ jobs:
           submodules: false
       # Bootstrap_cli
       - name: bootstrap
-        # use a tagged release like @v2.0.0
-        # uses: cognitedata/inso-bootstrap-cli@v2.0.0
-        # or use the latest release available using @main
-        uses: cognitedata/inso-bootstrap-cli@v2.0.1
+        # use a tagged release like @v2.7.0
+        # not recommended is to use latest release available with @main
+        uses: cognitedata/inso-bootstrap-cli@v2.7.0
         env:
           BOOTSTRAP_IDP_CLIENT_ID: ${{ secrets.CLIENT_ID }}
           BOOTSTRAP_IDP_CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
@@ -1056,4 +1063,19 @@ docker build -t incubator/bootstrap-cli:latest .
 
 # ${PWD} because only absolute paths can be mounted
 docker run --volume ${PWD}/configs:/configs --env-file=.env incubator/bootstrap-cli --dry-run deploy /configs/config-deploy-example.yml
+```
+
+## Run locally with Docker images using buildpacks
+
+We are switching from `docker build` to use Buildpacks
+
+- Install the commandline-tool `pack` (https://buildpacks.io/docs/tools/pack/) (Mac: `brew install buildpacks/tap/pack`)
+- Run `pack/build.sh` (shell-script calling `pack build`) to build the image
+- Adopt the following `docker run` example
+  - to mount your config-file to `/etc/config.yaml`
+  - to use your `.env` file
+  - to choose the commansd and parameters you want to test locally
+
+```bash
+➟  docker run --mount type=bind,source=$(pwd)/configs/config-deploy-example-v3.yml,target=/etc/config.yaml,readonly --env-file=.env bootstrap-cli deploy /etc/config.yaml
 ```
