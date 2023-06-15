@@ -1,4 +1,4 @@
-name: ci
+name: ci-beta2
 
 on:
   pull_request:
