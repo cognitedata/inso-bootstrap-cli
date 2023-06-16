@@ -31,9 +31,8 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USER }}
           password: ${{ secrets.DOCKERHUB_ACCESS_TOKEN }}
 
-      # hardcoded for now, migrating gh-actions using dockerhub image
-      # has to match action.yaml
-      # - run: echo "version=v3.0.0-beta.2-github"  >> $GITHUB_ENV
+        # forked action. Original: buildpacks/github-actions/setup-pack
+      - uses: cognitedata/github-actions/setup-pack@v4.8.1
 
       # image version then used by solutions-registry helm chart.
       - run: pack/build.sh
