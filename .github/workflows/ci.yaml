@@ -40,4 +40,4 @@ jobs:
           PUBLISH: true
           # VERSION: ${{ env.version }}
           VERSION: ${{ inputs.version }}
-          IMAGE: docker://cognite/bootstrap-cli
+          IMAGE: cognite/bootstrap-cli
