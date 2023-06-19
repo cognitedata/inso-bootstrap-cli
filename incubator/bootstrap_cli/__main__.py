@@ -112,8 +112,10 @@
 
 import json
 import logging
+import os
 from collections import UserList
 from collections.abc import Iterable
+from contextlib import ExitStack
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
@@ -367,7 +369,6 @@ class CogniteDeployedCache:
     """
 
     def __init__(self, client: CogniteClient, groups_only: bool = False):
-
         # init
         self.groups: CogniteResourceCache = None
         self.datasets: CogniteResourceCache = None
@@ -422,7 +423,6 @@ T_BootstrapCore = TypeVar("T_BootstrapCore", bound="BootstrapCore")
 
 
 class BootstrapCore:
-
     # CDF group prefix, i.e. "cdf:", to make bootstrap created CDF groups easy recognizable in Fusion
     GROUP_NAME_PREFIX = ""
 
@@ -667,7 +667,7 @@ class BootstrapCore:
                 # RAW DB src:002:weather:rawdbiswaytoolongtofit : len(38) > 32
                 f"""{NEWLINE.join(
                     [
-                        f'{i+1}. Non existent node-name reference "{invalid_shared_access_node_name}" found'
+                        f'{i + 1}. Non existent node-name reference "{invalid_shared_access_node_name}" found'
                         f' in "{node_name}".shared-access.{role}'
                         for i, (node_name, role, invalid_shared_access_node_name) in enumerate(errors)
                     ])}"""
@@ -1723,16 +1723,16 @@ class BootstrapCore:
                         id_name=idp_source_name,
                         display=idp_source_name,
                         comments=[f'IdP objectId: {idp_source_id}']
-                        )
-                    )  # fmt: skip
+                    )
+                )  # fmt: skip
                 graph.edges.append(
                     Edge(
                         id_name=idp_source_name,
                         dest=group_name,
                         annotation=None,
                         comments=[]
-                        )
-                    )  # fmt: skip
+                    )
+                )  # fmt: skip
 
             # {'owner': {'raw': ['src:002:weather:rawdb', 'src:002:weather:rawdb:state'],
             #       'datasets': ['src:002:weather:dataset']},
@@ -1748,8 +1748,8 @@ class BootstrapCore:
                         id_name=group_name,
                         display=group_name,
                         comments=""
-                        )
-                    )  # fmt: skip
+                    )
+                )  # fmt: skip
 
                 #
                 # EDGE FROM PARENT 'src:all' to 'src:001:sap'
@@ -1761,7 +1761,7 @@ class BootstrapCore:
                         # multiline f-string split as it got too long
                         # TODO: refactor into string-templates
                         id_name=f"{BootstrapCore.GROUP_NAME_PREFIX}{ns_name}:"
-                        f"{BootstrapCore.AGGREGATED_LEVEL_NAME}:{action}",
+                                f"{BootstrapCore.AGGREGATED_LEVEL_NAME}:{action}",
                         dest=group_name,
                         annotation="",
                         comments=[],
@@ -1791,7 +1791,7 @@ class BootstrapCore:
                                         id_name=f"{scope_name}__{action}__{scope_type}",
                                         display=scope_name,
                                         comments=""
-                                        )
+                                    )
                                 )  # fmt: skip
 
                             #
@@ -1817,8 +1817,8 @@ class BootstrapCore:
                         id_name=group_name,
                         display=group_name,
                         comments=""
-                        )
-                    )  # fmt: skip
+                    )
+                )  # fmt: skip
 
                 #
                 # EDGE FROM PARENT top LEVEL to NAMESPACE LEVEL
@@ -1856,14 +1856,13 @@ class BootstrapCore:
                             #    'src:all:rawdb'
                             #
                             if scope_name not in scope_graph:
-
                                 node_type_cls = SubroutineNode if scope_type == "raw" else AssymetricNode
                                 scope_graph.elements.append(
                                     node_type_cls(
                                         id_name=f"{scope_name}__{action}__{scope_type}",
                                         display=scope_name,
                                         comments=""
-                                        )
+                                    )
                                 )  # fmt: skip
 
                             #
@@ -1890,8 +1889,8 @@ class BootstrapCore:
                         id_name=group_name,
                         display=group_name,
                         comments=""
-                        )
-                    )  # fmt: skip
+                    )
+                )  # fmt: skip
 
                 # add namespace-node and all scopes
                 # shared_action: [read|owner]
@@ -1916,7 +1915,6 @@ class BootstrapCore:
                             #    'all:rawdb'
                             #
                             if scope_name not in scope_graph:
-
                                 # _logger.info(f">> add {scope_name=}__{action=}")
 
                                 node_type_cls = SubroutineNode if scope_type == "raw" else AssymetricNode
@@ -1925,7 +1923,7 @@ class BootstrapCore:
                                         id_name=f"{scope_name}__{action}__{scope_type}",
                                         display=scope_name,
                                         comments=""
-                                        )
+                                    )
                                 )  # fmt: skip
 
                             #
@@ -2045,6 +2043,41 @@ class BootstrapCore:
 # '''
 
 
+def conditional_configuration_file(*args, **kwargs):
+    def decorator(f):
+        def callback(ctx, param, value):
+            if value.startswith("cdffs://"):
+                import tempfile
+
+                from cognite.client import CogniteClient
+
+                client = CogniteClient(
+                    project=os.getenv("BOOTSTRAP_CDF_PROJECT"),
+                    client_name="bootstrap-file-reader",
+                    token_client_id=os.getenv("BOOTSTRAP_IDP_CLIENT_ID"),
+                    token_client_secret=os.getenv("BOOTSTRAP_IDP_CLIENT_SECRET"),
+                    base_url=os.getenv("BOOTSTRAP_CDF_HOST"),
+                    token_url=os.getenv("BOOTSTRAP_IDP_TOKEN_URL"),
+                    token_scopes=[os.getenv("BOOTSTRAP_IDP_SCOPES")],
+                )
+                path = tempfile.TemporaryDirectory(ignore_cleanup_errors=True)
+                cleanup_stack = ExitStack()
+                cleanup_stack.callback(lambda x: x.cleanup(), path)
+                filename = path + "/config.yaml"
+                client.files.download_to_path(path=filename, external_id=value[len("cdffs://"):])  # fmt: skip
+                return filename, cleanup_stack
+
+            return value, None
+
+        # Update the callback for the argument
+        kwargs["callback"] = callback
+
+        # Call the original argument decorator with the updated arguments
+        return click.argument(*args, **kwargs)(f)
+
+    return decorator
+
+
 @click.group(context_settings={"help_option_names": ["-h", "--help"]})
 @click.version_option(prog_name="bootstrap_cli", version=__version__)
 @click.option(
@@ -2143,7 +2176,6 @@ def bootstrap_cli(
     debug: bool = False,
     dry_run: str = "no",
 ) -> None:
-
     # load .env from file if exists, use given dotenv_path if provided
     load_dotenv(dotenv_path=dotenv_path)
 
@@ -2167,7 +2199,7 @@ def bootstrap_cli(
 
 
 @click.command(help="Deploy a bootstrap configuration from a configuration file.")
-@click.argument(
+@conditional_configuration_file(
     "config_file",
     default="./config-bootstrap.yml",
 )
@@ -2194,7 +2226,6 @@ def deploy(
     with_special_groups: YesNoType,
     with_raw_capability: YesNoType,
 ) -> None:
-
     click.echo(click.style("Deploying CDF Project bootstrap...", fg="red"))
 
     try:
@@ -2207,7 +2238,7 @@ def deploy(
             .deploy(
                 with_special_groups=with_special_groups,
                 with_raw_capability=with_raw_capability,
-                )
+            )
         )  # fmt:skip
 
         click.echo(click.style("CDF Project bootstrap deployed", fg="blue"))
@@ -2222,7 +2253,7 @@ def deploy(
     "with additional capabilities to run the 'deploy' and 'delete' commands next. "
     "You only need to run the 'prepare' command once per CDF project."
 )
-@click.argument(
+@conditional_configuration_file(
     "config_file",
     default="./config-bootstrap.yml",
 )
@@ -2244,7 +2275,6 @@ def prepare(
     idp_source_id: str,
     dry_run: YesNoType = YesNoType.no,
 ) -> None:
-
     click.echo(click.style("Prepare CDF Project ...", fg="red"))
 
     try:
@@ -2276,7 +2306,6 @@ def delete(
     obj: Dict,
     config_file: str,
 ) -> None:
-
     click.echo(click.style("Delete CDF Project ...", fg="red"))
 
     try:
@@ -2298,7 +2327,7 @@ def delete(
 
 
 @click.command(help="Diagram mode documents the given configuration as a Mermaid diagram")
-@click.argument(
+@conditional_configuration_file(
     "config_file",
     default="./config-bootstrap.yml",
 )
@@ -2326,7 +2355,6 @@ def diagram(
     with_raw_capability: YesNoType,
     cdf_project: str,
 ) -> None:
-
     # click.echo(click.style("Diagram CDF Project ...", fg="red"))
 
     try:
@@ -2340,7 +2368,7 @@ def diagram(
                 to_markdown=markdown,
                 with_raw_capability=with_raw_capability,
                 cdf_project=cdf_project,
-                )
+            )
         )  # fmt:skip
 
         # click.echo(
