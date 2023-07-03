@@ -141,3 +141,7 @@ dmypy.json
 .vscode/
 
 Pipfile
+requirements.txt
+
+# poetry
+poetry.toml

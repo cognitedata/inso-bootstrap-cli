@@ -1,10 +1,11 @@
 # std-lib
-from dataclasses import dataclass
 from datetime import datetime
-from enum import Enum
+from enum import ReprEnum  # new in 3.11
 
 # type-hints
-from typing import Dict, List, Type, TypeVar, Union
+from typing import Optional, TypeVar
+
+from pydantic import BaseModel
 
 
 # helper function
@@ -34,71 +35,80 @@ NEWLINE = "\n"
 # '''
 
 
-@dataclass
-class MermaidFlowchartElement:
+class MermaidFlowchartElement(BaseModel):
     id_name: str
-    # TODO: ading default_factory value, will break the code
-    # see https://stackoverflow.com/q/51575931/1104502
-    comments: List[str]
+    comments: Optional[list[str]]
 
     # dump comments
     def comments_to_mermaid(self):
         return f"""{NEWLINE.join([f'%% {comment}' for comment in self.comments]) + NEWLINE}""" if self.comments else ""
 
 
-# https://mermaid-js.github.io/mermaid/#/flowchart?id=node-shapestyle-and-arrowstyle
-@dataclass
+# https://mermaid.js.org/syntax/flowchart.html#node-shapes
 class Node(MermaidFlowchartElement):
     display: str
 
-    def __repr__(self):
+    def __str__(self):
         # TODO: how to add comments from super class the right way?
         return self.comments_to_mermaid() + f"""{self.id_name}""" + (rf"""["{self.display}"]""" if self.display else "")
 
 
-@dataclass
 class HexagonNode(Node):
-    def __repr__(self):
+    def __str__(self):
         return (
-            self.comments_to_mermaid() + f"""{self.id_name}""" + (rf"""{{"{self.display}"}}""" if self.display else "")
+            # id1{{This is the text in the box}}
+            self.comments_to_mermaid()
+            + f"""{self.id_name}"""
+            + (rf"""{{{{"{self.display}"}}}}""" if self.display else "")
         )
 
 
-@dataclass
-class RoundedNode(Node):
-    def __repr__(self):
+class RoundedEdgesNode(Node):
+    def __str__(self):
+        # id1(This is the text in the box)
         return self.comments_to_mermaid() + f"""{self.id_name}""" + (rf"""("{self.display}")""" if self.display else "")
 
 
-@dataclass
-class TrapezNode(Node):
-    def __repr__(self):
+class TrapezoidNode(Node):
+    def __str__(self):
         return (
-            self.comments_to_mermaid() + f"""{self.id_name}""" + (rf"""[\"{self.display}"/]""" if self.display else "")
+            # A[/Christmas\]
+            self.comments_to_mermaid()
+            + f"""{self.id_name}"""
+            + (rf"""[/"{self.display}"\]""" if self.display else "")
         )
 
 
-@dataclass
+class TrapezoidAltNode(Node):
+    def __str__(self):
+        return (
+            # B[\Go shopping/]
+            self.comments_to_mermaid()
+            + f"""{self.id_name}"""
+            + (rf"""[\"{self.display}"/]""" if self.display else "")
+        )
+
+
 class AssymetricNode(Node):
-    def __repr__(self):
+    def __str__(self):
+        # id1>This is the text in the box]
         return self.comments_to_mermaid() + f"""{self.id_name}""" + (rf""">"{self.display}"]""" if self.display else "")
 
 
-@dataclass
 class SubroutineNode(Node):
-    def __repr__(self):
+    def __str__(self):
+        # id1[[This is the text in the box]]
         return (
             self.comments_to_mermaid() + f"""{self.id_name}""" + (rf"""[["{self.display}"]]""" if self.display else "")
         )
 
 
-@dataclass
 class Edge(MermaidFlowchartElement):
     # from / to cannot be used as "from" is a reserved keyword
     dest: str
-    annotation: str
+    annotation: Optional[str]
 
-    def __repr__(self):
+    def __str__(self):
         return self.comments_to_mermaid() + f"""{self.id_name}-->{self.dest}"""
         # cannot render a 🕑 on an edge annotation
         # return (
@@ -108,21 +118,22 @@ class Edge(MermaidFlowchartElement):
         #     )
 
 
-@dataclass
 class DottedEdge(Edge):
-    def __repr__(self):
+    def __str__(self):
         return self.comments_to_mermaid() + f"""{self.id_name}-.->{self.dest}"""
 
 
 # type-hint for ExtpipesCore instance response
 T_Subgraph = TypeVar("T_Subgraph", bound="Subgraph")
 
+# https://docs.pydantic.dev/usage/postponed_annotations/#self-referencing-models
+# TODO: not working?
+# Subgraph = ForwardRef('Subgraph')
 
-@dataclass
+
 class Subgraph(MermaidFlowchartElement):
-
-    display: str
-    elements: List[Union[T_Subgraph, Node]]
+    elements: list["Subgraph | Node"]
+    display: Optional[str] = None
 
     def __contains__(self, name):
         return name in [elem.id_name for elem in self.elements]
@@ -131,7 +142,7 @@ class Subgraph(MermaidFlowchartElement):
         if name in self.elements:
             return [elem.id_name for elem in self.elements if elem.id_name == name][0]  # exactly one expected
 
-    def __repr__(self):
+    def __str__(self):
         return (
             self.comments_to_mermaid()
             # supporting subgraph id and short-name syntax
@@ -142,6 +153,9 @@ subgraph "{self.id_name}" ["{self.display if self.display else self.id_name}"]
 end
 """
         )
+
+
+Subgraph.update_forward_refs()
 
 
 # '''
@@ -166,20 +180,22 @@ class GraphRegistry:
     """
 
     def __init__(self, elements=[]):
-        self.subgraph_registry: Dict[str, Type[Subgraph]] = {}
+        self.subgraph_registry: dict[ReprEnum, Subgraph] = {}
         # nested
-        self.elements: List[Union[T_Subgraph, Node, Edge]] = elements
+        self.elements: list[Subgraph | Node | Edge] = elements
         # final block of edges
-        self.edges: List[Edge] = []
+        self.edges: list[Edge] = []
 
-    def get_or_create(self, subgraph_name, subgraph_short_name=None):
+    def get_or_create(self, subgraph_type: ReprEnum, subgraph_short_name: Optional[str] = None) -> Subgraph:
         return self.subgraph_registry.setdefault(
             # get if exists
-            subgraph_name,
+            subgraph_type,
             # create if new
-            Subgraph(id_name=subgraph_name.name, display=subgraph_short_name, elements=[], comments=[])
-            if isinstance(subgraph_name, Enum)
-            else Subgraph(id_name=subgraph_name, elements=[], comments=[]),
+            Subgraph(
+                id_name=subgraph_type.name, display=subgraph_short_name or subgraph_type.value, elements=[], comments=[]
+            )
+            if isinstance(subgraph_type, ReprEnum)
+            else Subgraph(id_name=subgraph_type, elements=[], comments=[]),
         )
 
     #     def __str__(self):
@@ -187,7 +203,6 @@ class GraphRegistry:
     #             print(elem.name)
 
     def to_mermaid(self) -> str:
-
         mermaid_flowchart = "\n".join(
             (
                 ["graph LR", f"%% {timestamp()} - Script generated Mermaid diagram"]
