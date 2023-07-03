@@ -29,9 +29,6 @@ jobs:
         with:
           version: ${{ env.POETRY_VERSION }}
 
-      - name: Install keyrings backend plugin to poetry
-        run: poetry self add keyrings.google-artifactregistry-auth
-
       - run: poetry install --sync
 
       - name: Run tests

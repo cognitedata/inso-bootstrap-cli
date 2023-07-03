@@ -41,4 +41,3 @@ jobs:
           # VERSION: ${{ env.version }}
           VERSION: ${{ inputs.version }}
           IMAGE: cognite/bootstrap-cli
-
