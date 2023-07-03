@@ -1,7 +1,8 @@
 name: ci
 
 on:
-  pull_request:
+  # only during testing of the action from a different branch
+  # pull_request:
   workflow_dispatch:
     inputs:
       version:
