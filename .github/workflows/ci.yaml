@@ -4,13 +4,10 @@ on:
   # only during testing of the action from a different branch
   # pull_request:
   workflow_dispatch:
+    # manually triggered only
     inputs:
       version:
         description: 'image version (tag)'
-  ## no automated run atm, only manual
-  # push:
-  #   branches:
-  #     - main
 
 jobs:
   printInputs:
