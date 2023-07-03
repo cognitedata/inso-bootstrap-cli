@@ -1,8 +1,11 @@
-# InSo Bootstrap CLI
+# Cognite Bootstrap CLI
 
-Use the **inso-bootstrap CLI** to configure and bootstrap a new Cognite Data Fusion (CDF) project with CDF groups, datasets, and RAW databases. You can use the CLI to separate data by different levels or groupings of data. For example, you can separate data by data sources, use cases, user input, location, site, etc.
+Use the **Bootstrap CLI** to configure and bootstrap a new Cognite Data Fusion (CDF) project with CDF groups, datasets,
+spaces and RAW databases. You can use the CLI to separate data by different levels or groupings of data.
+For example, you can separate data by data sources, use cases, user input, location, site, etc.
 
-The CLI restricts the structure of the datasets and the groups it supports, and you may or may not be able to use the CLI to maintain existing CDF projects.
+The CLI restricts the structure of the datasets and the groups it supports, and you may or may not be able to use
+the CLI to maintain or migrate existing CDF projects.
 
 ## Table of Content
 
@@ -10,7 +13,7 @@ The CLI restricts the structure of the datasets and the groups it supports, and 
 
 <!-- code_chunk_output -->
 
-- [InSo Bootstrap CLI](#inso-bootstrap-cli)
+- [Cognite Bootstrap CLI](#cognite-bootstrap-cli)
   - [Table of Content](#table-of-content)
   - [Install](#install)
     - [Configure and test](#configure-and-test)
@@ -41,16 +44,16 @@ The CLI restricts the structure of the datasets and the groups it supports, and 
       - [`idp-cdf-mappings` section: IdP Group to CDF Group mapping](#idp-cdf-mappings-section-idp-group-to-cdf-group-mapping)
         - [`namespaces` section](#namespaces-section)
     - [Configuration for the `delete` command](#configuration-for-the-delete-command)
-        - [`delete_or_deprecate` section](#delete_or_deprecate-section)
-- [Common practices \& How-Tos](#common-practices--how-tos)
-  - [How to implement Read-only Shared Access](#how-to-implement-read-only-shared-access)
-- [Development / Contribute](#development--contribute)
-  - [Inspiration](#inspiration)
-  - [Semantic versioning](#semantic-versioning)
-- [Other ways of running](#other-ways-of-running)
-  - [Run locally with Poetry (requires Python 3.11 being available)](#run-locally-with-poetry-requires-python-311-being-available)
-  - [Run locally with Docker](#run-locally-with-docker)
-  - [Run locally with Docker images using buildpacks](#run-locally-with-docker-images-using-buildpacks)
+      - [`delete_or_deprecate` section](#delete_or_deprecate-section)
+  - [Common practices \& How-Tos](#common-practices--how-tos)
+    - [How to implement Read-only Shared Access](#how-to-implement-read-only-shared-access)
+  - [Development / Contribute](#development--contribute)
+    - [Inspiration](#inspiration)
+    - [Semantic versioning](#semantic-versioning)
+  - [Other ways of running](#other-ways-of-running)
+    - [Run locally with Poetry (requires Python 3.11 being available)](#run-locally-with-poetry-requires-python-311-being-available)
+    - [Run locally with Docker images using buildpacks (v3)](#run-locally-with-docker-images-using-buildpacks-v3)
+    - [Run locally with Docker (v2)](#run-locally-with-docker-v2)
 
 <!-- /code_chunk_output -->
 
@@ -58,13 +61,11 @@ The CLI restricts the structure of the datasets and the groups it supports, and 
 
 We recommend installing the inso-bootstrap CLI with Poetry on Linux, Windows Subsystem for Linux version 2 (WSL2), or macOS.
 
-For other installation methods or native Windows use, see [How to run](#how-to-run).
-
 1. Follow the steps in the [Poetry installation guide](https://python-poetry.org/docs/#installation) to install Poetry.
 
 2. Install and set up the local Python environment:
 
-   ```
+   ```bash
    poetry build
    poetry install
    poetry update
@@ -78,18 +79,18 @@ The CLI has four main commands:
 
 - `diagram` - documents the current configuration as a Mermaid diagram.
 - `prepare` - prepares an elevated CDF group, `cdf:bootstrap`, and links it to an IdP group.
-- `deploy ` - deploys bootstrap components from a configuration file.
+- `deploy` - deploys bootstrap components from a configuration file.
 - `delete` - deletes CDF groups, datasets, and RAW databases
 
 To test the configuration without connecting to a CDF project, comment out the `cognite` section of the configuration file and run the `diagram` command (on WSL):
 
-```
+```bash
  poetry run bootstrap-cli diagram --cdf-project=shiny-dev configs/config-deploy-example-v2.yml | clip.exe
 ```
 
 On Mac/Linux:
 
-```
+```bash
  poetry run bootstrap-cli diagram --cdf-project=shiny-dev configs/config-deploy-example-v2.yml > diagram.txt
 ```
 
@@ -107,7 +108,7 @@ Run the `prepare` command to create a group with the necessary access rights for
 
 **NOTE**: You can run all commands in dry-run mode by specifying `--dry-run=yes` before the command. Running in dry-run mode logs the intended API actions.
 
-```
+```bash
 poetry run bootstrap-cli prepare --idp-source-id <idp-source-id>
 ```
 
@@ -115,7 +116,7 @@ For more information, see [Prepare command](#prepare-command).
 
 When you have run the `prepare` command, the CLI has the necessary access rights to run the `deploy` command.
 
-```
+```bash
 poetry run bootstrap-cli deploy --cdf-project=shiny-dev configs/config-deploy-example-v2.yml
 ```
 
@@ -131,7 +132,7 @@ Check the latest releases available:
 
 - <https://github.com/cognitedata/inso-bootstrap-cli/releases>
 
-Choose one and explicit tag your `uses: cognitedata/inso-bootstrap-cli@v2.7.0` GitHub Action step with it.
+Choose one and explicit tag your `uses: cognitedata/inso-bootstrap-cli@v3.0.0` GitHub Action step with it.
 This is the recommended practice to avoid breaking-changes or work-in-progress versions, which you can get with using `@main` as tag.
 
 ```yaml
@@ -159,9 +160,9 @@ jobs:
           submodules: false
       # Bootstrap_cli
       - name: bootstrap
-        # use a tagged release like @v2.7.0
+        # use a tagged release like @v3.0.0
         # not recommended is to use latest release available with @main
-        uses: cognitedata/inso-bootstrap-cli@v2.7.0
+        uses: cognitedata/inso-bootstrap-cli@v3.0.0
         env:
           BOOTSTRAP_IDP_CLIENT_ID: ${{ secrets.CLIENT_ID }}
           BOOTSTRAP_IDP_CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
@@ -521,7 +522,7 @@ Even for this simple use case, the CLI creates many resources. This is to both p
 
 Looking closer at only the first namespace node;
 
-```
+```txt
 src:001:sap
 ```
 
@@ -529,7 +530,7 @@ For this element, the CLI creates/updates the following resources:
 
 #### Groups
 
-```
+```txt
 cdf:all:owner
 cdf:all:read
 
@@ -542,7 +543,7 @@ cdf:src:001:sap:read
 
 #### Scopes
 
-```
+```txt
 all:dataset
 all:db
 all:db:state
@@ -815,6 +816,7 @@ The list of features:
   Defaults to `space`.
 
 (new since v2)
+
 - `with-special-groups`
   - Create special CDF groups without any capabilities (extractions, transformations). Defaults to false.
 - `with-raw-capability`
@@ -902,7 +904,7 @@ In addition to the `config` and `logger` sections described above, the configura
 
 - `delete_or_deprecate` - defines which CDF datasets, CDF groups and RAW databases (including tables) to delete (CDF datasets cannot be deleted but are deprecated.)
 
-##### `delete_or_deprecate` section
+#### `delete_or_deprecate` section
 
 This section defines which `datasets` should be deprecated and which `groups` and `raw_dbs` should be deleted.
 
@@ -930,11 +932,11 @@ If nothing should be deleted, provide an empty list: `[]`.
 
 For a complete example of the delete configuration, see the `configs/config-delete-example.yml`.
 
-# Common practices & How-Tos
+## Common practices & How-Tos
 
 This chapter is based on feedback from the field, for example how to solve specific requirements with this approach.
 
-## How to implement Read-only Shared Access
+### How to implement Read-only Shared Access
 
 As stated in chapter [Packaging](#packaging) only `OWNER` groups can be configured with shared-access. This restriction is by design.
 
@@ -944,7 +946,7 @@ In case you need a `READ` group with shared access to multiple scopes, following
 - define your read-only end-user roles spanning multiple scopes by using an `OWNER` role:
 - example:
 
-```
+```yaml
   - description: 'Namespace for all user-interfaces (aka user roles)'
     ns-name: in
     ns-nodes:
@@ -957,10 +959,11 @@ In case you need a `READ` group with shared access to multiple scopes, following
 ```
 
 This configuration provides a `cdf:in:002:supply:owner` CDF Group
+
 - which grants read-only access to two more scopes
 - for the price of an additional (empty and unused) `in:002:supply:dataset` with owner access
 
-# Development / Contribute
+## Development / Contribute
 
 1. Clone the repository and `cd` to the project folder.
 2. Initialize the project environment:
@@ -977,7 +980,7 @@ This configuration provides a `cdf:in:002:supply:owner` CDF Group
    pre-commit run --all-files
    ```
 
-## Inspiration
+### Inspiration
 
 Templates (blueprints) used for implementation are
 
@@ -986,7 +989,7 @@ Templates (blueprints) used for implementation are
   - Using `CogniteConfig` and `LoggingConfig`
   - And extended with custom `dataclass` driven configuration
 
-## Semantic versioning
+### Semantic versioning
 
 - Uses `semantic-release` to create version tags.
 - The rules for commit messages are conventional commits, see [conventional-commits](https://www.conventionalcommits.org/en/v1.0.0-beta.4/#summary%3E)
@@ -996,7 +999,7 @@ Templates (blueprints) used for implementation are
   - and `__init__:__version__`
   so there is no need to change version manually there.
 
-# Other ways of running
+## Other ways of running
 
 - It provides a configuration-driven deployment for Cognite Bootstrap Pipelines (named `bootstrap` in short)
   - Support to run it:
@@ -1017,7 +1020,7 @@ Follow the initial setup first.
 
    - Insert your CDF and IdP configurations in `.env`.
 
-## Run locally with Poetry (requires Python 3.11 being available)
+### Run locally with Poetry (requires Python 3.11 being available)
 
   ```bash
   # typical commands
@@ -1053,7 +1056,23 @@ Follow the initial setup first.
   bootstrap-cli delete configs/config-delete-example.yml
   ```
 
-## Run locally with Docker
+### Run locally with Docker images using buildpacks (v3)
+
+With v3-release we switched from `docker build` to use Buildpacks
+
+- Install the commandline-tool `pack` <https://buildpacks.io/docs/tools/pack/> (Mac: `brew install buildpacks/tap/pack`)
+- Run `pack/build.sh` (shell-script calling `pack build`) to build the image
+- Adopt the following `docker run` example
+  - to mount your config-file to `/etc/config.yaml`
+  - to use your `.env` file
+  - to choose the commansd and parameters you want to test locally
+
+```bash
+# emulating github-actions run, with envvar and /github/workspace mounted
+➟  docker run --workdir /github/workspace -v "$(pwd)":"/github/workspace" -e GITHUB_ACTIONS=true --env-file=.env bootstrap-cli:latest deploy ./configs/config-deploy-example-v3.yml
+```
+
+### Run locally with Docker (v2)
 
 - `.dockerignore` file
 - volumes for `configs` (to read) and `logs` folder (to write)
@@ -1063,19 +1082,4 @@ docker build -t incubator/bootstrap-cli:latest .
 
 # ${PWD} because only absolute paths can be mounted
 docker run --volume ${PWD}/configs:/configs --env-file=.env incubator/bootstrap-cli --dry-run deploy /configs/config-deploy-example.yml
-```
-
-## Run locally with Docker images using buildpacks
-
-We are switching from `docker build` to use Buildpacks
-
-- Install the commandline-tool `pack` (https://buildpacks.io/docs/tools/pack/) (Mac: `brew install buildpacks/tap/pack`)
-- Run `pack/build.sh` (shell-script calling `pack build`) to build the image
-- Adopt the following `docker run` example
-  - to mount your config-file to `/etc/config.yaml`
-  - to use your `.env` file
-  - to choose the commansd and parameters you want to test locally
-
-```bash
-➟  docker run --mount type=bind,source=$(pwd)/configs/config-deploy-example-v3.yml,target=/etc/config.yaml,readonly --env-file=.env bootstrap-cli deploy /etc/config.yaml
 ```
