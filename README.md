@@ -68,7 +68,7 @@ We recommend installing the inso-bootstrap CLI with Poetry on Linux, Windows Sub
    ```bash
    poetry build
    poetry install
-   poetry update
+   poetry shell
    ```
 
 ### Configure and test
