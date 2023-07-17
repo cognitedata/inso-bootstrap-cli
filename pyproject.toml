@@ -11,9 +11,6 @@ repository = "https://github.com/cognitedata/inso-bootstrap-cli"
 packages = [
     { include="bootstrap", from = "src"},
 ]
-[tool.poetry.group.dev.dependencies]
-autopep8 = "^2.0.1"
-
 
 [tool.black]
 line-length = 120
@@ -39,14 +36,21 @@ cognite-sdk = {version = "^6.2", extras = ["pandas"]}
 rich = "^13.2.0"
 
 [tool.poetry.dev-dependencies]
-black = "^22.12.0"
-isort = "^5.11.4"
-flake8 = "^6.0.0"
-mypy = "^0.991"
 # autoflake = "=1.3"
+autopep8 = "^2.0.1"
+# ipykernel = "^6.24.0"
 pre-commit = "^3.0.0"
 pytest = "^7.2.1"
 # pytest-cov = "^3.0.0"
+mypy = "^1"
+# from running `mypy --install-types`
+types-PyYAML = "*"
+types-Pygments = "*"
+types-colorama = "*"
+types-oauthlib = "*"
+types-protobuf = "*"
+types-requests = "*"
+types-setuptools = "*"
 
 [tool.pytest.ini_options]
 minversion = "7.0"
