@@ -6,17 +6,8 @@ from typing import Any, Optional
 
 import yaml
 from cognite.client import CogniteClient
-from cognite.client.data_classes import (
-    Database,
-    DatabaseList,
-    DataSet,
-    DataSetList,
-    DataSetUpdate,
-    Group,
-    GroupList,
-    Space,
-    SpaceList,
-)
+from cognite.client.data_classes import Database, DatabaseList, DataSet, DataSetList, DataSetUpdate, Group
+from cognite.client.data_classes.data_modeling import Space, SpaceList
 
 from .. import __version__
 from ..app_cache import CogniteDeployedCache
@@ -82,7 +73,7 @@ class CommandBase:
             #
             # Cognite initialisation
             #
-            self.client: CogniteClient = self.container.cognite_client()
+            self.client = self.container.cognite_client()
             # TODO: support: token_custom_args
             # client_name="inso-bootstrap-cli", token_custom_args=self.config.token_custom_args
 

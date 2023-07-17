@@ -1,7 +1,9 @@
-from enum import ReprEnum  # new in 3.11
+# new in 3.11, because Enum changed from py3.10 to 3.11
+# - using f"{RoleType.OWNER}" resulted in py3.10 in value "owner"
+# - but in 3.11 in "RoleType.OWNER"
+# = StrEnum is the 3.11 mixin we use since 3.11
+from enum import StrEnum
 from typing import Any, Optional
-
-from pydantic import Field
 
 from .app_exceptions import BootstrapConfigError
 from .common.base_model import Model
@@ -10,7 +12,7 @@ from .common.base_model import Model
 NEWLINE = "\n"
 
 
-class RoleType(str, ReprEnum):
+class RoleType(StrEnum):
     READ = "read"
     OWNER = "owner"
     ADMIN = "admin"  # aka root-account
@@ -113,25 +115,25 @@ AclAdminTypes = list(RoleTypeActions[RoleType.ADMIN].keys())
 # mixin 'str' to 'ReprEnum' to support comparison to string-values
 # https://docs.python.org/3/library/enum.html#others
 # https://stackoverflow.com/a/63028809/1104502
-class YesNoType(str, ReprEnum):
+class YesNoType(StrEnum):
     yes = "yes"
     no = "no"
 
 
-class CommandMode(str, ReprEnum):
+class CommandMode(StrEnum):
     PREPARE = "prepare"
     DEPLOY = "deploy"
     DELETE = "delete"
     DIAGRAM = "diagram"
 
 
-class CacheUpdateMode(str, ReprEnum):
+class CacheUpdateMode(StrEnum):
     CREATE = "create"
     UPDATE = "update"
     DELETE = "delete"
 
 
-class ScopeCtxType(str, ReprEnum):
+class ScopeCtxType(StrEnum):
     DATASET = "datasets"
     SPACE = "spaces"
     RAWDB = "raw_dbs"
@@ -193,19 +195,15 @@ class BootstrapCoreConfig(Model):
     # providing a default for optional 'features' set not avaialble
     # 1:1 default values as used in 'BootstrapFeatures'
     # TODO: remove Field() wrapper?
-    features: Optional[BootstrapFeatures] = Field(
-        default=BootstrapFeatures(
-            **dict(
-                with_raw_capability=True,
-                with_datamodel_capability=False,
-                group_prefix="cdf",
-                aggregated_level_name="allprojects",
-                dataset_suffix="dataset",
-                space_suffix="space",
-                rawdb_suffix="rawdb",
-                rawdb_additional_variants=["state"],
-            )
-        )
+    features: Optional[BootstrapFeatures] = BootstrapFeatures(
+        with_raw_capability=True,
+        with_datamodel_capability=False,
+        group_prefix="cdf",
+        aggregated_level_name="allprojects",
+        dataset_suffix="dataset",
+        space_suffix="space",
+        rawdb_suffix="rawdb",
+        rawdb_additional_variants=["state"],
     )
 
     # [] works too > https://stackoverflow.com/a/63808835/1104502

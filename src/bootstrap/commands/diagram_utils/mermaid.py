@@ -198,10 +198,6 @@ class GraphRegistry:
             else Subgraph(id_name=subgraph_type, elements=[], comments=[]),
         )
 
-    #     def __str__(self):
-    #         for elem in self.elements:
-    #             print(elem.name)
-
     def to_mermaid(self) -> str:
         mermaid_flowchart = "\n".join(
             (

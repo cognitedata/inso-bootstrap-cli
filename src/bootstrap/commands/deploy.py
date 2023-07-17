@@ -5,7 +5,6 @@ from .base import CommandBase
 
 
 class CommandDeploy(CommandBase):
-
     # '''
     #        .o8                       oooo
     #       "888                       `888
@@ -18,7 +17,6 @@ class CommandDeploy(CommandBase):
     #                       o888o                      `Y8P'
     # '''
     def command(self, with_raw_capability: YesNoType) -> None:
-
         # debug new features and override with cli-parameters
         logging.debug(f"From cli: {with_raw_capability=}")
         logging.debug(f"Effective: {self.with_raw_capability=}")

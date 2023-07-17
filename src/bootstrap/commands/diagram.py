@@ -1,5 +1,5 @@
 import logging
-from enum import ReprEnum  # new in 3.11
+from enum import StrEnum  # new in 3.11
 from typing import Iterable, Optional, Type
 
 from ..app_config import AclDefaultTypes, RoleType, ScopeCtxType, YesNoType
@@ -17,7 +17,7 @@ from .diagram_utils.mermaid import (
 )
 
 
-class SubgraphTypes(str, ReprEnum):
+class SubgraphTypes(StrEnum):
     idp = "IdP Groups"
     owner = "'Owner' Groups"
     read = "'Read' Groups"
@@ -466,9 +466,9 @@ class CommandDiagram(CommandBase):
         graph = GraphRegistry()
         # top subgraphs (three columns layout)
         # creating Subgraphs with a 'subgraph_name' and a 'subgraph_short_name'
-        # using the SubgraphTypes ReprEnum 'name' (default) and 'value' properties
+        # using the SubgraphTypes StrEnum 'name' (default) and 'value' properties
         idp_group = graph.get_or_create(
-            SubgraphTypes.idp, subgraph_short_name=f"{SubgraphTypes.idp.value} for CDF: '{diagram_cdf_project}'"
+            SubgraphTypes.idp, subgraph_short_name=f"{SubgraphTypes.idp} for CDF: '{diagram_cdf_project}'"
         )
         owner = graph.get_or_create(SubgraphTypes.owner)
         read = graph.get_or_create(SubgraphTypes.read)

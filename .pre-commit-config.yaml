@@ -5,20 +5,20 @@ repos:
       - id: isort
 
   - repo: https://github.com/psf/black
-    rev: 22.12.0
+    rev: 23.7.0
     hooks:
       - id: black
         # required to parse 'match' command
-        args: ["--target-version", "py310"]
+        args: ["--target-version", "py311"]
 
   - repo: https://github.com/pycqa/flake8
     rev: 6.0.0
     hooks:
       - id: flake8
-        args: ['--config=.flake8']
+        args: ["--config=.flake8"]
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v3.4.0
+    rev: v4.4.0
     hooks:
       - id: debug-statements
       - id: trailing-whitespace
@@ -29,7 +29,14 @@ repos:
       - id: check-docstring-first
       - id: requirements-txt-fixer
 
-  # - repo: https://github.com/pre-commit/mirrors-mypy
-  #   rev: v0.812
-  #   hooks:
-  #     - id: mypy
+  - repo: local
+    hooks:
+      - id: mypy
+        name: mypy
+        stages: [commit]
+        language: system
+        entry: mypy
+        types: [python]
+        # exclude: "jobs"
+        # args: [--ignore-missing-imports]
+        args: [--strict-optional]

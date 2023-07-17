@@ -5,8 +5,9 @@ from collections.abc import Iterable
 from typing import Any, Type
 
 from cognite.client import CogniteClient, utils
-from cognite.client.data_classes import Database, DataSet, Group, Space
+from cognite.client.data_classes import Database, DataSet, Group
 from cognite.client.data_classes._base import CogniteResource, CogniteResourceList
+from cognite.client.data_classes.data_modeling import Space
 from cognite.client.utils._time import convert_time_attributes_to_datetime
 
 
@@ -108,7 +109,8 @@ class CogniteResourceCache(UserList):
 
         # delete if exists
         matching_in_cache = self.select(values=[getattr(r, self.SELECTOR_FIELD) for r in resources])
-        [self.data.remove(m) for m in matching_in_cache]
+        for m in matching_in_cache:
+            self.data.remove(m)
 
     def update(self, resources: CogniteResource | CogniteResourceList | list) -> None:
         """Find existing resource and replace it
