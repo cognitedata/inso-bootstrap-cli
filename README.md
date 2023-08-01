@@ -63,7 +63,9 @@ We recommend installing the inso-bootstrap CLI with Poetry on Linux, Windows Sub
 
 1. Follow the steps in the [Poetry installation guide](https://python-poetry.org/docs/#installation) to install Poetry.
 
-2. Install and set up the local Python environment:
+2. Clone this repository. CD to the folder containing the repo code.
+
+3. Install and set up the local Python environment:
 
    ```bash
    poetry build
