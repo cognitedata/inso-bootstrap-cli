@@ -6,17 +6,8 @@ from typing import Any, Optional
 
 import yaml
 from cognite.client import CogniteClient
-from cognite.client.data_classes import (
-    Database,
-    DatabaseList,
-    DataSet,
-    DataSetList,
-    DataSetUpdate,
-    Group,
-    GroupList,
-    Space,
-    SpaceList,
-)
+from cognite.client.data_classes import Database, DatabaseList, DataSet, DataSetList, DataSetUpdate, Group
+from cognite.client.data_classes.data_modeling.spaces import Space, SpaceList
 
 from .. import __version__
 from ..app_cache import CogniteDeployedCache
@@ -740,15 +731,17 @@ class CommandBase:
         """
 
         # configuration per cdf-project if cdf-groups creation should be limited to IdP mapped only
-        create_only_mapped_cdf_groups = self.bootstrap_config.create_only_mapped_cdf_groups(self.cdf_project)
+        create_only_mapped_cdf_groups: bool
         idp_source_id, idp_source_name = None, None
         new_group: Optional[Group]
 
         if idp_mapping:
-            # unpacking, explicit given
+            # unpacking, explicit given in case of CommandMode.PREPARE
             idp_source_id, idp_source_name = idp_mapping.idp_source_id, idp_mapping.idp_source_name
+            create_only_mapped_cdf_groups = False
         else:
             # check lookup from provided config
+            create_only_mapped_cdf_groups = self.bootstrap_config.create_only_mapped_cdf_groups(self.cdf_project)
             mapping = self.bootstrap_config.get_idp_cdf_mapping_for_group(
                 cdf_project=self.cdf_project, cdf_group=group_name
             )

@@ -5,8 +5,9 @@ from collections.abc import Iterable
 from typing import Any, Type
 
 from cognite.client import CogniteClient, utils
-from cognite.client.data_classes import Database, DataSet, Group, Space
+from cognite.client.data_classes import Database, DataSet, Group
 from cognite.client.data_classes._base import CogniteResource, CogniteResourceList
+from cognite.client.data_classes.data_modeling.spaces import Space
 from cognite.client.utils._time import convert_time_attributes_to_datetime
 
 
