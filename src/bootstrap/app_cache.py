@@ -147,10 +147,11 @@ class CogniteDeployedCache:
         """
         NOLIMIT = -1
 
+        self.groups_only = groups_only
         self.client: CogniteClient = client
         self.groups = CogniteResourceCache(RESOURCE=Group, resources=self.client.iam.groups.list(all=True))
 
-        if groups_only:
+        if self.groups_only:
             #
             # early exit
             #
@@ -164,11 +165,18 @@ class CogniteDeployedCache:
         )
 
     def log_counts(self):
-        logging.info(
-            f"""Deployed CDF Resource counts:
-            RAW Dbs({len(self.raw_dbs.get_names()) if self.raw_dbs else 'n/a with this command'})
-            Data Sets({len(self.datasets.get_names()) if self.datasets else 'n/a with this command'})
-            CDF Groups({len(self.groups.get_names())})
-            Data Model Spaces({len(self.spaces.get_names()) if self.spaces else 'n/a with this command'})
-            """
-        )
+        if self.groups_only:
+            logging.info(
+                f"""Deployed CDF Resource counts:
+                CDF Groups({len(self.groups.get_names())})
+                """
+            )
+        else:
+            logging.info(
+                f"""Deployed CDF Resource counts:
+                RAW Dbs({len(self.raw_dbs.get_names()) if self.raw_dbs else 'n/a with this command'})
+                Data Sets({len(self.datasets.get_names()) if self.datasets else 'n/a with this command'})
+                CDF Groups({len(self.groups.get_names())})
+                Data Model Spaces({len(self.spaces.get_names()) if self.spaces else 'n/a with this command'})
+                """
+            )
