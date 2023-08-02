@@ -62,11 +62,12 @@ the CLI to maintain or migrate existing CDF projects.
 We recommend installing the inso-bootstrap CLI with Poetry on Linux, Windows Subsystem for Linux version 2 (WSL2), or macOS.
 
 1. Follow the steps in the [Poetry installation guide](https://python-poetry.org/docs/#installation) to install Poetry.
-
-2. Install and set up the local Python environment:
+2. `git clone` this repository
+   - Run latest version from `main` branch or use a [specific release](https://github.com/cognitedata/inso-bootstrap-cli/releases) (for example `git checkout v3.0.5`)
+   - `cd` to the folder containing the repo code
+3. Install and set up the local Python environment:
 
    ```bash
-   poetry build
    poetry install
    poetry shell
    ```
