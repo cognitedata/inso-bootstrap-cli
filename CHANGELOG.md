@@ -444,7 +444,7 @@ Co-authored-by: Peter Arwanitis &lt;peter.arwanitis@cognite.com&gt; ([`b27d5c3`]
 * feat(acls): added four new acls
 
 - Joel: Added `templateGroups` + `templateInstances` to `acl_default_types` (with dataset support)
-- feat(acls): Peter added two more acls for FDM support `dataModels` + `dataModelInstances` 
+- feat(acls): Peter added two more acls for FDM support `dataModels` + `dataModelInstances`
   - &#34;all&#34; scope for now, as `externalId` scope is not supported yet, and hopefully will change before GA
   - acls expected not to harm if FDM is not activated
 - bumped version number to new 2.2.0
@@ -908,7 +908,7 @@ Refactor names ([`7faea58`](https://github.com/cognitedata/inso-bootstrap-cli/co
 
 * Merge pull request #17 from cognitedata/dry-run-v0.1
 
-resolving issue #13 
+resolving issue #13
 - added basic dry-run capabilities
 - fixed click-library to 8.0 do to 8.…
 - moved `--debug` and `--dry-run=[yes|no]` to global parameter level, which requires to put them in front of the command ([`0369904`](https://github.com/cognitedata/inso-bootstrap-cli/commit/0369904f65198a61f6d2e7dc51e16e8706a61750))
