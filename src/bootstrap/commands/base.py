@@ -97,9 +97,8 @@ class CommandBase:
         match command:
             case CommandMode.DELETE:
                 self.delete_or_deprecate: BootstrapDeleteConfig = self.container.delete_or_deprecate()
-
-            case CommandMode.DEPLOY | CommandMode.DIAGRAM | CommandMode.PREPARE:
-                # TODO: correct for DIAGRAM and PREPARE?!
+            case CommandMode.DEPLOY | CommandMode.DIAGRAM:
+                # TODO: correct for DIAGRAM?!
                 self.bootstrap_config: BootstrapCoreConfig = self.container.bootstrap()
                 self.idp_cdf_mappings = self.bootstrap_config.idp_cdf_mappings
 
@@ -143,6 +142,9 @@ class CommandBase:
                 CommandBase.RAW_SUFFIX = f":{features.rawdb_suffix}" if features.rawdb_suffix else ""
                 # [OPTIONAL] default: ["", ":state"]
                 CommandBase.RAW_VARIANTS = [""] + [f":{suffix}" for suffix in features.rawdb_additional_variants]
+            case _:
+                # CommandMode.PREPARE has parts of the config to unpack
+                pass
 
     @staticmethod
     def acl_template(actions: list[str], scope: dict[str, dict[str, Any]]) -> dict[str, Any]:
