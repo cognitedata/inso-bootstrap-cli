@@ -86,8 +86,11 @@ class CommandDiagram(CommandBase):
 
         # debug new features and override with cli-parameters
         logging.info(
-            "'diagram' configured for CDF Project: "
-            f"<{diagram_cdf_project}> and 'with_raw_capability': {self.with_raw_capability}"
+            f"""'diagram' configured for
+            CDF Project: <{diagram_cdf_project}>
+            'with_raw_capability': {self.with_raw_capability}
+            'with_datamodel_capability': {self.with_datamodel_capability}
+            """
         )
 
         # store all raw_dbs and datasets in scope of this configuration
@@ -281,7 +284,7 @@ class CommandDiagram(CommandBase):
                     # scope_type: [raw|datasets]
                     # scopes: List[str]
                     for scope_type, scopes in scope_ctx.items():
-                        if not self.with_raw_capability and scope_type in (ScopeCtxType.RAWDB, ScopeCtxType.SPACE):
+                        if not self.with_raw_capability and scope_type == ScopeCtxType.RAWDB:
                             continue  # for simple diagram SKIP RAW and SPACE
 
                         if not self.with_datamodel_capability and scope_type == ScopeCtxType.SPACE:
@@ -348,7 +351,7 @@ class CommandDiagram(CommandBase):
                     # scope_type: [raw|datasets]
                     # scopes: List[str]
                     for scope_type, scopes in scope_ctx.items():
-                        if not self.with_raw_capability and scope_type in (ScopeCtxType.RAWDB, ScopeCtxType.SPACE):
+                        if not self.with_raw_capability and scope_type == ScopeCtxType.RAWDB:
                             continue  # for simple diagram SKIP RAW and SPACE
 
                         if not self.with_datamodel_capability and scope_type == ScopeCtxType.SPACE:
@@ -407,7 +410,7 @@ class CommandDiagram(CommandBase):
                     # scope_type: [raw|datasets]
                     # scopes: List[str]
                     for scope_type, scopes in scope_ctx.items():
-                        if not self.with_raw_capability and scope_type in (ScopeCtxType.RAWDB, ScopeCtxType.SPACE):
+                        if not self.with_raw_capability and scope_type == ScopeCtxType.RAWDB:
                             continue  # for simple diagram SKIP RAW and SPACE
 
                         if not self.with_datamodel_capability and scope_type == ScopeCtxType.SPACE:
@@ -454,13 +457,6 @@ class CommandDiagram(CommandBase):
         # finished inline helper-methods
         # starting diagram logic
         #
-
-        if not self.with_raw_capability:
-            # no RAW DBs means no access to RAW at all
-            # which means no 'rawAcl' capability to create
-            # remove it form the default types
-            logging.info("Without RAW_DBS and 'rawAcl' capability")
-            AclDefaultTypes.remove("raw")
 
         # sorting relationship output into potential subgraphs
         graph = GraphRegistry()
