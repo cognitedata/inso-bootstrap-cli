@@ -195,16 +195,14 @@ class BootstrapCoreConfig(Model):
     # TODO: remove Field() wrapper?
     features: Optional[BootstrapFeatures] = Field(
         default=BootstrapFeatures(
-            **dict(
-                with_raw_capability=True,
-                with_datamodel_capability=False,
-                group_prefix="cdf",
-                aggregated_level_name="allprojects",
-                dataset_suffix="dataset",
-                space_suffix="space",
-                rawdb_suffix="rawdb",
-                rawdb_additional_variants=["state"],
-            )
+            with_raw_capability=True,
+            with_datamodel_capability=False,
+            group_prefix="cdf",
+            aggregated_level_name="allprojects",
+            dataset_suffix="dataset",
+            space_suffix="space",
+            rawdb_suffix="rawdb",
+            rawdb_additional_variants=["state"],
         )
     )
 

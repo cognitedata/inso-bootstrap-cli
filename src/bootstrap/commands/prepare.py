@@ -16,7 +16,7 @@ class CommandPrepare(CommandBase):
     #  o888o                         o888o
     # '''
     def command(self, idp_source_id: str) -> None:
-        group_name = f"{CommandBase.GROUP_NAME_PREFIX}:bootstrap"
+        group_name = f"{CommandBase.GROUP_NAME_PREFIX}bootstrap"
 
         group_capabilities = [
             {"datasetsAcl": {"actions": ["READ", "WRITE", "OWNER"], "scope": {"all": {}}}},
@@ -27,24 +27,17 @@ class CommandPrepare(CommandBase):
             {"securityCategoriesAcl": {"actions": ["MEMBEROF", "LIST", "CREATE", "DELETE"], "scope": {"all": {}}}},
         ]
 
-        # TODO: replace with dataclass
         idp_mapping = IdpCdfMapping(
             cdf_group=group_name, idp_source_id=idp_source_id, idp_source_name=f"IdP group ID: {idp_source_id}"
         )
-        # idp_mapping = [
-        #     # sourceId
-        #     idp_source_id,
-        #     # sourceName
-        #     f"IdP group ID: {idp_source_id}",
-        # ]
 
-        logging.debug(f"GROUPS in CDF:\n{self.deployed.groups}")
+        logging.debug(f"GROUPS in CDF:\n{self.deployed.groups.get_names()}")
 
         if self.is_dry_run:
             logging.info(f"Dry run - Creating minimum CDF Group for bootstrap: <{group_name=}> with {idp_mapping=}")
         else:
             # allows idempotent creates, as it cleans up old groups with same names after creation
             self.create_group(group_name=group_name, group_capabilities=group_capabilities, idp_mapping=idp_mapping)
-            logging.info(f"Created CDF group {group_name}")
+            logging.info(f"Created CDF group <{group_name}>")
 
         logging.info("Finished CDF Project Bootstrapper in 'prepare' mode ")
