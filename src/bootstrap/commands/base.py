@@ -6,7 +6,14 @@ from typing import Any, Optional
 
 import yaml
 from cognite.client import CogniteClient
-from cognite.client.data_classes import Database, DatabaseList, DataSet, DataSetList, DataSetUpdate, Group
+from cognite.client.data_classes import (
+    Database,
+    DatabaseList,
+    DataSet,
+    DataSetList,
+    DataSetUpdate,
+    Group,
+)
 from cognite.client.data_classes.data_modeling.spaces import Space, SpaceList
 
 from .. import __version__
@@ -133,9 +140,13 @@ class CommandBase:
                 CommandBase.RAW_SUFFIX = f":{features.rawdb_suffix}" if features.rawdb_suffix else ""
                 # [OPTIONAL] default: ["", ":state"]
                 CommandBase.RAW_VARIANTS = [""] + [f":{suffix}" for suffix in features.rawdb_additional_variants]
-            case _:
-                # CommandMode.PREPARE has parts of the config to unpack
-                pass
+            case CommandMode.PREPARE:
+                # set to 'cdf' as PREPARE has an optional 'bootstrap_config.features.group-prefix' config
+                # app_container.init_container provides the default if missing
+                # TODO: how to make this smarter in pydantic?
+                self.bootstrap_config: BootstrapCoreConfig = self.container.bootstrap()
+                features = self.bootstrap_config.features
+                CommandBase.GROUP_NAME_PREFIX = f"{features.group_prefix}:" if features.group_prefix else ""
 
     @staticmethod
     def acl_template(actions: list[str], scope: dict[str, dict[str, Any]]) -> dict[str, Any]:

@@ -37,9 +37,15 @@ def init_container(
         container.config.from_yaml(Path("/github/workspace") / config_path, required=True)  # type: ignore
     else:
         container.config.from_yaml(config_path, required=True)  # type: ignore
-    container.init_resources()  # i.e.logging
 
-    # logging.debug(f"{container.config()=}")
+    # TODO: inject an empty {} if not present for 'bootstrap' to trigger a default?
+    # how to make this smarter in pydantic?
+    # support PREPARE config.bootstrap.features.group_prefix need atm
+    if "bootstrap" not in container.config():
+        container.config()["bootstrap"] = {}
+    logging.debug(f"{container.config()=}")
+
+    container.init_resources()  # i.e.logging
 
     return container
 
@@ -133,6 +139,10 @@ class DiagramCommandContainer(BaseContainer):
     bootstrap = providers.Resource(BootstrapCoreConfig.parse_obj, obj=BaseContainer.config.bootstrap)
 
 
+class PrepareCommandContainer(CogniteContainer):
+    bootstrap = providers.Resource(BootstrapCoreConfig.parse_obj, obj=CogniteContainer.config.bootstrap)
+
+
 class DeployCommandContainer(CogniteContainer):
     """Container providing 'cognite_client' and 'bootstrap'
 
@@ -150,7 +160,7 @@ class DeleteCommandContainer(CogniteContainer):
 
 
 ContainerSelector: dict[CommandMode, Type[containers.Container]] = {
-    CommandMode.PREPARE: CogniteContainer,
+    CommandMode.PREPARE: PrepareCommandContainer,
     CommandMode.DIAGRAM: DiagramCommandContainer,
     CommandMode.DEPLOY: DeployCommandContainer,
     CommandMode.DELETE: DeleteCommandContainer,
