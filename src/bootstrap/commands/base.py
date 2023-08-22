@@ -14,7 +14,11 @@ from cognite.client.data_classes import (
     DataSetUpdate,
     Group,
 )
-from cognite.client.data_classes.data_modeling.spaces import Space, SpaceList
+from cognite.client.data_classes.data_modeling.spaces import (
+    Space,
+    SpaceApply,
+    SpaceList,
+)
 
 from .. import __version__
 from ..app_cache import CogniteDeployedCache
@@ -1013,11 +1017,11 @@ class CommandBase:
             # which targets are not already deployed?
             missing_space_names = target_space_names - set(self.deployed.spaces.get_names())
         except Exception as exc:
-            logging.info(f"RAW databases do not exist in CDF:\n{exc}")
+            logging.info(f"Spaces do not exist in CDF:\n{exc}")
             missing_space_names = target_space_names
 
         if missing_space_names:
-            spaces_to_be_created = [Space(space=name, name=name) for name in missing_space_names]
+            spaces_to_be_created = [SpaceApply(space=name, name=name) for name in missing_space_names]
             # create all spaces which are not already deployed
             if self.is_dry_run:
                 for space in list(missing_space_names):
