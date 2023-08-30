@@ -1,1 +1,2 @@
-run: bootstrap-cli
+github: bootstrap-cli
+azure: bootstrap-cli

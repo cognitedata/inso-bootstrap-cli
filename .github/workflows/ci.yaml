@@ -33,9 +33,15 @@ jobs:
       - uses: cognitedata/github-actions/setup-pack@v4.8.1
 
       # image version then used by solutions-registry helm chart.
+      # for github-action
       - run: pack/build.sh
         env:
-          PUBLISH: true
-          # VERSION: ${{ env.version }}
-          VERSION: ${{ inputs.version }}
+          DEVOPS: github
+          VERSION: ${{ inputs.version }}-github
+          IMAGE: cognite/bootstrap-cli
+      # for azure-devops
+      - run: pack/build.sh
+        env:
+          DEVOPS: azure
+          VERSION: ${{ inputs.version }}-azure
           IMAGE: cognite/bootstrap-cli
