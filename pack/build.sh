@@ -15,7 +15,7 @@ if $PUBLISH -eq "true"; then
   pack build "$IMAGE:$TAG" --buildpack paketo-buildpacks/python \
                           --builder paketobuildpacks/builder:base \
                           --buildpack paketo-buildpacks/source-removal \
-                          --default-process=github \
+                          --default-process=run \
                           --env BP_INCLUDE_FILES='src/*:logs/*' \
                           --env BP_POETRY_VERSION='1.3.2' \
                           --publish

@@ -36,8 +36,9 @@ jobs:
       # for github-action
       - run: pack/build.sh
         env:
-          DEVOPS: github
-          VERSION: ${{ inputs.version }}-github
+          PUBLISH: true
+          # VERSION: ${{ env.version }}
+          VERSION: ${{ inputs.version }}
           IMAGE: cognite/bootstrap-cli
 
       - name: "Build and push Docker image for Azure Pipelines"
