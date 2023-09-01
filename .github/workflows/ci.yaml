@@ -1,0 +1,41 @@
+name: ci
+
+on:
+  # only during testing of the action from a different branch
+  # pull_request:
+  workflow_dispatch:
+    # manually triggered only
+    inputs:
+      version:
+        description: 'image version (tag)'
+
+jobs:
+  printInputs:
+    runs-on: ubuntu-latest
+    steps:
+    - run: |
+        echo "Version: ${{ inputs.version }}"
+
+  build:
+    environment: main
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      # https://github.com/docker/login-action#docker-hub
+      - name: Docker login
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USER }}
+          password: ${{ secrets.DOCKERHUB_ACCESS_TOKEN }}
+
+        # forked action. Original: buildpacks/github-actions/setup-pack
+      - uses: cognitedata/github-actions/setup-pack@v4.8.1
+
+      # image version then used by solutions-registry helm chart.
+      - run: pack/build.sh
+        env:
+          PUBLISH: true
+          # VERSION: ${{ env.version }}
+          VERSION: ${{ inputs.version }}
+          IMAGE: cognite/bootstrap-cli

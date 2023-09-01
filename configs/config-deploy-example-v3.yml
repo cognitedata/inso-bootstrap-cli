@@ -1,0 +1,222 @@
+bootstrap:
+  # 220426 pa:
+  #  - Extended comments to explain options.
+  # 220422 pa:
+  #   - New v2-syntax to make *all* bootstrap configuration parameters
+  #     available through explicit, named properties.
+  #
+  # Motivation for the breaking change:
+  # Compared to v1, which used an extremely sparse syntax, now using values as YAML key and values.
+  # The v2 change is required to support loading and validating the configuration through
+  # Python 'dataclasses'. This is a best practice used by most Cognite YAML-based
+  # configurations.
+
+  # bootstrap supports three sections:
+  # 1. 'features'
+  #   - Makes CLI parameters and customizable naming elements available.
+  # 2. 'idp-cdf-mappings'
+  #   - Supports multi CDF project mappings of IdP groups to CDF groups.
+  # 3. 'namespaces'
+  #   - A hierarchy of 'namespaces' => 'ns-nodes'
+
+  # You can always check changes with 'bootstrap-cli diagram'
+  # - Add 'diagram --with-raw-capability no --cdf-project my-project configs/config-deploy-example-v2.yml'
+  #   to reduce clutter and focus on dataset scopes and see IdP to CDF mappings
+  #   for a CDF project.
+  #   On Windows, you can copy the Mermaid output to the clipboard with
+  #      'diagram .. | clip.exe'
+  #   On Mac OS X, use '| pbcopy'
+  #   To render the Mermaid output, navigate to https://mermaid.live and paste it into the code section.
+  #   - TIP: The URL of the mermaid.live page contains the full diagram
+  #     and can be shared and bookmarked :)
+
+  features:
+    # v2 adding as features, available as CLI parameters only at the moment (v1)
+    # Allowed values are parsed case-insensitive: [true|yes|YES|..] or [false|no|NO|..]
+    # Not as strings in quotes, "yes" or 'yes'.
+
+
+    # The default and recommended value is: true
+    with-raw-capability: true
+
+    # The default and recommended value is: true
+    with-datamodel-capability: true
+
+    # Recommended values for a new v2-project are provided as comments.
+
+    # Default value: 'allprojects' for v1 backwards compatibility
+    # Recommended value: 'all'
+    aggregated-level-name: all
+
+    # Default and recommended value: cdf
+    #   Supports empty strings, ''
+    group-prefix: cdf
+
+    # Default value: dataset
+    # Recommended value is 'ds' or ''
+    #   Supports empty strings, ''
+    dataset-suffix: ds
+
+    # Default value: space
+    #  Recommended value: 'spc' or  ''
+    space-suffix: spc
+
+    # Default value: rawdb
+    #  Recommended value: 'db' or  ''
+    rawdb-suffix: db
+
+    # Default value: ['state']
+    #   Use to separate the statestores from extractors from ingested data.
+    #   Recommended value: 'state' or []
+    #   You can configure more Raw databases later.
+    #   Supports empty list [] for no additional variants.
+    rawdb-additional-variants:
+      # Provide more than one Raw database per ns-nodes
+      # At the moment (v1) one additional Raw database is hardcoded
+      - state
+      # - pump # one more additional variant
+
+  idp-cdf-mappings:
+    # Previously (v1) named 'aad_mappings'.
+    # The values for 'cdf-group' requires knowledge of the resulting CDF group names.
+    #
+    # Now supports multiple CDF projects, like dev/test/prod
+    # in one configuration. Optimization to reduce redundant maintenance.
+    # The BOOTSTRAP_CDF_PROJECT env-variable is available and is used to select.
+    - cdf-project: shiny-dev
+      # new since v3
+    # switch to only create CDF Groups which are mapped to an IdP, default is true
+      create-only-mapped-cdf-groups: true
+      mappings:
+        - cdf-group: cdf:root
+          idp-source-id: 374dc9f6-f3a1-4b34-b897-11111111111
+          idp-source-name: CDF_DEV_ROOT
+        - cdf-group: cdf:all:owner
+          idp-source-id: acd2fe35-aa51-45a7-acef-11111111111
+          idp-source-name: CDF_DEV_ALL_OWNER
+        - cdf-group: cdf:all:read
+          idp-source-id: acd2fe35-aa51-45a7-acef-11111111111
+          idp-source-name: CDF_DEV_ALL_READ
+        - cdf-group: cdf:uc:001:demand:read
+          idp-source-id: 314159-aa51-45a7-acef-11111111111
+          idp-source-name: CDF_DEV_UC001DEMAND_READ
+    - cdf-project: shiny-prod
+      mappings:
+        - cdf-group: cdf:root
+          idp-source-id: 374dc9f6-f3a1-4b34-b897-22222222222
+          idp-source-name: CDF_PROD_ROOT
+        - cdf-group: cdf:all:owner
+          idp-source-id: acd2fe35-aa51-45a7-acef-22222222222
+          idp-source-name: CDF_PROD_ALL_OWNER
+        - cdf-group: cdf:all:read
+          idp-source-id: acd2fe35-aa51-45a7-acef-11111111111
+          idp-source-name: CDF_PROD_ALL_READ
+        - cdf-group: cdf:uc:001:demand:read
+          idp-source-id: 314159-aa51-45a7-acef-22222222222
+          idp-source-name: CDF_PROD_UC001DEMAND_READ
+
+  namespaces:
+    - ns-name: src
+      # The description is not yet implemented in the namespace-level datasets.
+      description: Customer source systems
+
+      ns-nodes:
+        - node-name: src:001:sap
+          description: Sources 001; from SAP
+          # Provide 'external-id' explicitly for full control (i.e. of length) for the dataset.
+          # Otherwise, it'll be autogenerated with the dataset name as '{node-name}[:{features.dataset-suffix}]'
+          # 220425 pa: At the moment of release, we have hard CDF limits for:
+          #    dataset.name        50 characters
+          #    dataset.external_id 256 characters
+          # Violations will stop the configuration from loading and are reported at log-level.
+          external-id: src:001:sap
+        - node-name: src:002:weather
+          description: Sources 002; from Weather.com
+          # external-id will be auto generated in this case.
+
+    - ns-name: in
+      description: End user data-input provided through deployed CDF driven solutions
+      ns-nodes:
+        - node-name: in:001:trade
+          description: Description about user inputs related to name
+          # external_id: in:001:trade
+
+    - ns-name: uc
+      description: Use cases representing the data products
+      ns-nodes:
+        - node-name: uc:001:demand
+          description: Use case 001; Demand side
+
+          # The metadata will be merged into 'dataset.metadata'
+          metadata:
+            created: 220427
+            generated: by cdf-config-hub script
+
+          # shared-access is a powerful concept that **only** affects CDF groups of type ':owner'.
+          # Typically required for use case groups, which have to read from multiple sources (nodes)
+          # to apply the models and create the higher-value data products in the use case dataset.
+          #
+          # It allows you to grant additional 'read' or 'owner' access to other ns-nodes, across the 'namespaces'.
+          # This allows you to maintain complex access-control needs, and at the same time allowing for a stable IdP mapping.
+          # Adding node-names is explicit and never includes their shared-access nodes
+          shared-access:
+            read:
+              - node-name: src:001:sap
+              - node-name: src:002:weather
+              # aggregated nodes can be used too (which only includes their direct scopes)
+              - node-name: src:all
+            owner:
+              - node-name: in:001:trade
+
+# De-facto standards for the CDF CogniteClient and logger configuration.
+# Follows the same parameter structure as the 'Cognite Python Extractor-Utilities'
+# and 'Cognite DB Extractor' configuration.
+cognite: # kwargs to pass to the CogniteClient, Environment variable format: ${ENVIRONMENT_VARIABLE_NAME}
+  # host: https://${BOOTSTRAP_CDF_CLUSTER}.cognitedata.com/
+  host: ${BOOTSTRAP_CDF_HOST}
+  project: ${BOOTSTRAP_CDF_PROJECT}
+  #
+  # AAD IdP sign-in credentials:
+  #
+  idp-authentication:
+    client-id: ${BOOTSTRAP_IDP_CLIENT_ID}
+    secret: ${BOOTSTRAP_IDP_CLIENT_SECRET}
+    scopes:
+      - ${BOOTSTRAP_IDP_SCOPES}
+    token_url: ${BOOTSTRAP_IDP_TOKEN_URL}
+
+# the old `logger` config is still supported, but more Python `logging` section is recommended to use
+# logger:
+#   file:
+#     path: ./logs/create-dev-logs.log
+#     level: INFO
+#   console:
+#     level: INFO
+
+# https://docs.python.org/3/library/logging.config.html#logging-config-dictschema
+logging:
+  version: 1
+  formatters:
+    formatter:
+      # class: "tools.formatter.StackdriverJsonFormatter"
+      format: "[%(asctime)s] [%(levelname)s] [%(name)s]: %(message)s"
+  handlers:
+    file:
+      class: "logging.FileHandler"
+      filename: ./logs/deploy-trading.log
+      formatter: "formatter"
+      mode: "w"
+      level: "DEBUG"
+    console:
+      class: "logging.StreamHandler"
+      level: "DEBUG"
+      formatter: "formatter"
+      stream: "ext://sys.stderr"
+  root:
+    level: "DEBUG"
+    handlers: [ "console", "file" ]
+  # control modules individually
+  # loggers:
+  #   cognite-sdk:
+  #     level: "DEBUG"
+  #     handlers: [ "console"]

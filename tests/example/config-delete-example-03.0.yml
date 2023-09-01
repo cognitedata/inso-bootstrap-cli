@@ -1,3 +1,8 @@
+delete_or_deprecate:
+  datasets: [1111111, 2222222]
+  groups: []
+  raw_dbs: []
+
 # follows the same parameter structure as the DB extractor configuration
 cognite: # kwargs to pass to the CogniteClient, Environment variable format: ${ENVIRONMENT_VARIABLE}
   host: ${BOOTSTRAP_CDF_HOST}
@@ -18,10 +23,3 @@ logger:
     level: INFO
   console:
     level: INFO
-
-delete_or_deprecate:
-  datasets: []
-  groups: []
-  raw_dbs: []
-
-...

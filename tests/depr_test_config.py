@@ -1,14 +1,12 @@
 import json
 
+from __main__ import BootstrapCore
 from dotenv import load_dotenv
-
-from incubator.bootstrap_cli.__main__ import BootstrapCore
 
 
 def main():
     config_file = "tests/example/config-deploy-bootstrap.yml"
     bootstrap = BootstrapCore(config_file)
-    bootstrap.load_deployed_config_from_cdf()
 
     print(bootstrap.deployed["datasets"])
 

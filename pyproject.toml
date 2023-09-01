@@ -1,55 +1,51 @@
 [tool.poetry]
 name = "inso-bootstrap-cli"
-# keep manually in sync with __init__.py > __version__
-version = "1.10.0"
+# 230802 pa: switched to keep manually in sync with
+# 1. src/bootstrap/__init__.py => __version__ = "3.0.6"
+# 2. action.yml => image: docker://cognite/bootstrap-cli:v3.0.6-github
+version = "3.0.7"
 description = "A CLI to deploy a CDF Project to bootstrap CDF Groups scoped with Data Sets and RAW DBs"
-authors = ["Peter Arwanitis <peter.arwanitis@cognite.com>", "Tugce Ozgur Oztetik <tugce.oztetik@cognite.com>", "Sverre Dørheim <sverre.dorheim@cognite.com>"]
+authors = ["Peter Arwanitis <peter.arwanitis@cognite.com>", "Tugce Ozgur Oztetik <tugce.oztetik@cognite.com>"]
 license = "Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/cognitedata/inso-bootstrap-cli"
 
 packages = [
-    { include="incubator", from="." },
+    { include="bootstrap", from = "src"},
 ]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+python-dotenv = "^0.21.1"
+pydantic = "^1.10.12"
+dependency-injector = {version = "^4.41.0", extras = ["yaml"]}
+click = "^8.1.6"
+cognite-sdk = {version = "^6.14", extras = ["pandas"]}
+rich = "^13.5"
+
+[tool.poetry.dev-dependencies]
+autopep8 = "^2.0.1"
+mypy = "^1.5"
+pre-commit = "^3.3"
+pytest = "^7.4"
 
 [tool.black]
 line-length = 120
-target_version = ['py39']
+target_version = ['py311']
 include = '\.py$'
 
 [tool.isort]
-# https://pycqa.github.io/isort/docs/configuration/black_compatibility.html
 profile = "black"
-line_length=120                # corresponds to -w  flag
-multi_line_output=3            # corresponds to -m  flag
-include_trailing_comma=true    # corresponds to -tc flag
-skip_glob = '^((?!py$).)*$'    # this makes sort all Python files
-known_third_party = ["click", "pytest"]
 
-[tool.poetry.dependencies]
-python = "^3.9"
-cognite-extractor-utils = "^2.2.0"
-# extractor-utils pulls in matching python-dotenv
-# python-dotenv = "^0.19.2"
-click = "8.0.*"
-types-retry = "^0.1.5"
-# cognite-sdk = "^2.38.1"
-# reducing to sdk-core with only extra 'pandas' (avoiding fiona, geopandas dependencies)
-cognite-sdk-core = {extras=["pandas"],version = "^2.39.1"}
-
-[tool.poetry.dev-dependencies]
-black = "^21.6b0"
-isort = "^5.9.2"
-flake8 = "^3.9.2"
-mypy = "^0.910"
-autoflake = "=1.3"
-pre-commit = "^2.13.0"
-pytest = "^6.2.5"
-pytest-cov = "^3.0.0"
-setuptools = "^62.1.0"
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = "-ra -q -s"
+# testpaths = [
+    # "tests",
+# ]
 
 [tool.poetry.scripts]
-bootstrap-cli = "incubator.bootstrap_cli.__main__:main"
+bootstrap-cli = "bootstrap.__main__:main"
 
 [build-system]
 requires = ["poetry>=0.12"]
@@ -58,4 +54,7 @@ build-backend = "poetry.masonry.api"
 [tool.semantic_release]
 version_toml = [
 "pyproject.toml:tool.poetry.version"
+]
+version_variable = [
+    "src/bootstrap/__init__.py:__version__",
 ]
