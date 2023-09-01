@@ -39,9 +39,11 @@ jobs:
           DEVOPS: github
           VERSION: ${{ inputs.version }}-github
           IMAGE: cognite/bootstrap-cli
-      # for azure-devops
-      - run: pack/build.sh
-        env:
-          DEVOPS: azure
-          VERSION: ${{ inputs.version }}-azure
-          IMAGE: cognite/bootstrap-cli
+
+      - name: "Build and push Docker image for Azure Pipelines"
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          push: true
+          file: ./Dockerfile
+          tags: cognite/bootstrap-cli:${{ inputs.version }}-azure
