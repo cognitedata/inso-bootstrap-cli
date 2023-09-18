@@ -30,12 +30,15 @@ AclDefaultTypes = [
     "dataModelInstances",
     "datasets",
     "digitalTwin",
+    "documentFeedback",
+    "documentPipelines",
     "entitymatching",
     "events",
     "extractionConfigs",
     "extractionPipelines",
     "extractionRuns",
     "files",
+    "filePipelines",
     "functions",
     "geospatial",
     "geospatialCrs",
@@ -54,6 +57,7 @@ AclDefaultTypes = [
     "timeSeries",
     "transformations",
     "types",
+    "visionModel",
     "wells",
 ]
 
@@ -61,17 +65,21 @@ AclDefaultTypes = [
 # a subset of AclDefaultTypes
 AclAllScopeOnlyTypes = set(
     [
-        "projects",
-        "sessions",
         "annotations",
-        "entitymatching",
-        "functions",
-        "types",
-        "threed",
-        "seismic",
         "digitalTwin",
+        "documentFeedback",
+        "documentPipelines",
+        "entitymatching",
+        "filePipelines",
+        "functions",
         "geospatial",
         "geospatialCrs",
+        "projects",
+        "seismic",
+        "sessions",
+        "threed",
+        "types",
+        "visionModel",
         "wells",
     ]
 )
@@ -82,6 +90,7 @@ RoleTypeActions = {
     RoleType.OWNER: {  # else ["READ","WRITE"]
         "annotations": ["READ", "WRITE", "SUGGEST", "REVIEW"],
         "datasets": ["READ", "OWNER"],
+        "documentFeedback": ["CREATE", "READ", "DELETE"],
         "groups": ["LIST"],
         "projects": ["LIST"],
         "raw": ["READ", "WRITE", "LIST"],
@@ -90,9 +99,9 @@ RoleTypeActions = {
         "threed": ["READ", "CREATE", "UPDATE", "DELETE"],
     },
     RoleType.READ: {  # else ["READ"]
-        "raw": ["READ", "LIST"],
         "groups": ["LIST"],
         "projects": ["LIST"],
+        "raw": ["READ", "LIST"],
         "sessions": ["LIST"],
     },
     # aka root-account
@@ -101,8 +110,8 @@ RoleTypeActions = {
         "groups": ["LIST", "READ", "CREATE", "UPDATE", "DELETE"],
         # TODO: can "space" scope creation be limted to root-account
         # "dataModels": ["READ", "WRITE"],
-        "securityCategories": ["MEMBEROF", "LIST", "CREATE", "DELETE"],
         "projects": ["READ", "UPDATE", "LIST"],
+        "securityCategories": ["MEMBEROF", "LIST", "CREATE", "DELETE"],
     },
 }
 
