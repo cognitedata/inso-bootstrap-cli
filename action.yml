@@ -35,7 +35,7 @@ inputs:
 
 runs:
   using: "docker"
-  image: docker://cognite/bootstrap-cli:v3.0.7-github
+  image: docker://cognite/bootstrap-cli:v3.0.8-github
   env:
     BOOTSTRAP_TOKEN_URL: ${{ inputs.token-url }}
     BOOTSTRAP_PROJECT: ${{ inputs.cdf-project-name }}
