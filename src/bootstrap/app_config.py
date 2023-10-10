@@ -52,6 +52,7 @@ AclDefaultTypes = [
     "templateInstances",
     "threed",
     "timeSeries",
+    "timeSeriesSubscriptions",
     "transformations",
     "types",
     "wells",
@@ -73,6 +74,7 @@ AclAllScopeOnlyTypes = set(
         "geospatial",
         "geospatialCrs",
         "wells",
+        "timeSeriesSubscriptions",
     ]
 )
 
@@ -161,8 +163,8 @@ class SharedAccess(Model):
 
 class NamespaceNode(Model):
     node_name: str
-    external_id: Optional[str]
-    metadata: Optional[dict[str, Any]]
+    external_id: Optional[str] = None
+    metadata: Optional[dict[str, Any]] = None
     description: Optional[str] = ""
     shared_access: Optional[SharedAccess] = SharedAccess(owner=[], read=[])
 

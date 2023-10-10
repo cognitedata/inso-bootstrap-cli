@@ -770,10 +770,8 @@ class CommandBase:
             Dataops_created=self.get_timestamp(),
             Dataops_source=f"bootstrap-cli v{__version__}",
         )
-        # TODO: SDK v5.10 doesn't support `metadata` yet. Injecting it directly to payload
-        new_group = Group(name=group_name, capabilities=group_capabilities)
+        new_group = Group(name=group_name, capabilities=group_capabilities, metadata=metadata)
         # https://docs.cognite.com/api/v1/#tag/Groups/operation/createGroups
-        new_group.metadata = metadata  # type: ignore
         if idp_source_id:
             # inject (both will be pushed through the API call!)
             new_group.source_id = idp_source_id  # 'S-314159-1234'

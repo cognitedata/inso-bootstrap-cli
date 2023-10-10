@@ -121,7 +121,7 @@ class BaseContainer(containers.DeclarativeContainer):
 class CogniteContainer(BaseContainer):
     # provides config.cognite:dict as pydantic CogniteConfig object
     # and reveals all pydantic errors on container.init_resource
-    cognite_config = providers.Resource(CogniteConfig.parse_obj, obj=BaseContainer.config.cognite)
+    cognite_config = providers.Resource(CogniteConfig.model_validate, obj=BaseContainer.config.cognite)
 
     cognite_client = providers.Factory(
         get_cognite_client,
@@ -136,11 +136,11 @@ class DiagramCommandContainer(BaseContainer):
         BaseContainer (_type_): _description_
     """
 
-    bootstrap = providers.Resource(BootstrapCoreConfig.parse_obj, obj=BaseContainer.config.bootstrap)
+    bootstrap = providers.Resource(BootstrapCoreConfig.model_validate, obj=BaseContainer.config.bootstrap)
 
 
 class PrepareCommandContainer(CogniteContainer):
-    bootstrap = providers.Resource(BootstrapCoreConfig.parse_obj, obj=CogniteContainer.config.bootstrap)
+    bootstrap = providers.Resource(BootstrapCoreConfig.model_validate, obj=CogniteContainer.config.bootstrap)
 
 
 class DeployCommandContainer(CogniteContainer):
@@ -150,12 +150,12 @@ class DeployCommandContainer(CogniteContainer):
         CogniteContainer (_type_): _description_
     """
 
-    bootstrap = providers.Resource(BootstrapCoreConfig.parse_obj, obj=CogniteContainer.config.bootstrap)
+    bootstrap = providers.Resource(BootstrapCoreConfig.model_validate, obj=CogniteContainer.config.bootstrap)
 
 
 class DeleteCommandContainer(CogniteContainer):
     delete_or_deprecate = providers.Resource(
-        BootstrapDeleteConfig.parse_obj, obj=BaseContainer.config.delete_or_deprecate
+        BootstrapDeleteConfig.model_validate, obj=BaseContainer.config.delete_or_deprecate
     )
 
 
