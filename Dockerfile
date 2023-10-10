@@ -8,7 +8,7 @@
 ARG APP_NAME=inso_bootstrap_cli # matching the pyproject.toml name
 ARG APP_PATH=/opt/$APP_NAME
 ARG PYTHON_VERSION=3.11
-ARG POETRY_VERSION=1.3.2
+ARG POETRY_VERSION=1.5.1
 
 #
 # Stage: staging
@@ -35,9 +35,7 @@ ENV \
 RUN apt-get -y update; apt-get -y install curl
 
 # Poetry setup
-# RUN python3 -m pip install --upgrade pip
-# RUN pip install poetry
-RUN curl -sSL https://install.python-poetry.org | python3 -
+RUN curl -sSL https://install.python-poetry.org | python3 - --version $POETRY_VERSION
 ENV PATH="$POETRY_HOME/bin:$PATH"
 
 WORKDIR $APP_PATH
