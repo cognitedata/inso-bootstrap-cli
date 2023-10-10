@@ -10,4 +10,4 @@
 # 230301 pa: automated by adding it to pyproject.toml > [tool.semantic_release] > version_variable
 
 # 230802 pa: switched to manual updates, after issues with semver gh-actions
-__version__ = "3.0.7"
+__version__ = "3.1.0"
