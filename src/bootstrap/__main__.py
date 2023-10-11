@@ -249,7 +249,6 @@ def bootstrap_cli(
     debug: bool = False,
     dry_run: bool = False,
 ) -> None:
-
     # load .env from file if exists, use given dotenv_path if provided
     # load_dotenv(dotenv_path=dotenv_path, override=True)
     # dotenv loaded in 'init_container'
@@ -290,7 +289,6 @@ def deploy(
     config_file: str,
     with_raw_capability: YesNoType,
 ) -> None:
-
     click.echo(click.style("Deploying CDF Project bootstrap...", fg="red"))
 
     try:
@@ -342,7 +340,6 @@ def prepare(
     idp_source_id: str,
     dry_run: YesNoType = YesNoType.no,
 ) -> None:
-
     click.echo(click.style("Prepare CDF Project ...", fg="red"))
 
     try:
@@ -379,7 +376,6 @@ def delete(
     obj: dict,
     config_file: str,
 ) -> None:
-
     click.echo(click.style("Delete CDF Project ...", fg="red"))
 
     try:
@@ -435,7 +431,6 @@ def diagram(
     with_raw_capability: YesNoType,
     cdf_project: str,
 ) -> None:
-
     # click.echo(click.style("Diagram CDF Project ...", fg="red"))
 
     try:
