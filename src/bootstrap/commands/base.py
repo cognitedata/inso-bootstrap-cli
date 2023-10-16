@@ -22,7 +22,7 @@ from cognite.client.data_classes.data_modeling.spaces import (
 
 from .. import __version__
 from ..app_cache import CogniteDeployedCache
-from ..app_config import (  # AclDefaultTypes,
+from ..app_config import (
     NEWLINE,
     AclAdminTypes,
     AclAllScopeOnlyTypes,
