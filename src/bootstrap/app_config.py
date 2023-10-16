@@ -58,6 +58,16 @@ AclDefaultTypes = [
     "wells",
 ]
 
+UndocumentedAclDefaultTypes = ["documentFeedback", "documentPipelines", "monitoringTasks", "notifications"]
+
+
+def getAllAclTypes(with_undocumented_capabilities: bool = False):
+    acl_types = AclDefaultTypes.copy()
+    if with_undocumented_capabilities:
+        acl_types.extend(UndocumentedAclDefaultTypes)
+    return acl_types
+
+
 # capabilities (acl) which only support  scope: {"all":{}}
 # a subset of AclDefaultTypes
 AclAllScopeOnlyTypes = set(
@@ -75,6 +85,11 @@ AclAllScopeOnlyTypes = set(
         "geospatialCrs",
         "wells",
         "timeSeriesSubscriptions",
+        # undocumented alcls
+        "documentFeedback",
+        "documentPipelines",
+        "monitoringTasks",
+        "notifications",
     ]
 )
 
@@ -90,6 +105,7 @@ RoleTypeActions = {
         "robotics": ["READ", "CREATE", "UPDATE", "DELETE"],
         "sessions": ["LIST", "CREATE"],
         "threed": ["READ", "CREATE", "UPDATE", "DELETE"],
+        "documentFeedback": ["READ", "CREATE", "DELETE"],
     },
     RoleType.READ: {  # else ["READ"]
         "raw": ["READ", "LIST"],
@@ -178,6 +194,7 @@ class Namespace(Model):
 class BootstrapFeatures(Model):
     with_raw_capability: Optional[bool] = True
     with_datamodel_capability: Optional[bool] = True
+    with_undocumented_capabilities: Optional[bool] = False
     group_prefix: Optional[str] = "cdf"
     aggregated_level_name: Optional[str] = "allprojects"
     dataset_suffix: Optional[str] = "dataset"

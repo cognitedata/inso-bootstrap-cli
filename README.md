@@ -45,7 +45,7 @@ the CLI to maintain or migrate existing CDF projects.
         - [`namespaces` section](#namespaces-section)
     - [Configuration for the `delete` command](#configuration-for-the-delete-command)
       - [`delete_or_deprecate` section](#delete_or_deprecate-section)
-  - [Common practices \& How-Tos](#common-practices--how-tos)
+  - [Common practices & How-Tos](#common-practices--how-tos)
     - [How to implement Read-only Shared Access](#how-to-implement-read-only-shared-access)
   - [Development / Contribute](#development--contribute)
     - [Inspiration](#inspiration)
@@ -805,6 +805,13 @@ In addition to the sections described above, the configuration file for the `dep
 The `features` section covers general options like prefixes, suffixes, etc.
 
 The list of features:
+
+(new since v3.2.0)
+
+- `with-undocumented-capabilities`
+  - Support of capabilities which are not yet officially documented, for early testing and adoption.
+   Over time they will either be removed, replaced or getting an official and documented capability
+   Defaults to false
 
 (new since v3)
 

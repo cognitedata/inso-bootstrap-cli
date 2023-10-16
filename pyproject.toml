@@ -3,7 +3,7 @@ name = "inso-bootstrap-cli"
 # 230802 pa: switched to keep manually in sync with
 # 1. src/bootstrap/__init__.py => __version__ = "3.0.6"
 # 2. action.yml => image: docker://cognite/bootstrap-cli:v3.0.6-github
-version = "3.1.0"
+version = "3.2.0"
 description = "A CLI to deploy a CDF Project to bootstrap CDF Groups scoped with Data Sets and RAW DBs"
 authors = ["Peter Arwanitis <peter.arwanitis@cognite.com>", "Tugce Ozgur Oztetik <tugce.oztetik@cognite.com>"]
 license = "Apache-2.0"
