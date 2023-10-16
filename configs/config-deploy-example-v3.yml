@@ -35,12 +35,16 @@ bootstrap:
     # Allowed values are parsed case-insensitive: [true|yes|YES|..] or [false|no|NO|..]
     # Not as strings in quotes, "yes" or 'yes'.
 
-
     # The default and recommended value is: true
     with-raw-capability: true
 
     # The default and recommended value is: true
     with-datamodel-capability: true
+
+    # Supports early testing and adoption of capabilities which are not yet officially documented.
+    # Over time they will either be removed, replaced or getting an official and documented capability.
+    # The default and recommended value is false
+    with-undocumented-capabilities: false
 
     # Recommended values for a new v2-project are provided as comments.
 
@@ -85,7 +89,7 @@ bootstrap:
     # The BOOTSTRAP_CDF_PROJECT env-variable is available and is used to select.
     - cdf-project: shiny-dev
       # new since v3
-    # switch to only create CDF Groups which are mapped to an IdP, default is true
+      # switch to only create CDF Groups which are mapped to an IdP, default is true
       create-only-mapped-cdf-groups: true
       mappings:
         - cdf-group: cdf:root
@@ -214,7 +218,7 @@ logging:
       stream: "ext://sys.stderr"
   root:
     level: "DEBUG"
-    handlers: [ "console", "file" ]
+    handlers: ["console", "file"]
   # control modules individually
   # loggers:
   #   cognite-sdk:
