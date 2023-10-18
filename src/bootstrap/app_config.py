@@ -78,7 +78,6 @@ AclAllScopeOnlyTypes = set(
         "entitymatching",
         "functions",
         "types",
-        "threed",
         "seismic",
         "digitalTwin",
         "geospatial",
