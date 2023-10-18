@@ -10,7 +10,7 @@ from ..common.base_model import Model
 
 class CogniteIdpConfig(Model):
     # fields required for OIDC client-credentials authentication
-    client_name: Optional[str]
+    client_name: Optional[str] = None
     client_id: str
     secret: str
     scopes: list[str]

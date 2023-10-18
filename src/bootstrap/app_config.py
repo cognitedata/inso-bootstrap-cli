@@ -52,10 +52,21 @@ AclDefaultTypes = [
     "templateInstances",
     "threed",
     "timeSeries",
+    "timeSeriesSubscriptions",
     "transformations",
     "types",
     "wells",
 ]
+
+UndocumentedAclDefaultTypes = ["documentFeedback", "documentPipelines", "monitoringTasks", "notifications"]
+
+
+def getAllAclTypes(with_undocumented_capabilities: bool = False):
+    acl_types = AclDefaultTypes.copy()
+    if with_undocumented_capabilities:
+        acl_types.extend(UndocumentedAclDefaultTypes)
+    return acl_types
+
 
 # capabilities (acl) which only support  scope: {"all":{}}
 # a subset of AclDefaultTypes
@@ -72,6 +83,12 @@ AclAllScopeOnlyTypes = set(
         "geospatial",
         "geospatialCrs",
         "wells",
+        "timeSeriesSubscriptions",
+        # undocumented alcls
+        "documentFeedback",
+        "documentPipelines",
+        "monitoringTasks",
+        "notifications",
     ]
 )
 
@@ -87,6 +104,7 @@ RoleTypeActions = {
         "robotics": ["READ", "CREATE", "UPDATE", "DELETE"],
         "sessions": ["LIST", "CREATE"],
         "threed": ["READ", "CREATE", "UPDATE", "DELETE"],
+        "documentFeedback": ["READ", "CREATE", "DELETE"],
     },
     RoleType.READ: {  # else ["READ"]
         "raw": ["READ", "LIST"],
@@ -160,8 +178,8 @@ class SharedAccess(Model):
 
 class NamespaceNode(Model):
     node_name: str
-    external_id: Optional[str]
-    metadata: Optional[dict[str, Any]]
+    external_id: Optional[str] = None
+    metadata: Optional[dict[str, Any]] = None
     description: Optional[str] = ""
     shared_access: Optional[SharedAccess] = SharedAccess(owner=[], read=[])
 
@@ -175,6 +193,7 @@ class Namespace(Model):
 class BootstrapFeatures(Model):
     with_raw_capability: Optional[bool] = True
     with_datamodel_capability: Optional[bool] = True
+    with_undocumented_capabilities: Optional[bool] = False
     group_prefix: Optional[str] = "cdf"
     aggregated_level_name: Optional[str] = "allprojects"
     dataset_suffix: Optional[str] = "dataset"

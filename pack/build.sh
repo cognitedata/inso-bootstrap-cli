@@ -16,7 +16,7 @@ if $PUBLISH -eq "true"; then
                           --builder paketobuildpacks/builder:base \
                           --buildpack paketo-buildpacks/source-removal \
                           --default-process=run \
-                          --env BP_INCLUDE_FILES='src/*:logs/*' \
+                          --env BP_INCLUDE_FILES='src/*:logs/*:bootstrap-cli' \
                           --env BP_POETRY_VERSION='1.3.2' \
                           --publish
 else
@@ -24,7 +24,7 @@ else
                           --builder paketobuildpacks/builder:base \
                           --buildpack paketo-buildpacks/source-removal \
                           --default-process=run \
-                          --env BP_INCLUDE_FILES='src/*:logs/*' \
+                          --env BP_INCLUDE_FILES='src/*:logs/*:bootstrap-cli' \
                           --env BP_POETRY_VERSION='1.3.2' \
                           --env BP_LIVE_RELOAD_ENABLED=true
 fi

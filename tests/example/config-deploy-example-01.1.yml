@@ -2,7 +2,6 @@
 # 01.2 : empty namespaces and idp-cdf-mapping
 #
 bootstrap:
-
   features:
     with-special-groups: false
     with-raw-capability: true

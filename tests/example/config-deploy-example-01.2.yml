@@ -2,7 +2,6 @@
 # 01.2 : no idp-cdf-mappings
 #
 bootstrap:
-
   features:
     with-special-groups: false
     with-raw-capability: true
@@ -24,7 +23,6 @@ bootstrap:
           external-id: src:001:sap
         - node-name: src:002:weather
           description: Sources 002; from Weather.com
-
 
 cognite: # kwargs to pass to the CogniteClient, Environment variable format: ${ENVIRONMENT_VARIABLE_NAME}
   # host: https://${BOOTSTRAP_CDF_CLUSTER}.cognitedata.com/
