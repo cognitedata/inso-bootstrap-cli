@@ -24,10 +24,10 @@ class RoleType(str, ReprEnum):
 #   and read: ["READ"])
 #
 AclDefaultTypes = [
-    "assets",
     "annotations",
-    "dataModels",
+    "assets",
     "dataModelInstances",
+    "dataModels",
     "datasets",
     "digitalTwin",
     "entitymatching",
@@ -58,7 +58,13 @@ AclDefaultTypes = [
     "wells",
 ]
 
-UndocumentedAclDefaultTypes = ["documentFeedback", "documentPipelines", "monitoringTasks", "notifications"]
+UndocumentedAclDefaultTypes = [
+    "documentFeedback",
+    "documentPipelines",
+    "monitoringTasks",
+    "notifications",
+    "workflowOrchestration",
+]
 
 
 def getAllAclTypes(with_undocumented_capabilities: bool = False):
@@ -72,23 +78,24 @@ def getAllAclTypes(with_undocumented_capabilities: bool = False):
 # a subset of AclDefaultTypes
 AclAllScopeOnlyTypes = set(
     [
-        "projects",
-        "sessions",
         "annotations",
+        "digitalTwin",
         "entitymatching",
         "functions",
-        "types",
-        "seismic",
-        "digitalTwin",
         "geospatial",
         "geospatialCrs",
-        "wells",
+        "projects",
+        "seismic",
+        "sessions",
         "timeSeriesSubscriptions",
+        "types",
+        "wells",
         # undocumented alcls
         "documentFeedback",
         "documentPipelines",
         "monitoringTasks",
         "notifications",
+        "workflowOrchestration",
     ]
 )
 
