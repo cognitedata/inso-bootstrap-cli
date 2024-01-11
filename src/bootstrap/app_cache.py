@@ -4,11 +4,14 @@ from collections import UserList
 from collections.abc import Iterable
 from typing import Any, Type
 
-from cognite.client import CogniteClient, utils
+from cognite.client import CogniteClient
 from cognite.client.data_classes import Database, DataSet, Group
 from cognite.client.data_classes._base import CogniteResource, CogniteResourceList
 from cognite.client.data_classes.data_modeling.spaces import Space
-from cognite.client.utils._time import convert_time_attributes_to_datetime
+
+# private from Cognite SDK v7.13.2
+from cognite.client.utils._auxiliary import json_dump_default
+from cognite.client.utils._time import TIME_ATTRIBUTES, convert_and_isoformat_time_attrs
 
 
 class CogniteResourceCache(UserList):
@@ -40,14 +43,23 @@ class CogniteResourceCache(UserList):
         # b) is single element, pack it in list
         self.data = [r for r in resources] if isinstance(resources, CogniteResourceList) else [resources]
 
+    # def __str__(self) -> str:
+    #     """From CogniteResourceList v6.2.1
+
+    #     Returns:
+    #         _type_: _description_
+    #     """
+    #     item = convert_time_attributes_to_datetime(self.dump())
+    #     return json.dumps(item, default=utils._auxiliary.json_dump_default, indent=4)
+
     def __str__(self) -> str:
-        """From CogniteResourceList v6.2.1
+        """From CogniteResourceList v7.13.2
 
         Returns:
-            _type_: _description_
+            str: _description_
         """
-        item = convert_time_attributes_to_datetime(self.dump())
-        return json.dumps(item, default=utils._auxiliary.json_dump_default, indent=4)
+        item = convert_and_isoformat_time_attrs(self.dump(camel_case=False))
+        return json.dumps(item, default=json_dump_default, indent=4)
 
     def dump(self, camel_case: bool = False) -> list[dict[str, Any]]:
         """Dump the instance into a json serializable Python data type.

@@ -128,6 +128,7 @@
 #   - atm existing datasets (not created by bootstrap) can be referenced too
 
 import logging
+from pathlib import Path
 from typing import Optional
 
 import click
@@ -140,6 +141,7 @@ from .app_exceptions import BootstrapConfigError
 from .commands.delete import CommandDelete
 from .commands.deploy import CommandDeploy
 from .commands.diagram import CommandDiagram
+from .commands.export_to_cdftk import CommandExportToCdfTk
 from .commands.prepare import CommandPrepare
 
 # share the root-logger, which get's later configured by extractor-utils LoggingConfig too
@@ -217,6 +219,7 @@ logging = logging.getLogger()
 )
 @click.option(
     "--dotenv-path",
+    "-e",
     help="Provide a relative or absolute path to an .env file (for command line usage only)",
 )
 @click.option(
@@ -458,10 +461,74 @@ def diagram(
         exit(e.message)
 
 
+@click.command(help="Export mode creates configurations for cdf-tk")
+@click.argument(
+    "config_file",
+    default="./config-bootstrap.yml",
+)
+@click.option(
+    "--cdf-project",
+    "-p",
+    help="[optional] Provide the CDF project name to use for the diagram 'idp-cdf-mappings'.",
+)
+@click.option(
+    "--source-dir",
+    "-b",
+    default="./.local/cdftk-source",
+    help="[optional] Provide the cdf-tk source path to export the configs to. Defaults to '.local/source'.",
+)
+@click.option(
+    "--clean",
+    "-c",
+    is_flag=False,
+    help="Delete the source directory before exporting the configurations",
+)
+@click.pass_obj
+def export_to_cdftk(
+    # click.core.Context obj
+    obj: dict,
+    config_file: str,
+    cdf_project: str,
+    source_dir: str,
+    clean: bool,
+) -> None:
+    # click.echo(click.style("Diagram CDF Project ...", fg="red"))
+
+    try:
+        (
+            CommandExportToCdfTk(
+                config_file,
+                command=CommandMode.DIAGRAM,
+                debug=obj["debug"],
+                dotenv_path=obj["dotenv_path"]
+            )
+            .validate_config_length_limits()
+            .validate_config_shared_access()
+            .validate_cdf_project_available(cdf_project_from_cli=cdf_project)
+            .validate_config_is_cdf_project_in_mappings(cdf_project_from_cli=cdf_project)
+            .command(
+                cdf_project=cdf_project,
+                source_dir=Path(source_dir),
+                clean=clean,
+            )
+        )  # fmt:skip
+
+        # click.echo(
+        #     click.style(
+        #         "CDF Project relevant groups and raw_dbs are documented as Mermaid",
+        #         fg="blue",
+        #     )
+        # )
+
+    except BootstrapConfigError as e:
+        exit(e.message)
+
+
 bootstrap_cli.add_command(deploy)
 bootstrap_cli.add_command(prepare)
 bootstrap_cli.add_command(delete)
 bootstrap_cli.add_command(diagram)
+bootstrap_cli.add_command(export_to_cdftk)
 
 
 def main() -> None:

@@ -19,6 +19,7 @@ from cognite.client.data_classes.data_modeling.spaces import (
     SpaceApply,
     SpaceList,
 )
+from easydict import EasyDict as edict
 
 from .. import __version__
 from ..app_cache import CogniteDeployedCache
@@ -70,6 +71,7 @@ class CommandBase:
         self.is_dry_run: bool = dry_run
         self.client: CogniteClient
         self.cdf_project: str
+        self.with_export_to_cdftk: bool = False
 
         # instance variable for result chaining
         self.generated_groups: list[Group]
@@ -524,6 +526,16 @@ class CommandBase:
         return dataset_names
 
     def dataset_names_to_ids(self, dataset_names):
+        if self.with_export_to_cdftk:
+            return [
+                # get external_id for all dataset names
+                ds.external_id
+                for ds in self.deployed.datasets
+                if ds.name in dataset_names
+            ]
+        else:
+            return dataset_names
+
         return [
             # get id for all dataset names
             ds.id
@@ -565,12 +577,18 @@ class CommandBase:
                 return {"spaceIdScope": {"spaceIds": [space for space in scope_ctx[ScopeCtxType.SPACE]]}}
             case "datasets":
                 # { "idScope": { "ids": [ 2695894113527579, 4254268848874387 ] } }
-                return {"idScope": {"ids": self.dataset_names_to_ids(scope_ctx[ScopeCtxType.DATASET])}}
+                if self.with_export_to_cdftk:
+                    return {"idScope": {"ids": scope_ctx[ScopeCtxType.DATASET]}}
+                else:
+                    return {"idScope": {"ids": self.dataset_names_to_ids(scope_ctx[ScopeCtxType.DATASET])}}
             case "groups":
                 return {"currentuserscope": {}}
             case _:  # like 'assets', 'events', 'files', 'sequences', 'timeSeries', ..
                 # { "datasetScope": { "ids": [ 2695894113527579, 4254268848874387 ] } }
-                return {"datasetScope": {"ids": self.dataset_names_to_ids(scope_ctx[ScopeCtxType.DATASET])}}
+                if self.with_export_to_cdftk:
+                    return {"idScope": {"ids": scope_ctx[ScopeCtxType.DATASET]}}
+                else:
+                    return {"idScope": {"ids": self.dataset_names_to_ids(scope_ctx[ScopeCtxType.DATASET])}}
 
     def generate_group_name_and_capabilities(
         self,
@@ -748,6 +766,10 @@ class CommandBase:
             Optional[Group]: the new created CDF group or None if it is skipped
         """
 
+        # bypass and retur export version
+        if self.with_export_to_cdftk:
+            return self.create_group_for_cdftk(group_name=group_name, group_capabilities=group_capabilities)
+
         # configuration per cdf-project if cdf-groups creation should be limited to IdP mapped only
         create_only_mapped_cdf_groups: bool
         idp_source_id, idp_source_name = None, None
@@ -814,6 +836,67 @@ class CommandBase:
             else:
                 self.client.iam.groups.delete(old_group_ids)
                 self.deployed.groups.delete(resources=self.deployed.groups.select(values=old_group_ids))
+
+        return new_group
+
+    def create_group_for_cdftk(
+        self,
+        group_name: str,
+        group_capabilities: list[dict[str, Any]],
+    ) -> Optional[Group]:
+        """Creating a CDF group
+        - with upsert support the same way Fusion updates CDF groups
+            if a group with the same name exists:
+                1. a new group with the same name will be created
+                2. then the old group will be deleted (by its 'id')
+        - with support of explicit given aad-mapping or internal lookup from config
+
+        Args:
+            group_name (str): name of the CDF group (always prefixed with GROUP_NAME_PREFIX)
+            group_capabilities (List[Dict[str, Any]], optional): Defining the CDF group capabilities.
+
+        Returns:
+            Optional[Group]: the new created CDF group or None if it is skipped
+        """
+
+        # configuration per cdf-project if cdf-groups creation should be limited to IdP mapped only
+        create_only_mapped_cdf_groups: bool
+        idp_source_id, idp_source_name = None, None
+        new_group: Optional[Group]
+
+        # check lookup from provided config
+        create_only_mapped_cdf_groups = self.bootstrap_config.create_only_mapped_cdf_groups(self.cdf_project)
+        mapping = self.bootstrap_config.get_idp_cdf_mapping_for_group(
+            cdf_project=self.cdf_project, cdf_group=group_name
+        )
+        # unpack
+        idp_source_id, idp_source_name = mapping.idp_source_id, mapping.idp_source_name
+
+        metadata = dict(
+            Dataops_created=self.get_timestamp(),
+            Dataops_source=f"bootstrap-cli v{__version__}",
+        )
+        # not creating a Group() but simply the dict
+        new_group = edict(dict(name=group_name, capabilities=group_capabilities, metadata=metadata))
+        # https://docs.cognite.com/api/v1/#tag/Groups/operation/createGroups
+        if idp_source_id:
+            # inject (both will be pushed through the API call!)
+            new_group.source_id = idp_source_id  # 'S-314159-1234'
+
+            # `source` -- to store the IdP name -- was removed ~Dec'22 from API v1
+            # new_group.source = idp_source_name
+
+            # new `metadata` was added to store additional information
+            # write merged `metadata` with inline-style `dict(d1, **d2)`
+            new_group.metadata = dict(  # type: ignore
+                new_group.metadata, **dict(idp_source_id=idp_source_id, idp_source_name=idp_source_name)
+            )
+
+        # print(f"group_create_object:<{group_create_object}>")
+        # overwrite new_group as it now contains id too
+        if create_only_mapped_cdf_groups and not idp_source_id:
+            logging.info(f"Skipping group w/o IdP mapping with name: <{new_group.name}>")
+            new_group = None
 
         return new_group
 
@@ -1064,6 +1147,8 @@ class CommandBase:
 
         # filter out None
         self.generated_groups = [g for g in groups if g]
+
+        return self.generated_groups
 
     # prepare a yaml for "delete" job
     def dump_delete_template_to_yaml(self) -> None:
