@@ -411,16 +411,6 @@ files = [
 ]
 
 [[package]]
-name = "easydict"
-version = "1.11"
-description = "Access dict values as attributes (works recursively)."
-optional = false
-python-versions = "*"
-files = [
-    {file = "easydict-1.11.tar.gz", hash = "sha256:dcb1d2ed28eb300c8e46cd371340373abc62f7c14d6dea74fdfc6f1069061c78"},
-]
-
-[[package]]
 name = "filelock"
 version = "3.13.1"
 description = "A platform independent file lock."
@@ -1265,4 +1255,4 @@ test = ["covdefaults (>=2.3)", "coverage (>=7.2.7)", "coverage-enable-subprocess
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.11"
-content-hash = "9479999ad6bcbe74974db938f9f5fa97a629b9de6e49a3bc3298b7cd744bd4ff"
+content-hash = "d5f491b1944c32f831563790572a37315448d67fcfc887fb1d79c72ff5b351af"

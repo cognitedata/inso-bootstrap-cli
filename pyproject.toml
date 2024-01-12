@@ -22,7 +22,6 @@ dependency-injector = {version = "^4.41.0", extras = ["yaml"]}
 click = "^8.1.6"
 cognite-sdk = {version = "^7", extras = ["pandas"]}
 rich = "^13.5"
-easydict = "1.11"
 
 [tool.poetry.dev-dependencies]
 autopep8 = "^2.0.1"

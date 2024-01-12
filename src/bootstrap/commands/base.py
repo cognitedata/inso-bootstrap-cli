@@ -19,7 +19,6 @@ from cognite.client.data_classes.data_modeling.spaces import (
     SpaceApply,
     SpaceList,
 )
-from easydict import EasyDict as edict
 
 from .. import __version__
 from ..app_cache import CogniteDeployedCache
@@ -843,7 +842,7 @@ class CommandBase:
         self,
         group_name: str,
         group_capabilities: list[dict[str, Any]],
-    ) -> Optional[Group]:
+    ) -> Optional[dict[str, Any]]:
         """Creating a CDF group
         - with upsert support the same way Fusion updates CDF groups
             if a group with the same name exists:
@@ -862,7 +861,7 @@ class CommandBase:
         # configuration per cdf-project if cdf-groups creation should be limited to IdP mapped only
         create_only_mapped_cdf_groups: bool
         idp_source_id, idp_source_name = None, None
-        new_group: Optional[Group]
+        new_group: Optional[dict[str, Any]]
 
         # check lookup from provided config
         create_only_mapped_cdf_groups = self.bootstrap_config.create_only_mapped_cdf_groups(self.cdf_project)
@@ -877,25 +876,25 @@ class CommandBase:
             Dataops_source=f"bootstrap-cli v{__version__}",
         )
         # not creating a Group() but simply the dict
-        new_group = edict(dict(name=group_name, capabilities=group_capabilities, metadata=metadata))
+        new_group = dict(name=group_name, capabilities=group_capabilities, metadata=metadata)
         # https://docs.cognite.com/api/v1/#tag/Groups/operation/createGroups
         if idp_source_id:
             # inject (both will be pushed through the API call!)
-            new_group.source_id = idp_source_id  # 'S-314159-1234'
+            new_group["sourceId"] = idp_source_id  # 'S-314159-1234'
 
             # `source` -- to store the IdP name -- was removed ~Dec'22 from API v1
             # new_group.source = idp_source_name
 
             # new `metadata` was added to store additional information
             # write merged `metadata` with inline-style `dict(d1, **d2)`
-            new_group.metadata = dict(  # type: ignore
-                new_group.metadata, **dict(idp_source_id=idp_source_id, idp_source_name=idp_source_name)
+            new_group["metadata"] = dict(  # type: ignore
+                new_group["metadata"], **dict(idp_source_id=idp_source_id, idp_source_name=idp_source_name)
             )
 
         # print(f"group_create_object:<{group_create_object}>")
         # overwrite new_group as it now contains id too
         if create_only_mapped_cdf_groups and not idp_source_id:
-            logging.info(f"Skipping group w/o IdP mapping with name: <{new_group.name}>")
+            logging.info(f"Skipping group w/o IdP mapping with name: <{new_group['name']}>")
             new_group = None
 
         return new_group
