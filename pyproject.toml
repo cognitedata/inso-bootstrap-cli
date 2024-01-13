@@ -17,7 +17,7 @@ packages = [
 [tool.poetry.dependencies]
 python = "^3.11"
 python-dotenv = "^0.21.1"
-pydantic-settings = "^2"
+pydantic = "*"
 dependency-injector = {version = "^4.41.0", extras = ["yaml"]}
 click = "^8.1.6"
 cognite-sdk = {version = "^7", extras = ["pandas"]}

@@ -1,10 +1,6 @@
 from typing import Type
 
-from pydantic_settings import (
-    BaseSettings,
-    PydanticBaseSettingsSource,
-    SettingsConfigDict,
-)
+from pydantic import BaseModel, ConfigDict
 
 
 def to_hyphen_case(value: str) -> str:
@@ -20,26 +16,13 @@ def to_hyphen_case(value: str) -> str:
     return value.replace("_", "-")
 
 
-class Model(BaseSettings):
-    model_config = SettingsConfigDict(
-        extra="ignore",
+class Model(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
         # generate for each field an alias in hyphen-case (kebap)
         alias_generator=to_hyphen_case,
         # an aliased field may be populated by its name as given by the model attribute, as well as the alias
         # this supports both cases to be mixed
         populate_by_name=True,
     )
-
-    @classmethod
-    def settings_customise_sources(
-        cls,
-        settings_cls: Type[BaseSettings],
-        init_settings: PydanticBaseSettingsSource,
-        env_settings: PydanticBaseSettingsSource,
-        dotenv_settings: PydanticBaseSettingsSource,
-        file_secret_settings: PydanticBaseSettingsSource,
-    ) -> tuple[PydanticBaseSettingsSource, ...]:
-        # here we choose to ignore env_settings or dotenv_settings
-        # to avoid unecpectd expansion of pydantic properties matching an envvar
-        # all envvar expansion exlcusivly happens in the dependency-injector
-        return (init_settings,)
+    # no need for "settings_customise_sources" as we don't need any injection from envvar, dotenv, secrets

@@ -226,13 +226,13 @@ colorama = {version = "*", markers = "platform_system == \"Windows\""}
 
 [[package]]
 name = "cognite-sdk"
-version = "7.13.2"
+version = "7.13.4"
 description = "Cognite Python SDK"
 optional = false
 python-versions = ">=3.8,<4.0"
 files = [
-    {file = "cognite_sdk-7.13.2-py3-none-any.whl", hash = "sha256:b4c9588bf0a413ca5f205bfa904463d8b43e8a456366e48c8f8525972df6033d"},
-    {file = "cognite_sdk-7.13.2.tar.gz", hash = "sha256:3a89828f110abcc7fdc07d5815ee1219876ac6d60486a55cd912d00ac1c1d9bf"},
+    {file = "cognite_sdk-7.13.4-py3-none-any.whl", hash = "sha256:dbf27ca89b56a00d6f85d24d15c8dcc417a67ddfffd8ec93120c2c15d946174a"},
+    {file = "cognite_sdk-7.13.4.tar.gz", hash = "sha256:465fbe5751df65ba8f5965dbb20657415ae8a6ff38c4a810e35f254a94664b69"},
 ]
 
 [package.dependencies]
@@ -953,21 +953,6 @@ files = [
 typing-extensions = ">=4.6.0,<4.7.0 || >4.7.0"
 
 [[package]]
-name = "pydantic-settings"
-version = "2.1.0"
-description = "Settings management using Pydantic"
-optional = false
-python-versions = ">=3.8"
-files = [
-    {file = "pydantic_settings-2.1.0-py3-none-any.whl", hash = "sha256:7621c0cb5d90d1140d2f0ef557bdf03573aac7035948109adf2574770b77605a"},
-    {file = "pydantic_settings-2.1.0.tar.gz", hash = "sha256:26b1492e0a24755626ac5e6d715e9077ab7ad4fb5f19a8b7ed7011d52f36141c"},
-]
-
-[package.dependencies]
-pydantic = ">=2.3.0"
-python-dotenv = ">=0.21.0"
-
-[[package]]
 name = "pygments"
 version = "2.17.2"
 description = "Pygments is a syntax highlighting package written in Python."
@@ -1255,4 +1240,4 @@ test = ["covdefaults (>=2.3)", "coverage (>=7.2.7)", "coverage-enable-subprocess
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.11"
-content-hash = "d5f491b1944c32f831563790572a37315448d67fcfc887fb1d79c72ff5b351af"
+content-hash = "c1fa348f3795d0c27fb6a83364af66d7a86a59c63b6257696b56168b618a9dcd"
