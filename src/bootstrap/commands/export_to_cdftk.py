@@ -91,7 +91,7 @@ class CommandExportToCdfTk(CommandBase):
             data_set_dir = self.cdftk_source_dir / "raw"
             data_set_dir.mkdir(exist_ok=True)
 
-            file_path = data_set_dir / "rawdb-array-export.yaml"
+            file_path = data_set_dir / "rawdb-array-export.database.yaml"
 
             # Use a context manager to write to the file
             with open(file_path, "w") as export_file:
@@ -143,7 +143,7 @@ class CommandExportToCdfTk(CommandBase):
             with open(file_path, "w") as export_file:
                 yaml.dump(ds_flat, export_file)
 
-        def _export_groups(grps: dict[str, Any]) -> None:
+        def _export_groups(grps: list[dict[str, Any]]) -> None:
             """Export all groups.
             Folder must be named "auth"
             File suffix must be ".yaml"
@@ -153,6 +153,14 @@ class CommandExportToCdfTk(CommandBase):
             # Create folder named "auth"
             data_set_dir = self.cdftk_source_dir / "auth"
             data_set_dir.mkdir(exist_ok=True)
+
+            for grp in grps:
+                # Create file named "bootstrap-export.yaml" in the "data_set" folder
+                file_path = data_set_dir / f"{grp['name'].replace(':', '_')}.yaml"
+
+                # Use a context manager to write to the file
+                with open(file_path, "w") as export_file:
+                    yaml.dump(grp, export_file)
 
             # Create file named "bootstrap-export.yaml" in the "data_set" folder
             file_path = data_set_dir / "grp-array-export.yaml"
@@ -192,13 +200,15 @@ class CommandExportToCdfTk(CommandBase):
         #
 
         # required to pls some internals
-        self.all_scoped_ctx = {
+        self.all_scoped_ctx_names = {
             # generate_target_raw_dbs -> returns a Set[str]
             ScopeCtxType.RAWDB: list(self.generate_target_raw_dbs()),  # all raw_dbs
             # generate_target_datasets -> returns a Dict[str, Any]
-            ScopeCtxType.DATASET: list(self.generate_target_datasets()),  # all datasets
+            ScopeCtxType.DATASET: list(self.generate_target_datasets().keys()),  # all datasets
             ScopeCtxType.SPACE: list(self.generate_target_spaces()),  # all spaces
         }
+
+        print(self.all_scoped_ctx_names)
 
         # process scope_ctx
         export_item_to_cdftk(ScopeCtxType.RAWDB, self.generate_target_raw_dbs())
