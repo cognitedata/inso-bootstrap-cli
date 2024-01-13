@@ -66,7 +66,9 @@ class CommandBase:
 
         # instance variable declaration
         self.deployed: CogniteDeployedCache
-        self.all_scoped_ctx: dict[ScopeCtxType, list[str]]  # list or set
+        self.all_scoped_ctx_names: dict[ScopeCtxType, list[str]]  # list or set
+        # list for rawdb and spaces, dict for datasets
+        self.all_scoped_ctx_objects: dict[ScopeCtxType, (list[str] | dict[str, Any])]
         self.is_dry_run: bool = dry_run
         self.client: CogniteClient
         self.cdf_project: str
@@ -525,16 +527,6 @@ class CommandBase:
         return dataset_names
 
     def dataset_names_to_ids(self, dataset_names):
-        if self.with_export_to_cdftk:
-            return [
-                # get external_id for all dataset names
-                ds.external_id
-                for ds in self.deployed.datasets
-                if ds.name in dataset_names
-            ]
-        else:
-            return dataset_names
-
         return [
             # get id for all dataset names
             ds.id
@@ -558,7 +550,9 @@ class CommandBase:
             for role_type in [RoleType.OWNER, RoleType.READ]
         }  # fmt: skip
 
-    def generate_scope(self, acl_type: str, scope_ctx: dict[ScopeCtxType, list[str]]) -> dict[str, dict[str, Any]]:
+    def generate_scope(
+        self, acl_type: str, scope_ctx_objects: dict[ScopeCtxType, list[str]]
+    ) -> dict[str, dict[str, Any]]:
         # first handle acl types **without** scope support:
         if acl_type in AclAllScopeOnlyTypes:
             return {"all": {}}
@@ -567,27 +561,27 @@ class CommandBase:
         match acl_type:
             case "raw":
                 # { "tableScope": { "dbsToTables": { "foo:db": {}, "bar:db": {} } }
-                return {"tableScope": {"dbsToTables": {raw: {} for raw in scope_ctx[ScopeCtxType.RAWDB]}}}
+                return {"tableScope": {"dbsToTables": {raw: {} for raw in scope_ctx_objects[ScopeCtxType.RAWDB]}}}
             case "dataModels":
                 # { "spaceIdScope": { "spaceIds": [ "foo", "bar" ] }
-                return {"spaceIdScope": {"spaceIds": [space for space in scope_ctx[ScopeCtxType.SPACE]]}}
+                return {"spaceIdScope": {"spaceIds": [space for space in scope_ctx_objects[ScopeCtxType.SPACE]]}}
             case "dataModelInstances":
                 # { "spaceIdScope": { "spaceIds": [ "foo", "bar" ] }
-                return {"spaceIdScope": {"spaceIds": [space for space in scope_ctx[ScopeCtxType.SPACE]]}}
+                return {"spaceIdScope": {"spaceIds": [space for space in scope_ctx_objects[ScopeCtxType.SPACE]]}}
             case "datasets":
                 # { "idScope": { "ids": [ 2695894113527579, 4254268848874387 ] } }
                 if self.with_export_to_cdftk:
-                    return {"idScope": {"ids": scope_ctx[ScopeCtxType.DATASET]}}
+                    return {"idScope": {"ids": [ds for ds in scope_ctx_objects[ScopeCtxType.DATASET]]}}
                 else:
-                    return {"idScope": {"ids": self.dataset_names_to_ids(scope_ctx[ScopeCtxType.DATASET])}}
+                    return {"idScope": {"ids": self.dataset_names_to_ids(scope_ctx_objects[ScopeCtxType.DATASET])}}
             case "groups":
                 return {"currentuserscope": {}}
             case _:  # like 'assets', 'events', 'files', 'sequences', 'timeSeries', ..
                 # { "datasetScope": { "ids": [ 2695894113527579, 4254268848874387 ] } }
                 if self.with_export_to_cdftk:
-                    return {"idScope": {"ids": scope_ctx[ScopeCtxType.DATASET]}}
+                    return {"idScope": {"ids": [ds for ds in scope_ctx_objects[ScopeCtxType.DATASET]]}}
                 else:
-                    return {"idScope": {"ids": self.dataset_names_to_ids(scope_ctx[ScopeCtxType.DATASET])}}
+                    return {"idScope": {"ids": self.dataset_names_to_ids(scope_ctx_objects[ScopeCtxType.DATASET])}}
 
     def generate_group_name_and_capabilities(
         self,
@@ -689,7 +683,7 @@ class CommandBase:
                             actions=self.generate_default_actions(role_type, acl_type),
                             # scope = { "all": {} }
                             # create scope for all raw_dbs and datasets
-                            scope=self.generate_scope(acl_type, self.all_scoped_ctx),
+                            scope=self.generate_scope(acl_type, self.all_scoped_ctx_names),
                         )
                     }
                 )

@@ -29,6 +29,14 @@ class CommandDeploy(CommandBase):
 
         # run generate steps (only print results atm)
 
+        self.all_scoped_ctx_objects = {
+            # generate_target_raw_dbs -> returns a Set[str]
+            ScopeCtxType.RAWDB: list(self.generate_target_raw_dbs()),  # all raw_dbs as list of names
+            # generate_target_datasets -> returns a Dict[str, Any]
+            ScopeCtxType.DATASET: self.generate_target_datasets(),  # all datasets as dict
+            ScopeCtxType.SPACE: list(self.generate_target_spaces()),  # all spaces as list of names
+        }
+
         #
         # raw_dbs
         #
@@ -69,7 +77,7 @@ class CommandDeploy(CommandBase):
         logging.info(f"New DATASETS to CDF:\n{sorted(new_created_dataset_names)}")
 
         # store all raw_dbs and datasets in scope of this configuration
-        self.all_scoped_ctx = {
+        self.all_scoped_ctx_names = {
             ScopeCtxType.RAWDB: list(target_raw_db_names),  # all raw_dbs
             ScopeCtxType.DATASET: list(target_dataset_names),  # all datasets
             ScopeCtxType.SPACE: list(target_space_names),  # all spaces
