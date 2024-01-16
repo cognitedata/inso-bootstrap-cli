@@ -72,6 +72,7 @@ class CommandBase:
         self.is_dry_run: bool = dry_run
         self.client: CogniteClient
         self.cdf_project: str
+        # for command: `export-to-cdftk`
         self.with_export_to_cdftk: bool = False
 
         # instance variable for result chaining
@@ -102,7 +103,7 @@ class CommandBase:
         match command:
             case CommandMode.DELETE:
                 self.delete_or_deprecate: BootstrapDeleteConfig = self.container.delete_or_deprecate()
-            case CommandMode.DEPLOY | CommandMode.DIAGRAM:
+            case CommandMode.DEPLOY | CommandMode.DIAGRAM | CommandMode.EXPORT_TO_CDFTK:
                 # TODO: correct for DIAGRAM?!
                 self.bootstrap_config: BootstrapCoreConfig = self.container.bootstrap()
                 self.idp_cdf_mappings = self.bootstrap_config.idp_cdf_mappings
@@ -526,6 +527,11 @@ class CommandBase:
         # returns clear names
         return dataset_names
 
+    def dataset_names_to_external_ids(self, dataset_names):
+        # TODO: hack only working for one customer way to name datasets, which is w/o the suffix!
+        # needs refactor to get the external_id, i.e. from self.bootstrap_config.get_dataset_external_id()
+        return [dataset_name.replace(self.DATASET_SUFFIX, "") for dataset_name in dataset_names]
+
     def dataset_names_to_ids(self, dataset_names):
         return [
             # get id for all dataset names
@@ -571,7 +577,9 @@ class CommandBase:
             case "datasets":
                 # { "idScope": { "ids": [ 2695894113527579, 4254268848874387 ] } }
                 if self.with_export_to_cdftk:
-                    return {"idScope": {"ids": [ds for ds in scope_ctx_objects[ScopeCtxType.DATASET]]}}
+                    return {
+                        "idScope": {"ids": self.dataset_names_to_external_ids(scope_ctx_objects[ScopeCtxType.DATASET])}
+                    }
                 else:
                     return {"idScope": {"ids": self.dataset_names_to_ids(scope_ctx_objects[ScopeCtxType.DATASET])}}
             case "groups":
@@ -579,7 +587,9 @@ class CommandBase:
             case _:  # like 'assets', 'events', 'files', 'sequences', 'timeSeries', ..
                 # { "datasetScope": { "ids": [ 2695894113527579, 4254268848874387 ] } }
                 if self.with_export_to_cdftk:
-                    return {"idScope": {"ids": [ds for ds in scope_ctx_objects[ScopeCtxType.DATASET]]}}
+                    return {
+                        "idScope": {"ids": self.dataset_names_to_external_ids(scope_ctx_objects[ScopeCtxType.DATASET])}
+                    }
                 else:
                     return {"idScope": {"ids": self.dataset_names_to_ids(scope_ctx_objects[ScopeCtxType.DATASET])}}
 

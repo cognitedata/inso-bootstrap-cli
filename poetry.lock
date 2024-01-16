@@ -226,13 +226,13 @@ colorama = {version = "*", markers = "platform_system == \"Windows\""}
 
 [[package]]
 name = "cognite-sdk"
-version = "7.13.4"
+version = "7.13.5"
 description = "Cognite Python SDK"
 optional = false
 python-versions = ">=3.8,<4.0"
 files = [
-    {file = "cognite_sdk-7.13.4-py3-none-any.whl", hash = "sha256:dbf27ca89b56a00d6f85d24d15c8dcc417a67ddfffd8ec93120c2c15d946174a"},
-    {file = "cognite_sdk-7.13.4.tar.gz", hash = "sha256:465fbe5751df65ba8f5965dbb20657415ae8a6ff38c4a810e35f254a94664b69"},
+    {file = "cognite_sdk-7.13.5-py3-none-any.whl", hash = "sha256:42510a3e51693d98c1220ee0abe223635f1c81ca459f06ff06a532009d3ac5ae"},
+    {file = "cognite_sdk-7.13.5.tar.gz", hash = "sha256:0ced2baec529ad650fe88940576a065d4f5497d8eb62120b501d686ab80d4121"},
 ]
 
 [package.dependencies]
@@ -694,10 +694,7 @@ files = [
 ]
 
 [package.dependencies]
-numpy = [
-    {version = ">=1.23.2,<2", markers = "python_version == \"3.11\""},
-    {version = ">=1.26.0,<2", markers = "python_version >= \"3.12\""},
-]
+numpy = {version = ">=1.23.2,<2", markers = "python_version == \"3.11\""}
 python-dateutil = ">=2.8.2"
 pytz = ">=2020.1"
 tzdata = ">=2022.1"
@@ -1239,5 +1236,5 @@ test = ["covdefaults (>=2.3)", "coverage (>=7.2.7)", "coverage-enable-subprocess
 
 [metadata]
 lock-version = "2.0"
-python-versions = "^3.11"
-content-hash = "c1fa348f3795d0c27fb6a83364af66d7a86a59c63b6257696b56168b618a9dcd"
+python-versions = "~3.11"
+content-hash = "01fc06239e483ae228c065d7d907718216a047a2570b071b7cb2121ad12b8f6f"

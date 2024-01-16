@@ -15,18 +15,19 @@ packages = [
 ]
 
 [tool.poetry.dependencies]
-python = "^3.11"
-python-dotenv = "^0.21.1"
-pydantic = "*"
+python = "~3.11"
+
+python-dotenv = "^0.21"
+pydantic = "^2.5"
 dependency-injector = {version = "^4.41.0", extras = ["yaml"]}
-click = "^8.1.6"
+click = "^8.1.7"
 cognite-sdk = {version = "^7", extras = ["pandas"]}
-rich = "^13.5"
+rich = "^13.7"
 
 [tool.poetry.dev-dependencies]
-autopep8 = "^2.0.1"
-mypy = "^1.5"
-pre-commit = "^3.3"
+autopep8 = "^2.0.4"
+mypy = "^1.8"
+pre-commit = "^3.6"
 pytest = "^7.4"
 
 [tool.black]

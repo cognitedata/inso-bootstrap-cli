@@ -147,6 +147,7 @@ class CommandMode(str, ReprEnum):
     DEPLOY = "deploy"
     DELETE = "delete"
     DIAGRAM = "diagram"
+    EXPORT_TO_CDFTK = "export_to_cdftk"
 
 
 class CacheUpdateMode(str, ReprEnum):
