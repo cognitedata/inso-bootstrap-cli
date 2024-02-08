@@ -588,10 +588,12 @@ class CommandBase:
                 # { "datasetScope": { "ids": [ 2695894113527579, 4254268848874387 ] } }
                 if self.with_export_to_cdftk:
                     return {
-                        "idScope": {"ids": self.dataset_names_to_external_ids(scope_ctx_objects[ScopeCtxType.DATASET])}
+                        "datasetScope": {
+                            "ids": self.dataset_names_to_external_ids(scope_ctx_objects[ScopeCtxType.DATASET])
+                        }
                     }
                 else:
-                    return {"idScope": {"ids": self.dataset_names_to_ids(scope_ctx_objects[ScopeCtxType.DATASET])}}
+                    return {"datasetScope": {"ids": self.dataset_names_to_ids(scope_ctx_objects[ScopeCtxType.DATASET])}}
 
     def generate_group_name_and_capabilities(
         self,
@@ -833,6 +835,9 @@ class CommandBase:
 
         # if the group name existed before, delete those groups now
         # same upsert approach Fusion is using to update a CDF group: create new with changes => then delete old one
+
+        # FYI in combintation with 'create_only_mapped_cdf_groups' it deletes now cdf-groups,
+        # which are removed from idp-cdf-mapping!
         if old_group_ids:
             if self.is_dry_run:
                 logging.info(f"Dry run - Deleting groups with ids: <{old_group_ids}>")
@@ -944,17 +949,21 @@ class CommandBase:
             {  # dictionary generator
                 # key:
                 self.get_dataset_name_template().format(
-                    node_name=f"{ns_name}:{CommandBase.AGGREGATED_LEVEL_NAME}"
-                    if ns_name
-                    else CommandBase.AGGREGATED_LEVEL_NAME
+                    node_name=(
+                        f"{ns_name}:{CommandBase.AGGREGATED_LEVEL_NAME}"
+                        if ns_name
+                        else CommandBase.AGGREGATED_LEVEL_NAME
+                    )
                 ):
                 # value
                 {
                     "description": f"Dataset for '{CommandBase.AGGREGATED_LEVEL_NAME}' Owner groups",
                     # "metadata": "",
-                    "external_id": f"{ns_name}:{CommandBase.AGGREGATED_LEVEL_NAME}"
-                    if ns_name
-                    else CommandBase.AGGREGATED_LEVEL_NAME,
+                    "external_id": (
+                        f"{ns_name}:{CommandBase.AGGREGATED_LEVEL_NAME}"
+                        if ns_name
+                        else CommandBase.AGGREGATED_LEVEL_NAME
+                    ),
                 }
                 # creating 'all' at group type level + top-level
                 for ns_name in list([ns.ns_name for ns in self.bootstrap_config.namespaces]) + [""]
@@ -1039,9 +1048,11 @@ class CommandBase:
             # add RAW DBs for 'all' users
             [
                 self.get_raw_dbs_name_template().format(
-                    node_name=f"{ns_name}:{CommandBase.AGGREGATED_LEVEL_NAME}"
-                    if ns_name
-                    else CommandBase.AGGREGATED_LEVEL_NAME,
+                    node_name=(
+                        f"{ns_name}:{CommandBase.AGGREGATED_LEVEL_NAME}"
+                        if ns_name
+                        else CommandBase.AGGREGATED_LEVEL_NAME
+                    ),
                     raw_variant=raw_variant,
                 )
                 # creating allprojects at group type level + top-level
@@ -1086,9 +1097,11 @@ class CommandBase:
             # add SPACEs for 'all' users
             [
                 self.get_space_name_template(
-                    node_name=f"{ns_name}:{CommandBase.AGGREGATED_LEVEL_NAME}"
-                    if ns_name
-                    else CommandBase.AGGREGATED_LEVEL_NAME,
+                    node_name=(
+                        f"{ns_name}:{CommandBase.AGGREGATED_LEVEL_NAME}"
+                        if ns_name
+                        else CommandBase.AGGREGATED_LEVEL_NAME
+                    ),
                 )
                 # creating allprojects at group type level + top-level
                 for ns_name in list([ns.ns_name for ns in self.bootstrap_config.namespaces]) + [""]
