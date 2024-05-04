@@ -1074,11 +1074,11 @@ With v3-release we switched from `docker build` to use Buildpacks
 - Adopt the following `docker run` example
   - to mount your config-file to `/etc/config.yaml`
   - to use your `.env` file
-  - to choose the commansd and parameters you want to test locally
+  - set the commands and parameters you want to test locally
 
 ```bash
 # emulating github-actions run, with envvar and /github/workspace mounted
-➟  docker run --workdir /github/workspace -v "$(pwd)":"/github/workspace" -e GITHUB_ACTIONS=true --env-file=.env bootstrap-cli:latest deploy ./configs/config-deploy-example-v3.yml
+➟  docker run --workdir /github/workspace -v ${PWD}:"/github/workspace" -v ${PWD}/configs:/configs -e GITHUB_ACTIONS=true --env-file=.env bootstrap-cli:latest --dry-run deploy ./configs/config-deploy-example-v3.yml
 ```
 
 ### Run locally with Docker (v2)

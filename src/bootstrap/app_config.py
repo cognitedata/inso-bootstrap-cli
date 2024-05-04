@@ -40,6 +40,7 @@ AclDefaultTypes = [
     "geospatial",
     "geospatialCrs",
     "groups",
+    "hostedExtractors",
     "labels",
     "projects",
     "raw",
@@ -80,22 +81,22 @@ AclAllScopeOnlyTypes = set(
     [
         "annotations",
         "digitalTwin",
+        "documentFeedback",  # undocumented acls
+        "documentPipelines",  # undocumented acls
         "entitymatching",
         "functions",
         "geospatial",
         "geospatialCrs",
+        "hostedExtractors",
+        "monitoringTasks",  # undocumented acls
+        "notifications",  # undocumented acls
         "projects",
         "seismic",
         "sessions",
         "timeSeriesSubscriptions",
         "types",
         "wells",
-        # undocumented alcls
-        "documentFeedback",
-        "documentPipelines",
-        "monitoringTasks",
-        "notifications",
-        "workflowOrchestration",
+        "workflowOrchestration",  # undocumented acls
     ]
 )
 
