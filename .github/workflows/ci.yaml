@@ -7,17 +7,17 @@ on:
     # manually triggered only
     inputs:
       version:
-        description: 'image version (tag)'
+        description: "image version (tag)"
 
 jobs:
   printInputs:
     runs-on: ubuntu-latest
     steps:
-    - run: |
-        echo "Version: ${{ inputs.version }}"
+      - run: |
+          echo "Version: ${{ inputs.version }}"
 
   build:
-    environment: main
+    environment: CD
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
