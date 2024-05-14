@@ -7,24 +7,24 @@ on:
     # manually triggered only
     inputs:
       version:
-        description: 'image version (tag)'
+        description: "image version (tag)"
 
 jobs:
   printInputs:
     runs-on: ubuntu-latest
     steps:
-    - run: |
-        echo "Version: ${{ inputs.version }}"
+      - run: |
+          echo "Version: ${{ inputs.version }}"
 
   build:
-    environment: main
+    environment: CD
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       # https://github.com/docker/login-action#docker-hub
       - name: Docker login
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USER }}
           password: ${{ secrets.DOCKERHUB_ACCESS_TOKEN }}
