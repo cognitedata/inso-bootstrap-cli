@@ -8,7 +8,7 @@ idp-cdf-mapping:
         # capabilties: .. # support for plain api-level definition? Or enforce `capability-sets`?`
         capability-sets: [uc-001-owner, canvas] # acl + scopes + actions
         metadata:
-          Dataops_created: '2024-01-12 10:23:31'
+          Dataops_created: "2024-01-12 10:23:31"
           Dataops_source: bootstrap-cli v3.3.0
           idp_source_id: acd2fe35-aa51-45a7-acef-0d54e2b6b6a8
           idp_source_name: CDF_DEV_ALLPROJECTS_READ
@@ -17,7 +17,7 @@ idp-cdf-mapping:
       - name: cdf:root
         capability-sets: [governance] # acl + scopes + actions
         metadata:
-          Dataops_created: '2024-01-12 10:23:31'
+          Dataops_created: "2024-01-12 10:23:31"
           Dataops_source: bootstrap-cli v3.3.0
           idp_source_id: acd2fe35-aa51-45a7-acef-0d54e2b6b6a8
           idp_source_name: CDF_DEV_ALLPROJECTS_READ
@@ -29,37 +29,39 @@ idp-cdf-mapping:
 action-sets:
   - name: OWNER
     description: ""
-    annotations: [READ, WRITE, SUGGEST, REVIEW],
-    datasets: [READ, OWNER]
-    groups: [LIST]
-    projects: [LIST]
-    raw: [READ, WRITE, LIST]
-    robotics: [READ, CREATE, UPDATE, DELETE]
-    sessions: [LIST, CREATE]
-    threed: [READ, CREATE, UPDATE, DELETE]
-    documentFeedback: [READ, CREATE, DELETE]
-    _: [READ,WRITE] # default
+    action-mapping:
+      annotations: [READ, WRITE, SUGGEST, REVIEW]
+      datasets: [READ, OWNER]
+      groups: [LIST]
+      projects: [LIST]
+      raw: [READ, WRITE, LIST]
+      robotics: [READ, CREATE, UPDATE, DELETE]
+      sessions: [LIST, CREATE]
+      threed: [READ, CREATE, UPDATE, DELETE]
+      documentFeedback: [READ, CREATE, DELETE]
+      _: [READ, WRITE] # default
 
   # - name: WRITE
   # no WRITE set (yet), expecting OWNER with additional READ is enough
 
   - name: READ
     description: ""
-    raw: [READ, LIST]
-    groups: [LIST]
-    projects: [LIST]
-    sessions: [LIST]
-    _: [READ]
+    action-mapping:
+      raw: [READ, LIST]
+      groups: [LIST]
+      projects: [LIST]
+      sessions: [LIST]
+      _: [READ]
 
   - name: GOVERNANCE
     description: ""
-    datasets: [READ, WRITE, OWNER]
-    groups: [LIST, READ, CREATE, UPDATE, DELETE]
-    # TODO can space scope creation be limted to root-accoun
-    # dataModels: [READ, WRITE]
-    securityCategories: [MEMBEROF, LIST, CREATE, DELETE]
-    projects: [READ, UPDATE, LIST]
-    _: null # no default, all explicit
+    action-mapping:
+      datasets: [READ, WRITE, OWNER]
+      groups: [LIST, READ, CREATE, UPDATE, DELETE]
+      # TODO can space scope creation be limted to root-accoun
+      # dataModels: [READ, WRITE]
+      securityCategories: [MEMBEROF, LIST, CREATE, DELETE]
+      projects: [READ, UPDATE, LIST]
 
 #
 # ACLs
@@ -145,70 +147,71 @@ scope-sets:
   - name: canvas
     description: ""
     explicit:
-        spaces:
-          - cdf_apps_shared
-          - cdf_industrial_canvas
-          - IndustrialCanvasInstanceSpace
-          - CommentInstanceSpace
+      spaces:
+        - name: cdf_apps_shared
+        - name: cdf_industrial_canvas
+        - name: IndustrialCanvasInstanceSpace
+        - name: CommentInstanceSpace
 
   - name: infield-common-model
     description: required by guest, normal and admin
     explicit:
-        spaces:
-          - APM_Config
-          - cdf_apm
-          - cdf_infield
-          - cdf_core
-          - cdf_apps_shared
+      spaces:
+        - name: APM_Config
+        - name: cdf_apm
+        - name: cdf_infield
+        - name: cdf_core
+        - name: cdf_apps_shared
 
   - name: infield-common-instances
     description: required by guest, normal and admin
     explicit:
-        spaces:
-          - APM_Config
-          - cdf_apm
-          - cognite_app_data
+      spaces:
+        - name: APM_Config
+        - name: cdf_apm
+        - name: cognite_app_data
 
   - name: infield-guest-instances
     description: required by guest
     explicit:
       spaces:
-        - cognite_app_data
+        - name: cognite_app_data
 
   - name: infield-admin-instances
     description: required by admin
     explicit:
-        spaces:
-          - APM_Config
+      spaces:
+        - name: APM_Config
 
   - name: infield-rb-location-instances
     description: custom scope for rb:?? or in:??
     explicit:
-        spaces:
-          - dp-006-rb-mongstad-spc
-          - dp-007-rb-sture-spc
+      spaces:
+        - name: dp-006-rb-mongstad-spc
+        - name: dp-007-rb-sture-spc
 
   - name: src-all
     description: ""
     all-scope: false # default
     explicit:
-      - rawdbs:
-          - src:all:db
-        spaces:
-          - src-all-spc
-        datasets:
-          - src:all
+      rawdbs:
+        - name: src:all:db
+      spaces:
+        - name: src-all-spc
+      datasets:
+        - name: src:all
 
   - name: in-all
     description: ""
+    # compose: [foobar]
     all-scope: false # default
     explicit:
-      - rawdbs:
-          - in:all:db
-        spaces:
-          - in-all-spc
-        datasets:
-          - in:all
+      rawdbs:
+        - name: in:all:db
+      spaces:
+        - name: in-all-spc
+      datasets:
+        - name: in:all
 
   - name: in-001
     description: ""
@@ -216,28 +219,39 @@ scope-sets:
     compose: [src-all, in-all]
     exclude: []
     explicit:
-      - rawdbs:
-          - src:001:sap:db
-          - src:001:sap:db:state
-          - src:002:weather:db
-          - src:003:openint:db
-          - src:004:test:db
-        spaces:
-          - src-001-sap-spc
-          - src-002-weather-spc
-          - src-003-openint-spc
-          - src-004-test-spc
-        datasets:
-          - src:001:sap
-          - src:002:weather
-          - src:003:openint
-          - src:004:test
+      rawdbs:
+        - name: src:001:sap:db
+        - name: src:001:sap:db:state
+        - name: src:002:weather:db
+        - name: src:003:openint:db
+        - name: src:004:test:db
+      spaces:
+        - name: src-001-sap-spc
+        - name: src-002-weather-spc
+        - name: src-003-openint-spc
+        - name: src-004-test-spc
+      datasets:
+        - name: src:001:sap
+        - name: src:002:weather
+        - name: src:003:openint
+        - name: src:004:test
 
+  - name: uc-001
+    description: ""
+    all-scope: false # default
+    explicit:
+      rawdbs:
+        - name: uc:001:vessel:db
+        - name: uc:001:vessel:db:state
+      spaces:
+        - name: uc-001-vessel-spc
+      datasets:
+        - name: uc:001:vessel
 
 #
 # CAPABILITY sets, combining ACL and SCOPES with ACTIONS
 #
-capabilty-sets:
+capability-sets:
   - name: governance
     description: ""
     compose: []
@@ -290,7 +304,6 @@ capabilty-sets:
         scopes: [infield-rb-location-instances]
         actions: [OWNER]
 
-
   - name: in-001-owner
     description: ""
     compose: []
@@ -304,4 +317,13 @@ capabilty-sets:
         scopes: [in-001]
         actions: [OWNER]
 
-
+  - name: uc-001-owner
+    description: ""
+    capabilities:
+      # governance scoped and READ only
+      - acls: [governance]
+        scopes: [uc-001]
+        actions: [READ]
+      - acls: [user]
+        scopes: [uc-001]
+        actions: [OWNER]
