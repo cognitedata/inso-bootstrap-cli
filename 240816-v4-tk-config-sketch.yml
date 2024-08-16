@@ -1,0 +1,307 @@
+#
+# GROUPS with injected capability sets
+#
+idp-cdf-mapping:
+  - project: equinor-dev
+    groups:
+      - name: cdf:uc:001:demand:owner
+        # capabilties: .. # support for plain api-level definition? Or enforce `capability-sets`?`
+        capability-sets: [uc-001-owner, canvas] # acl + scopes + actions
+        metadata:
+          Dataops_created: '2024-01-12 10:23:31'
+          Dataops_source: bootstrap-cli v3.3.0
+          idp_source_id: acd2fe35-aa51-45a7-acef-0d54e2b6b6a8
+          idp_source_name: CDF_DEV_ALLPROJECTS_READ
+        sourceId: acd2fe35-aa51-45a7-acef-0d54e2b6b6a8
+
+      - name: cdf:root
+        capability-sets: [governance] # acl + scopes + actions
+        metadata:
+          Dataops_created: '2024-01-12 10:23:31'
+          Dataops_source: bootstrap-cli v3.3.0
+          idp_source_id: acd2fe35-aa51-45a7-acef-0d54e2b6b6a8
+          idp_source_name: CDF_DEV_ALLPROJECTS_READ
+        sourceId: acd2fe35-aa51-45a7-acef-0d54e2b6b6a8
+
+#
+# ACTION
+#
+action-sets:
+  - name: OWNER
+    description: ""
+    annotations: [READ, WRITE, SUGGEST, REVIEW],
+    datasets: [READ, OWNER]
+    groups: [LIST]
+    projects: [LIST]
+    raw: [READ, WRITE, LIST]
+    robotics: [READ, CREATE, UPDATE, DELETE]
+    sessions: [LIST, CREATE]
+    threed: [READ, CREATE, UPDATE, DELETE]
+    documentFeedback: [READ, CREATE, DELETE]
+    _: [READ,WRITE] # default
+
+  # - name: WRITE
+  # no WRITE set (yet), expecting OWNER with additional READ is enough
+
+  - name: READ
+    description: ""
+    raw: [READ, LIST]
+    groups: [LIST]
+    projects: [LIST]
+    sessions: [LIST]
+    _: [READ]
+
+  - name: GOVERNANCE
+    description: ""
+    datasets: [READ, WRITE, OWNER]
+    groups: [LIST, READ, CREATE, UPDATE, DELETE]
+    # TODO can space scope creation be limted to root-accoun
+    # dataModels: [READ, WRITE]
+    securityCategories: [MEMBEROF, LIST, CREATE, DELETE]
+    projects: [READ, UPDATE, LIST]
+    _: null # no default, all explicit
+
+#
+# ACLs
+#   one automatic acl-set with exact name of each ACL is automatically available
+#   to avoid creating a set for a single acl only
+#   like
+#   - name: dataModels
+#     explicit: [dataModels]
+acl-sets:
+  - name: with-scoping
+    description: ""
+    compose: [] # other acl-sets
+    exclude: [] # substract sets or explict?
+    explicit: # acls
+      - assets
+      - dataModelInstances
+      - dataModels
+      - datasets
+      - events
+      - extractionConfigs
+      - extractionPipelines
+      - extractionRuns
+      - files
+      - groups
+      - labels
+      - raw
+      - relationships
+      - robotics
+      - sequences
+      - templateGroups
+      - templateInstances
+      - threed
+      - timeSeries
+      - transformations
+
+  - name: without-scoping
+    description: ""
+    compose: [] # other acl-sets
+    exclude: [] # substract sets or explict?
+    explicit: # acls
+      - annotations
+      - digitalTwin
+      - entitymatching
+      - functions
+      - geospatial
+      - geospatialCrs
+      - projects
+      - seismic
+      - sessions
+      - timeSeriesSubscriptions
+      - types
+      - wells
+      # undocumented alcls
+      - documentFeedback
+      - documentPipelines
+      - monitoringTasks
+      - notifications
+      - workflowOrchestration
+
+  - name: user
+    description: ""
+    compose:
+      - with-scoping
+      - without-scoping
+
+  - name: governance
+    description: ""
+    explicit:
+      - datasets
+      - groups
+      - projects
+      # TODO: do users have READ access here?
+      - securityCategories
+
+#
+# SCOPES
+#
+scope-sets:
+  - name: unscoped
+    description: ""
+    all-scope: true
+
+  - name: canvas
+    description: ""
+    explicit:
+        spaces:
+          - cdf_apps_shared
+          - cdf_industrial_canvas
+          - IndustrialCanvasInstanceSpace
+          - CommentInstanceSpace
+
+  - name: infield-common-model
+    description: required by guest, normal and admin
+    explicit:
+        spaces:
+          - APM_Config
+          - cdf_apm
+          - cdf_infield
+          - cdf_core
+          - cdf_apps_shared
+
+  - name: infield-common-instances
+    description: required by guest, normal and admin
+    explicit:
+        spaces:
+          - APM_Config
+          - cdf_apm
+          - cognite_app_data
+
+  - name: infield-guest-instances
+    description: required by guest
+    explicit:
+      spaces:
+        - cognite_app_data
+
+  - name: infield-admin-instances
+    description: required by admin
+    explicit:
+        spaces:
+          - APM_Config
+
+  - name: infield-rb-location-instances
+    description: custom scope for rb:?? or in:??
+    explicit:
+        spaces:
+          - dp-006-rb-mongstad-spc
+          - dp-007-rb-sture-spc
+
+  - name: src-all
+    description: ""
+    all-scope: false # default
+    explicit:
+      - rawdbs:
+          - src:all:db
+        spaces:
+          - src-all-spc
+        datasets:
+          - src:all
+
+  - name: in-all
+    description: ""
+    all-scope: false # default
+    explicit:
+      - rawdbs:
+          - in:all:db
+        spaces:
+          - in-all-spc
+        datasets:
+          - in:all
+
+  - name: in-001
+    description: ""
+    all-scope: false # default
+    compose: [src-all, in-all]
+    exclude: []
+    explicit:
+      - rawdbs:
+          - src:001:sap:db
+          - src:001:sap:db:state
+          - src:002:weather:db
+          - src:003:openint:db
+          - src:004:test:db
+        spaces:
+          - src-001-sap-spc
+          - src-002-weather-spc
+          - src-003-openint-spc
+          - src-004-test-spc
+        datasets:
+          - src:001:sap
+          - src:002:weather
+          - src:003:openint
+          - src:004:test
+
+
+#
+# CAPABILITY sets, combining ACL and SCOPES with ACTIONS
+#
+capabilty-sets:
+  - name: governance
+    description: ""
+    compose: []
+    exclude: []
+    capabilities:
+      - acls: [governance]
+        scopes: [unscoped]
+        actions: [GOVERNANCE]
+
+  - name: canvas
+    description: ""
+    compose: []
+    exclude: []
+    capabilities:
+      - acls: [dataModels]
+        scopes: [canvas]
+        actions: [READ]
+      - acls: [dataModelInstances]
+        scopes: [canvas]
+        actions: [OWNER]
+
+  - name: infield-common
+    description: ""
+    compose: []
+    exclude: []
+    capabilities:
+      - acls: [dataModels]
+        scopes: [infield-common-model]
+        actions: [READ]
+      - acls: [dataModelInstances]
+        scopes: [infield-common-instances]
+        actions: [READ]
+      - acls: [dataModelInstances]
+        scopes: [infield-guest-instances]
+        actions: [OWNER]
+
+  - name: infield-admin
+    description: "additional write permission to admin instance space"
+    compose: [infield-common]
+    capabilities:
+      - acls: [dataModelInstances]
+        scopes: [infield-admin-instances]
+        actions: [OWNER]
+
+  - name: infield-rb-user
+    description: ""
+    compose: [infield-common]
+    capabilities:
+      - acls: [dataModelInstances]
+        scopes: [infield-rb-location-instances]
+        actions: [OWNER]
+
+
+  - name: in-001-owner
+    description: ""
+    compose: []
+    exclude: []
+    capabilities:
+      # governance scoped and READ only
+      - acls: [governance]
+        scopes: [in-001]
+        actions: [READ]
+      - acls: [user]
+        scopes: [in-001]
+        actions: [OWNER]
+
+
