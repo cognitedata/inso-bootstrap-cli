@@ -1,8 +1,8 @@
 #
 # GROUPS with injected capability sets
 #
-idp-cdf-mapping:
-  - project: equinor-dev
+projects:
+  - name: equinor-dev
     groups:
       - name: cdf:uc:001:demand:owner
         # capabilties: .. # support for plain api-level definition? Or enforce `capability-sets`?`
@@ -30,15 +30,15 @@ action-sets:
   - name: OWNER
     description: ""
     action-mapping:
-      annotations: [READ, WRITE, SUGGEST, REVIEW]
-      datasets: [READ, OWNER]
-      groups: [LIST]
-      projects: [LIST]
-      raw: [READ, WRITE, LIST]
-      robotics: [READ, CREATE, UPDATE, DELETE]
-      sessions: [LIST, CREATE]
-      threed: [READ, CREATE, UPDATE, DELETE]
-      documentFeedback: [READ, CREATE, DELETE]
+      annotationsAcl: [READ, WRITE, SUGGEST, REVIEW]
+      datasetsAcl: [READ, OWNER]
+      groupsAcl: [LIST]
+      projectsAcl: [LIST]
+      rawAcl: [READ, WRITE, LIST]
+      roboticsAcl: [READ, CREATE, UPDATE, DELETE]
+      sessionsAcl: [LIST, CREATE]
+      threedAcl: [READ, CREATE, UPDATE, DELETE]
+      documentFeedbackAcl: [READ, CREATE, DELETE]
       _: [READ, WRITE] # default
 
   # - name: WRITE
@@ -47,21 +47,21 @@ action-sets:
   - name: READ
     description: ""
     action-mapping:
-      raw: [READ, LIST]
-      groups: [LIST]
-      projects: [LIST]
-      sessions: [LIST]
+      rawAcl: [READ, LIST]
+      groupsAcl: [LIST]
+      projectsAcl: [LIST]
+      sessionsAcl: [LIST]
       _: [READ]
 
   - name: GOVERNANCE
     description: ""
     action-mapping:
-      datasets: [READ, WRITE, OWNER]
-      groups: [LIST, READ, CREATE, UPDATE, DELETE]
+      datasetsAcl: [READ, WRITE, OWNER]
+      groupsAcl: [LIST, READ, CREATE, UPDATE, DELETE]
       # TODO can space scope creation be limted to root-accoun
       # dataModels: [READ, WRITE]
-      securityCategories: [MEMBEROF, LIST, CREATE, DELETE]
-      projects: [READ, UPDATE, LIST]
+      securityCategoriesAcl: [MEMBEROF, LIST, CREATE, DELETE]
+      projectsAcl: [READ, UPDATE, LIST]
 
 #
 # ACLs
@@ -76,50 +76,50 @@ acl-sets:
     compose: [] # other acl-sets
     exclude: [] # substract sets or explict?
     explicit: # acls
-      - assets
-      - dataModelInstances
-      - dataModels
-      - datasets
-      - events
-      - extractionConfigs
-      - extractionPipelines
-      - extractionRuns
-      - files
-      - groups
-      - labels
-      - raw
-      - relationships
-      - robotics
-      - sequences
-      - templateGroups
-      - templateInstances
-      - threed
-      - timeSeries
-      - transformations
+      - assetsAcl
+      - dataModelInstancesAcl
+      - dataModelsAcl
+      - datasetsAcl
+      - eventsAcl
+      - extractionConfigsAcl
+      - extractionPipelinesAcl
+      - extractionRunsAcl
+      - filesAcl
+      - groupsAcl
+      - labelsAcl
+      - rawAcl
+      - relationshipsAcl
+      - roboticsAcl
+      - sequencesAcl
+      - templateGroupsAcl
+      - templateInstancesAcl
+      - threedAcl
+      - timeSeriesAcl
+      - transformationsAcl
 
   - name: without-scoping
     description: ""
     compose: [] # other acl-sets
     exclude: [] # substract sets or explict?
     explicit: # acls
-      - annotations
-      - digitalTwin
-      - entitymatching
-      - functions
-      - geospatial
-      - geospatialCrs
-      - projects
-      - seismic
-      - sessions
-      - timeSeriesSubscriptions
-      - types
-      - wells
-      # undocumented alcls
-      - documentFeedback
-      - documentPipelines
-      - monitoringTasks
-      - notifications
-      - workflowOrchestration
+      - annotationsAcl
+      - digitalTwinAcl
+      - entitymatchingAcl
+      - functionsAcl
+      - geospatialAcl
+      - geospatialCrsAcl
+      - projectsAcl
+      - seismicAcl
+      - sessionsAcl
+      - timeSeriesSubscriptionsAcl
+      - typesAcl
+      - wellsAcl
+      # undocumented acls
+      - documentFeedbackAcl
+      - documentPipelinesAcl
+      - monitoringTasksAcl
+      - notificationsAcl
+      - workflowOrchestrationAcl
 
   - name: user
     description: ""
@@ -130,11 +130,11 @@ acl-sets:
   - name: governance
     description: ""
     explicit:
-      - datasets
-      - groups
-      - projects
+      - datasetsAcl
+      - groupsAcl
+      - projectsAcl
       # TODO: do users have READ access here?
-      - securityCategories
+      - securityCategoriesAcl
 
 #
 # SCOPES
@@ -266,10 +266,10 @@ capability-sets:
     compose: []
     exclude: []
     capabilities:
-      - acls: [dataModels]
+      - acls: [dataModelsAcl]
         scopes: [canvas]
         actions: [READ]
-      - acls: [dataModelInstances]
+      - acls: [dataModelInstancesAcl]
         scopes: [canvas]
         actions: [OWNER]
 
@@ -278,13 +278,13 @@ capability-sets:
     compose: []
     exclude: []
     capabilities:
-      - acls: [dataModels]
+      - acls: [dataModelsAcl]
         scopes: [infield-common-model]
         actions: [READ]
-      - acls: [dataModelInstances]
+      - acls: [dataModelInstancesAcl]
         scopes: [infield-common-instances]
         actions: [READ]
-      - acls: [dataModelInstances]
+      - acls: [dataModelInstancesAcl]
         scopes: [infield-guest-instances]
         actions: [OWNER]
 
@@ -292,7 +292,7 @@ capability-sets:
     description: "additional write permission to admin instance space"
     compose: [infield-common]
     capabilities:
-      - acls: [dataModelInstances]
+      - acls: [dataModelInstancesAcl]
         scopes: [infield-admin-instances]
         actions: [OWNER]
 
@@ -300,7 +300,7 @@ capability-sets:
     description: ""
     compose: [infield-common]
     capabilities:
-      - acls: [dataModelInstances]
+      - acls: [dataModelInstancesAcl]
         scopes: [infield-rb-location-instances]
         actions: [OWNER]
 
