@@ -4,9 +4,20 @@
 projects:
   - name: equinor-dev
     groups:
-      - name: cdf:uc:001:demand:owner
+      # essential root unscoped-access, for changing governance
+      - name: cdf:root
+        capability-sets: [root] # acl + scopes + actions
+        metadata:
+          Dataops_created: "2024-01-12 10:23:31"
+          Dataops_source: bootstrap-cli v3.3.0
+          idp_source_id: acd2fe35-aa51-45a7-acef-0d54e2b6b6a8
+          idp_source_name: CDF_DEV_ROOT
+        sourceId: acd2fe35-aa51-45a7-acef-0d54e2b6b6a8
+
+      # day1 top-level user access
+      - name: cdf:all:owner
         # capabilties: .. # support for plain api-level definition? Or enforce `capability-sets`?`
-        capability-sets: [uc-001-owner, canvas] # acl + scopes + actions
+        capability-sets: [all-owner] # acl + scopes + actions
         metadata:
           Dataops_created: "2024-01-12 10:23:31"
           Dataops_source: bootstrap-cli v3.3.0
@@ -14,55 +25,66 @@ projects:
           idp_source_name: CDF_DEV_ALLPROJECTS_READ
         sourceId: acd2fe35-aa51-45a7-acef-0d54e2b6b6a8
 
-      - name: cdf:root
-        capability-sets: [governance] # acl + scopes + actions
+      - name: cdf:in:001:sm-trader:owner
+        # capabilties: .. # support for plain api-level definition? Or enforce `capability-sets`?`
+        capability-sets: [in-001-sm-trader-owner, canvas] # acl + scopes + actions
         metadata:
           Dataops_created: "2024-01-12 10:23:31"
           Dataops_source: bootstrap-cli v3.3.0
           idp_source_id: acd2fe35-aa51-45a7-acef-0d54e2b6b6a8
-          idp_source_name: CDF_DEV_ALLPROJECTS_READ
+          idp_source_name: CDF_DEV_IN_001_SM_TRADER_READ
+        sourceId: acd2fe35-aa51-45a7-acef-0d54e2b6b6a8
+
+      - name: cdf:in:020:sm-prd-trader:owner
+        # capabilties: .. # support for plain api-level definition? Or enforce `capability-sets`?`
+        capability-sets: [in-020-sm-prd-trader, canvas] # acl + scopes + actions
+        metadata:
+          Dataops_created: "2024-01-12 10:23:31"
+          Dataops_source: bootstrap-cli v3.3.0
+          idp_source_id: acd2fe35-aa51-45a7-acef-0d54e2b6b6a8
+          idp_source_name: CDF_DEV_IN_020_SM_PRD_TRADER_OWNER
         sourceId: acd2fe35-aa51-45a7-acef-0d54e2b6b6a8
 
 #
 # ACTION
 #
 action-sets:
-  - name: OWNER
+  - name: owner-actions
     description: ""
     action-mapping:
       annotationsAcl: [READ, WRITE, SUGGEST, REVIEW]
-      datasetsAcl: [READ, OWNER]
       groupsAcl: [LIST]
+      datasetsAcl: [READ, OWNER]
+      documentFeedbackAcl: [READ, CREATE, DELETE]
       projectsAcl: [LIST]
       rawAcl: [READ, WRITE, LIST]
       roboticsAcl: [READ, CREATE, UPDATE, DELETE]
       sessionsAcl: [LIST, CREATE]
       threedAcl: [READ, CREATE, UPDATE, DELETE]
-      documentFeedbackAcl: [READ, CREATE, DELETE]
       _: [READ, WRITE] # default
 
   # - name: WRITE
   # no WRITE set (yet), expecting OWNER with additional READ is enough
 
-  - name: READ
+  - name: read-actions
     description: ""
     action-mapping:
-      rawAcl: [READ, LIST]
       groupsAcl: [LIST]
       projectsAcl: [LIST]
+      rawAcl: [READ, LIST]
       sessionsAcl: [LIST]
-      _: [READ]
+      _: [READ] # default
 
-  - name: GOVERNANCE
+  - name: governance-actions
     description: ""
     action-mapping:
       datasetsAcl: [READ, WRITE, OWNER]
       groupsAcl: [LIST, READ, CREATE, UPDATE, DELETE]
       # TODO can space scope creation be limted to root-accoun
       # dataModels: [READ, WRITE]
-      securityCategoriesAcl: [MEMBEROF, LIST, CREATE, DELETE]
       projectsAcl: [READ, UPDATE, LIST]
-
+      securityCategoriesAcl: [MEMBEROF, LIST, CREATE, DELETE]
+      # no default
 #
 # ACLs
 #   one automatic acl-set with exact name of each ACL is automatically available
@@ -121,6 +143,11 @@ acl-sets:
       - notificationsAcl
       - workflowOrchestrationAcl
 
+  - name: files-only
+    description: ""
+    explicit: # acls
+      - filesAcl
+
   - name: user
     description: ""
     compose:
@@ -144,6 +171,9 @@ scope-sets:
     description: ""
     all-scope: true
 
+  #
+  # CUSTOM cdf-feature scopes
+  #
   - name: canvas
     description: ""
     explicit:
@@ -190,19 +220,17 @@ scope-sets:
         - name: dp-006-rb-mongstad-spc
         - name: dp-007-rb-sture-spc
 
-  - name: src-all
-    description: ""
+  #
+  # NAMESPACES hierarchy from bootstrap
+  # used for allprojects / all accss level
+  #
+  - name: all
+    description: "top-level 'all' scope, ideally for DAY1"
     all-scope: false # default
-    explicit:
-      rawdbs:
-        - name: src:all:db
-      spaces:
-        - name: src-all-spc
-      datasets:
-        - name: src:all
+    compose: [src-all, in-all, uc-all, dp-all]
 
   - name: in-all
-    description: ""
+    description: "in (interface) namespace"
     # compose: [foobar]
     all-scope: false # default
     explicit:
@@ -213,54 +241,140 @@ scope-sets:
       datasets:
         - name: in:all
 
-  - name: in-001
-    description: ""
+  - name: src-all
+    description: "src namespace"
     all-scope: false # default
-    compose: [src-all, in-all]
+    compose: []
     exclude: []
     explicit:
       rawdbs:
+        - name: src:all:db
         - name: src:001:sap:db
         - name: src:001:sap:db:state
         - name: src:002:weather:db
         - name: src:003:openint:db
         - name: src:004:test:db
       spaces:
+        - name: src-all-spc
         - name: src-001-sap-spc
         - name: src-002-weather-spc
         - name: src-003-openint-spc
         - name: src-004-test-spc
       datasets:
+        - name: src:all
         - name: src:001:sap
         - name: src:002:weather
         - name: src:003:openint
         - name: src:004:test
 
-  - name: uc-001
+  - name: uc-all
+    description: "uc namespace"
+    # compose: [foobar]
+    all-scope: false # default
+    explicit:
+      rawdbs:
+        - name: uc:all:db
+        - name: uc:001:vessel:db
+        - name: uc:001:vessel:db:state
+      spaces:
+        - name: uc-all-spc
+        - name: uc-001-vessel-spc
+      datasets:
+        - name: uc:all
+        - name: uc:001:vessel
+
+  - name: dp-all
+    description: "dp data-product namespace"
+    # compose: [foobar]
+    all-scope: false # default
+    explicit:
+      rawdbs:
+        - name: dp:001:dw-osdu:db
+        - name: dp:003:mmp-master:db
+      spaces:
+        - name: dp-001-dw-osdu-spc
+        - name: dp-003-mmp-master-spc
+      datasets:
+        - name: dp:001:dw-osdu:ds
+        - name: dp:003:mmp-master:ds
+
+  #
+  # INTERFACES combining scopes
+  # TODO: now it gets complicated as in-001 has owner and read scoes :/
+  # should we combine ACLs on this level? explicit > action-set > scopes?
+  # TODO: ideally no interface scope is used to store data!
+  - name: in-001-sm
     description: ""
     all-scope: false # default
     explicit:
       rawdbs:
-        - name: uc:001:vessel:db
-        - name: uc:001:vessel:db:state
+        - name: in:001:foo:db
+        - name: in:001:foo:db:state
       spaces:
-        - name: uc-001-vessel-spc
+        - name: in-001-foo-spc
       datasets:
-        - name: uc:001:vessel
+        - name: in:001:foo
+
+  - name: in-002-rb-all
+    description: ""
+    all-scope: false # default
+    explicit:
+      rawdbs:
+        - name: rb:all:db
+        - name: rb:001:spot1:db
+        - name: rb:002:spot2:db
+        - name: rb:003:vaak1:db
+        - name: rb:004:vaak2:db
+      spaces:
+        - name: rb-all-spc
+        - name: rb-001-spot1-spc
+        - name: rb-002-spot2-spc
+        - name: rb-003-vaak1-spc
+        - name: rb-004-vaak2-spc
+      datasets:
+        - name: rb:all:ds
+        - name: rb:001:spot1:ds
+        - name: rb:002:spot2:ds
+        - name: rb:003:vaak1:ds
+        - name: rb:004:vaak2:ds
+
+  # define owner/read scoes for sm-prd-trader
+  # migrating shared-access bootstrap concept
+  - name: in-020-sm-prd-trader-owner
+    description: ""
+    all-scope: false # default
+    explicit:
+      rawdbs:
+        - name: uc:002:vessel:db
+        - name: uc:006:panama:db
+      spaces:
+        - name: uc-002-vessel-spc
+        - name: uc-006-panama-spc
+      datasets:
+        - name: uc:002:vessel:ds
+        - name: uc:006:panama:ds
+
+  - name: in-020-sm-prd-trader-read
+    description: ""
+    all-scope: false # default
+    explicit:
+      rawdbs:
+        - name: src:002:signal:db
+        - name: src:004:eqn:db
+        - name: src:001:exact:db
+      spaces:
+        - name: src-002-signal-spc
+        - name: src:004:eqn:db
+        - name: src-001-exact:db
+      datasets:
+        - name: src:002:signal:ds
+        - name: src:004:eqn:ds
+        - name: src:001:exact:ds
 
 #
 # CAPABILITY sets, combining ACL and SCOPES with ACTIONS
 #
 capability-sets:
-  - name: governance
-    description: ""
-    compose: []
-    exclude: []
-    capabilities:
-      - acls: [governance]
-        scopes: [unscoped]
-        actions: [GOVERNANCE]
-
   - name: canvas
     description: ""
     compose: []
@@ -268,62 +382,90 @@ capability-sets:
     capabilities:
       - acls: [dataModelsAcl]
         scopes: [canvas]
-        actions: [READ]
-      - acls: [dataModelInstancesAcl]
-        scopes: [canvas]
-        actions: [OWNER]
+        actions: [read-actions]
+      - scopes: [canvas]
+        acls: [dataModelInstancesAcl]
+        actions: [owner-actions]
 
   - name: infield-common
     description: ""
     compose: []
     exclude: []
     capabilities:
-      - acls: [dataModelsAcl]
-        scopes: [infield-common-model]
-        actions: [READ]
-      - acls: [dataModelInstancesAcl]
-        scopes: [infield-common-instances]
-        actions: [READ]
-      - acls: [dataModelInstancesAcl]
-        scopes: [infield-guest-instances]
-        actions: [OWNER]
+      - scopes: [infield-common-model]
+        acls: [dataModelsAcl]
+        actions: [read-actions]
+      - scopes: [infield-common-instances]
+        acls: [dataModelInstancesAcl]
+        actions: [read-actions]
+      - scopes: [infield-guest-instances]
+        acls: [dataModelInstancesAcl]
+        actions: [read-actions]
 
   - name: infield-admin
     description: "additional write permission to admin instance space"
     compose: [infield-common]
     capabilities:
-      - acls: [dataModelInstancesAcl]
-        scopes: [infield-admin-instances]
-        actions: [OWNER]
+      - scopes: [infield-admin-instances]
+        acls: [dataModelInstancesAcl]
+        actions: [owner-actions]
 
   - name: infield-rb-user
     description: ""
     compose: [infield-common]
     capabilities:
-      - acls: [dataModelInstancesAcl]
-        scopes: [infield-rb-location-instances]
-        actions: [OWNER]
+      - scopes: [infield-rb-location-instances]
+        acls: [dataModelInstancesAcl]
+        actions: [owner-actions]
 
-  - name: in-001-owner
+  - name: root
+    description: ""
+    compose: [infield-admin, canvas]
+    capabilities:
+      - scopes: [unscoped]
+        acls: [governance]
+        actions: [governance-actions]
+      - scopes: [unscoped]
+        acls: [user]
+        actions: [owner-actions]
+
+  - name: all-owner
+    description: ""
+    compose: []
+    exclude: []
+    capabilities:
+      - scopes: [all]
+        acls: [user]
+        actions: [owner-actions]
+
+  - name: in-001-sm-trader-owner
+    description: ""
+    compose: []
+    exclude: []
+    capabilities:
+      - scopes: [in-001-sm]
+        acls: [user]
+        actions: [owner-actions]
+
+  - name: in-002-rb-all-owner
     description: ""
     compose: []
     exclude: []
     capabilities:
       # governance scoped and READ only
-      - acls: [governance]
-        scopes: [in-001]
-        actions: [READ]
-      - acls: [user]
-        scopes: [in-001]
-        actions: [OWNER]
+      # - acls: [governance]
+      #   scopes: [in-002-rb-all]
+      #   actions: [read-actions]
+      - scopes: [in-002-rb-all]
+        acls: [user]
+        actions: [owner-actions]
 
-  - name: uc-001-owner
-    description: ""
+  - name: in-020-sm-prd-trader
     capabilities:
       # governance scoped and READ only
-      - acls: [governance]
-        scopes: [uc-001]
-        actions: [READ]
-      - acls: [user]
-        scopes: [uc-001]
-        actions: [OWNER]
+      - scopes: [in-020-sm-prd-trader-owner]
+        acls: [user]
+        actions: [owner-actions]
+      - scopes: [in-020-sm-prd-trader-read]
+        acls: [user]
+        actions: [read-actions]

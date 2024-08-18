@@ -50,13 +50,13 @@ class Dataset(Model):
 
 class ActionSet(Model):
     name: str
-    description: str
+    description: Optional[str] = ""
     action_mapping: dict[str, list[str]] = {}
 
 
 class AclSet(Model):
     name: str
-    description: str = ""
+    description: Optional[str] = ""
     compose: Optional[list[str]] = []
     exclude: Optional[list[str]] = []
     explicit: Optional[list[str]] = []
@@ -70,7 +70,7 @@ class ExplicitScopes(Model):
 
 class ScopeSet(Model):
     name: str
-    description: str = ""
+    description: Optional[str] = ""
     all_scope: Optional[bool] = False
     compose: Optional[list[str]] = []
     exclude: Optional[list[str]] = []
@@ -85,7 +85,7 @@ class Capability(Model):
 
 class CapabilitySet(Model):
     name: str
-    description: str
+    description: Optional[str] = ""
     compose: Optional[list[str]] = []
     exclude: Optional[list[str]] = []
     capabilities: list[Capability] = []
