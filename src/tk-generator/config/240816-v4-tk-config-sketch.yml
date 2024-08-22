@@ -231,7 +231,7 @@ scope-sets:
 
   - name: in-all
     description: "in (interface) namespace"
-    # compose: [foobar]
+    # compose: [all] # enforce cycle error
     all-scope: false # default
     explicit:
       rawdbs:
@@ -269,7 +269,7 @@ scope-sets:
 
   - name: uc-all
     description: "uc namespace"
-    # compose: [foobar]
+    # compose: [foobar] # enforce reference error
     all-scope: false # default
     explicit:
       rawdbs:

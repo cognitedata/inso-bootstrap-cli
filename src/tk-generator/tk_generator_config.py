@@ -57,24 +57,24 @@ class ActionSet(Model):
 class AclSet(Model):
     name: str
     description: Optional[str] = ""
-    compose: Optional[list[str]] = []
-    exclude: Optional[list[str]] = []
-    explicit: Optional[list[str]] = []
+    compose: list[str] = []
+    exclude: list[str] = []
+    explicit: list[str] = []
 
 
 class ExplicitScopes(Model):
-    rawdbs: Optional[list[Rawdb]] = []
-    spaces: Optional[list[Space]] = []
-    datasets: Optional[list[Dataset]] = []
+    rawdbs: list[Rawdb] = []
+    spaces: list[Space] = []
+    datasets: list[Dataset] = []
 
 
 class ScopeSet(Model):
     name: str
-    description: Optional[str] = ""
+    description: str = ""
     all_scope: Optional[bool] = False
-    compose: Optional[list[str]] = []
-    exclude: Optional[list[str]] = []
-    explicit: Optional[ExplicitScopes] = []
+    compose: list[str] = []
+    exclude: list[str] = []
+    explicit: Optional[ExplicitScopes] = None
 
 
 class Capability(Model):
@@ -85,16 +85,16 @@ class Capability(Model):
 
 class CapabilitySet(Model):
     name: str
-    description: Optional[str] = ""
-    compose: Optional[list[str]] = []
-    exclude: Optional[list[str]] = []
+    description: str = ""
+    compose: list[str] = []
+    exclude: list[str] = []
     capabilities: list[Capability] = []
 
 
 class Group(Model):
     name: str
     capability_sets: list[str]
-    metadata: Optional[dict[str, str]] = {}
+    metadata: dict[str, str] = {}
     sourceId: str
 
 
@@ -307,14 +307,18 @@ class Config(Model):
             for child in graph.successors(node):
                 print_graph(child, indent + 4)
 
+        # Check if the graph is a DAG
+        if not nx.is_directed_acyclic_graph(graph):
+
+            # https://networkx.org/documentation/stable/reference/algorithms/generated/networkx.algorithms.cycles.find_cycle.html
+            rprint("Detected cycles: ", list(nx.find_cycle(graph, orientation="ignore")))
+
+            raise ValueError("Configuration contains cycles")
+
         # # Print the graph starting from nodes with no incoming edges
         for node in graph.nodes:
             if graph.in_degree(node) == 0:
                 print_graph(node)
-
-        # Check if the graph is a DAG
-        if not nx.is_directed_acyclic_graph(graph):
-            raise ValueError("Configuration contains cycles")
 
         return self
 
