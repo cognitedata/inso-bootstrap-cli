@@ -47,4 +47,3 @@ runs:
   args:
     - "deploy"
     - "${{ inputs.config_file }}"
-
