@@ -1,13 +1,22 @@
 # CHANGELOG
 
+## v3.1.0 (2023-10-10)
 
+### Fix
+
+* feat(acl): added `timeSeriesSubscriptionsAcl` (no dataset scope-support)
+
+### Dev notes
+
+* updated pydantic from v1 to pydantic-settings v2
+* run `pre-commit autoupdate`
+* run `poetry update` to get latest versions
 
 ## v3.0.2 (2023-08-02)
 
 ### Fix
 
 * fix: depandabot (#88)
-
 * fix: depandabot
 - closing #86 and #84
 

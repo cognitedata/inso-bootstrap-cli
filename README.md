@@ -45,7 +45,7 @@ the CLI to maintain or migrate existing CDF projects.
         - [`namespaces` section](#namespaces-section)
     - [Configuration for the `delete` command](#configuration-for-the-delete-command)
       - [`delete_or_deprecate` section](#delete_or_deprecate-section)
-  - [Common practices \& How-Tos](#common-practices--how-tos)
+  - [Common practices & How-Tos](#common-practices--how-tos)
     - [How to implement Read-only Shared Access](#how-to-implement-read-only-shared-access)
   - [Development / Contribute](#development--contribute)
     - [Inspiration](#inspiration)
@@ -54,6 +54,7 @@ the CLI to maintain or migrate existing CDF projects.
     - [Run locally with Poetry (requires Python 3.11 being available)](#run-locally-with-poetry-requires-python-311-being-available)
     - [Run locally with Docker images using buildpacks (v3)](#run-locally-with-docker-images-using-buildpacks-v3)
     - [Run locally with Docker (v2)](#run-locally-with-docker-v2)
+- [bootstrap-cli versioning and release steps](#bootstrap-cli-versioning-and-release-steps)
 
 <!-- /code_chunk_output -->
 
@@ -806,6 +807,13 @@ The `features` section covers general options like prefixes, suffixes, etc.
 
 The list of features:
 
+(new since v3.2.0)
+
+- `with-undocumented-capabilities`
+  - Support of capabilities which are not yet officially documented, for early testing and adoption.
+   Over time they will either be removed, replaced or getting an official and documented capability
+   Defaults to false
+
 (new since v3)
 
 - `with-datamodel-capability`
@@ -1066,11 +1074,11 @@ With v3-release we switched from `docker build` to use Buildpacks
 - Adopt the following `docker run` example
   - to mount your config-file to `/etc/config.yaml`
   - to use your `.env` file
-  - to choose the commansd and parameters you want to test locally
+  - set the commands and parameters you want to test locally
 
 ```bash
 # emulating github-actions run, with envvar and /github/workspace mounted
-➟  docker run --workdir /github/workspace -v "$(pwd)":"/github/workspace" -e GITHUB_ACTIONS=true --env-file=.env bootstrap-cli:latest deploy ./configs/config-deploy-example-v3.yml
+➟  docker run --workdir /github/workspace -v ${PWD}:"/github/workspace" -v ${PWD}/configs:/configs -e GITHUB_ACTIONS=true --env-file=.env bootstrap-cli:latest --dry-run deploy ./configs/config-deploy-example-v3.yml
 ```
 
 ### Run locally with Docker (v2)
@@ -1084,3 +1092,23 @@ docker build -t incubator/bootstrap-cli:latest .
 # ${PWD} because only absolute paths can be mounted
 docker run --volume ${PWD}/configs:/configs --env-file=.env incubator/bootstrap-cli --dry-run deploy /configs/config-deploy-example.yml
 ```
+
+# bootstrap-cli versioning and release steps
+
+- open a branch for example: `fix/<bug>` or `feat/add-smthg-new`
+- make changes to code and/or documentation
+  - test changes running code locally (python and from docker) against a test-project
+- increase version numbers **manually** in three locations, following the semantic-versioning `major.minor.path` scheme:
+  - pyproject.toml
+  - action.yml
+  - src/bootstrap/__init__.py
+- run `pre-commit run` on staged changes or `pre-commit run --all-files`
+- commit to branch, publish and create PR
+- when merged to main
+1. create a new release with a tag matching the version like this: `v3.3.0` (with a leading `v`)
+  - dopt style from releases before
+2. run **manually** gh-action "ci" ([link](https://github.com/cognitedata/inso-bootstrap-cli/actions/workflows/ci.yaml))
+  - starting with "Run workflow" button
+  - typically using "Branch: main"
+  - type image name matching the version like this: `v3.3.0` (with a leading `v`)
+  - build and publish requires approval from either Peter (`spex66`) or Tugce (`tugceozgur`)

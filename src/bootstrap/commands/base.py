@@ -26,7 +26,6 @@ from ..app_config import (
     NEWLINE,
     AclAdminTypes,
     AclAllScopeOnlyTypes,
-    AclDefaultTypes,
     BootstrapCoreConfig,
     BootstrapDeleteConfig,
     CommandMode,
@@ -35,6 +34,7 @@ from ..app_config import (
     RoleTypeActions,
     ScopeCtxType,
     SharedAccess,
+    getAllAclTypes,
 )
 from ..app_container import ContainerSelector, init_container
 from ..app_exceptions import BootstrapValidationError
@@ -127,6 +127,8 @@ class CommandBase:
                 self.with_raw_capability: bool = features.with_raw_capability
                 # [OPTIONAL] default: False
                 self.with_datamodel_capability: bool = features.with_datamodel_capability
+                # [OPTIONAL] default: False
+                self.with_undocumented_capabilities: bool = features.with_datamodel_capability
 
                 # [OPTIONAL] default: "allprojects"
                 CommandBase.AGGREGATED_LEVEL_NAME = features.aggregated_level_name
@@ -348,7 +350,7 @@ class CommandBase:
 
         Args:
             role_type (RoleType): a supported bootstrap-role, representing a group of actions
-            acl_type (str): an acl from 'AclDefaultTypes'
+            acl_type (str): an acl from 'AclDefaultTypes' / 'UndocumentedAclDefaultTypes'
 
         Returns:
             List[str]: list of action
@@ -604,6 +606,7 @@ class CommandBase:
 
         capabilities = []
         group_name_full_qualified: str = ""
+        acl_types = getAllAclTypes(self.with_undocumented_capabilities)
 
         # detail level like cdf:src:001:public:read
         if role_type and ns_name and node_name:
@@ -620,7 +623,7 @@ class CommandBase:
                         )
                     }
                 )
-                for acl_type in AclDefaultTypes
+                for acl_type in acl_types
                 for shared_role_type, scope_ctx in self.get_scope_ctx_groupedby_role_type(
                     role_type, ns_name, node_name
                 ).items()
@@ -647,7 +650,7 @@ class CommandBase:
                         )
                     }
                 )
-                for acl_type in AclDefaultTypes
+                for acl_type in acl_types
                 for shared_role_type, scope_ctx in self.get_scope_ctx_groupedby_role_type(role_type, ns_name).items()
                 # don't create empty scopes
                 # enough to check one as they have both same length, but that's more explicit
@@ -673,7 +676,7 @@ class CommandBase:
                         )
                     }
                 )
-                for acl_type in AclDefaultTypes
+                for acl_type in acl_types
             ]
 
         # root level like cdf:root
@@ -692,7 +695,7 @@ class CommandBase:
                     }
                 )
                 # skipping admin types from default types to avoid duplicates
-                for acl_type in (set(AclDefaultTypes) - set(AclAdminTypes))
+                for acl_type in (set(acl_types) - set(AclAdminTypes))
             ]
             # plus admin ACLs
             [
@@ -770,10 +773,8 @@ class CommandBase:
             Dataops_created=self.get_timestamp(),
             Dataops_source=f"bootstrap-cli v{__version__}",
         )
-        # TODO: SDK v5.10 doesn't support `metadata` yet. Injecting it directly to payload
-        new_group = Group(name=group_name, capabilities=group_capabilities)
+        new_group = Group(name=group_name, capabilities=group_capabilities, metadata=metadata)
         # https://docs.cognite.com/api/v1/#tag/Groups/operation/createGroups
-        new_group.metadata = metadata  # type: ignore
         if idp_source_id:
             # inject (both will be pushed through the API call!)
             new_group.source_id = idp_source_id  # 'S-314159-1234'

@@ -1,1 +1,1 @@
-run: bootstrap-cli
+run: /workspace/bootstrap-cli

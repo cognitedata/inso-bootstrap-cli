@@ -1,8 +1,8 @@
 import logging
 from enum import ReprEnum  # new in 3.11
-from typing import Iterable, Optional, Type
+from typing import Optional, Type
 
-from ..app_config import AclDefaultTypes, RoleType, ScopeCtxType, YesNoType
+from ..app_config import RoleType, ScopeCtxType, YesNoType
 from .base import CommandBase
 from .diagram_utils.mermaid import (
     AssymetricNode,

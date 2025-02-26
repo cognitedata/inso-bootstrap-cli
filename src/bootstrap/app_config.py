@@ -24,10 +24,10 @@ class RoleType(str, ReprEnum):
 #   and read: ["READ"])
 #
 AclDefaultTypes = [
-    "assets",
     "annotations",
-    "dataModels",
+    "assets",
     "dataModelInstances",
+    "dataModels",
     "datasets",
     "digitalTwin",
     "entitymatching",
@@ -40,6 +40,7 @@ AclDefaultTypes = [
     "geospatial",
     "geospatialCrs",
     "groups",
+    "hostedExtractors",
     "labels",
     "projects",
     "raw",
@@ -52,27 +53,50 @@ AclDefaultTypes = [
     "templateInstances",
     "threed",
     "timeSeries",
+    "timeSeriesSubscriptions",
     "transformations",
     "types",
     "wells",
 ]
 
+UndocumentedAclDefaultTypes = [
+    "documentFeedback",
+    "documentPipelines",
+    "monitoringTasks",
+    "notifications",
+    "workflowOrchestration",
+]
+
+
+def getAllAclTypes(with_undocumented_capabilities: bool = False):
+    acl_types = AclDefaultTypes.copy()
+    if with_undocumented_capabilities:
+        acl_types.extend(UndocumentedAclDefaultTypes)
+    return acl_types
+
+
 # capabilities (acl) which only support  scope: {"all":{}}
 # a subset of AclDefaultTypes
 AclAllScopeOnlyTypes = set(
     [
-        "projects",
-        "sessions",
         "annotations",
+        "digitalTwin",
+        "documentFeedback",  # undocumented acls
+        "documentPipelines",  # undocumented acls
         "entitymatching",
         "functions",
-        "types",
-        "threed",
-        "seismic",
-        "digitalTwin",
         "geospatial",
         "geospatialCrs",
+        "hostedExtractors",
+        "monitoringTasks",  # undocumented acls
+        "notifications",  # undocumented acls
+        "projects",
+        "seismic",
+        "sessions",
+        "timeSeriesSubscriptions",
+        "types",
         "wells",
+        "workflowOrchestration",  # undocumented acls
     ]
 )
 
@@ -88,6 +112,7 @@ RoleTypeActions = {
         "robotics": ["READ", "CREATE", "UPDATE", "DELETE"],
         "sessions": ["LIST", "CREATE"],
         "threed": ["READ", "CREATE", "UPDATE", "DELETE"],
+        "documentFeedback": ["READ", "CREATE", "DELETE"],
     },
     RoleType.READ: {  # else ["READ"]
         "raw": ["READ", "LIST"],
@@ -161,8 +186,8 @@ class SharedAccess(Model):
 
 class NamespaceNode(Model):
     node_name: str
-    external_id: Optional[str]
-    metadata: Optional[dict[str, Any]]
+    external_id: Optional[str] = None
+    metadata: Optional[dict[str, Any]] = None
     description: Optional[str] = ""
     shared_access: Optional[SharedAccess] = SharedAccess(owner=[], read=[])
 
@@ -176,6 +201,7 @@ class Namespace(Model):
 class BootstrapFeatures(Model):
     with_raw_capability: Optional[bool] = True
     with_datamodel_capability: Optional[bool] = True
+    with_undocumented_capabilities: Optional[bool] = False
     group_prefix: Optional[str] = "cdf"
     aggregated_level_name: Optional[str] = "allprojects"
     dataset_suffix: Optional[str] = "dataset"
