@@ -1,7 +1,7 @@
 from pathlib import Path
 
 import pytest
-from rich import print
+from rich import print as rprint
 
 from bootstrap.app_config import CommandMode
 from bootstrap.app_container import (  # PrepareCommandContainer,
@@ -37,6 +37,11 @@ def generate_deploy_config_01_is_valid_test_data():
         ROOT_DIRECTORY / "example/.env_mock",
         id=config.name,
     )
+    yield pytest.param(
+        config := ROOT_DIRECTORY / "example/config-deploy-example-01.4.yml",
+        ROOT_DIRECTORY / "example/.env_mock",
+        id=config.name,
+    )
 
 
 @pytest.mark.parametrize("example_file, dotenv_path", generate_deploy_config_01_is_valid_test_data())
@@ -47,6 +52,8 @@ def test_deploy_config_01_is_valid(example_file: Path, dotenv_path: Path):
     """
     ContainerCls = ContainerSelector[CommandMode.DEPLOY]
     container: DeployCommandContainer = init_container(ContainerCls, example_file, dotenv_path)
+
+    rprint(container.config())
 
     # to see print output run `pytest -s`
     # print(container.bootstrap())

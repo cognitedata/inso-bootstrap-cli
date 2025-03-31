@@ -136,7 +136,9 @@ bootstrap:
           external-id: src:001:sap
         - node-name: src:002:weather
           description: Sources 002; from Weather.com
-          # external-id will be auto generated in this case.
+          # if omitted 'external-id' will be auto generated in this case.
+          space-variants: ["i", "m"]
+          # creates additional variants with adding a suffix separated by '-' to the end (after '-spc'!)
 
     - ns-name: in
       description: End user data-input provided through deployed CDF driven solutions

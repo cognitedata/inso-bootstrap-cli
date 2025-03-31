@@ -2,7 +2,7 @@ import logging
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Generator, Optional
 
 import yaml
 from cognite.client import CogniteClient
@@ -14,6 +14,7 @@ from cognite.client.data_classes import (
     DataSetUpdate,
     Group,
 )
+from cognite.client.data_classes.capabilities import Capability
 from cognite.client.data_classes.data_modeling.spaces import (
     Space,
     SpaceApply,
@@ -30,10 +31,12 @@ from ..app_config import (
     BootstrapDeleteConfig,
     CommandMode,
     IdpCdfMapping,
+    NamespaceNode,
     RoleType,
     RoleTypeActions,
     ScopeCtxType,
     SharedAccess,
+    SharedNode,
     getAllAclTypes,
 )
 from ..app_container import ContainerSelector, init_container
@@ -167,12 +170,16 @@ class CommandBase:
         return "{node_name}" + CommandBase.DATASET_SUFFIX
 
     @staticmethod
-    def get_space_name_template(node_name: str):
+    def get_space_name_template(node_name: str, space_variant="") -> str:
         # 'space' have to match this regex: ^[a-zA-Z0-9][a-zA-Z0-9_-]{0,41}[a-zA-Z0-9]?$
         SPACES_RE = re.compile(r"[^a-zA-Z0-9-_]").sub
-        # every charchter not matching this pattern will be replaced
+        # every character not matching this pattern will be replaced
         SPACES_SPECIAL_CHAR_REPLACEMENT = "-"
-        return SPACES_RE(SPACES_SPECIAL_CHAR_REPLACEMENT, f"{node_name}{CommandBase.SPACE_SUFFIX}")
+        return SPACES_RE(
+            SPACES_SPECIAL_CHAR_REPLACEMENT,
+            # add variant if available, after the suffix!
+            f"{node_name}{CommandBase.SPACE_SUFFIX}{'-'+space_variant if space_variant else ''}",
+        )
 
     @staticmethod
     def get_raw_dbs_name_template():
@@ -360,6 +367,34 @@ class CommandBase:
     def generate_admin_actions(self, acl_admin_type):
         return RoleTypeActions[RoleType.ADMIN][acl_admin_type]
 
+    def get_ns_nodes_by_sharednode(self, shared_nodes: list[SharedNode]) -> Generator[NamespaceNode, None, None]:
+        # with 3.13 this is legit code: -> Generator[NamespaceNode]
+        # https://stackoverflow.com/questions/57363181/proper-use-generator-typing
+        """Gets a list of SharedNodes and returns the corresponding NamespaceNodes
+
+        Args:
+            shared_nodes (list[SharedNode]): either .owner or .read list of SharedAccess
+
+        Yields:
+            Generator[NamespaceNode]: one by one NamespaceNode
+        """
+        lookup_node: Optional[NamespaceNode] = None
+        for shared_node in shared_nodes:
+            if shared_node.node_name.endswith(CommandBase.AGGREGATED_LEVEL_NAME):
+                # this is the top-level or ns-level node, which cannot be found in the config
+                # create 'fake node'
+                lookup_node = NamespaceNode(
+                    node_name=shared_node.node_name,  # type: ignore
+                )
+            for ns in self.bootstrap_config.namespaces:
+                for ns_node in ns.ns_nodes:
+                    if shared_node.node_name == ns_node.node_name:
+                        lookup_node = ns_node
+                        break  # found and exit loop
+            # must exist, so if not found, raise error
+            assert lookup_node is not None, f"Node {shared_node} not found in config"
+            yield lookup_node
+
     def get_ns_node_shared_access_by_name(self, node_name: str) -> SharedAccess:
         for ns in self.bootstrap_config.namespaces:
             for ns_node in ns.ns_nodes:
@@ -368,13 +403,13 @@ class CommandBase:
                     return ns_node.shared_access
         return SharedAccess(owner=[], read=[])
 
-    def get_raw_dbs_groupedby_role_type(self, role_type: RoleType, ns_name: str, node_name: str | None = None):
+    def get_raw_dbs_groupedby_role_type(self, role_type: RoleType, ns_name: str, node: Optional[NamespaceNode] = None):
         raw_db_names: dict[RoleType, list[str]] = {RoleType.OWNER: [], RoleType.READ: []}
-        if node_name:
+        if node:
             raw_db_names[role_type].extend(
                 # the dataset which belongs directly to this node_name
                 [
-                    self.get_raw_dbs_name_template().format(node_name=node_name, raw_variant=raw_variant)
+                    self.get_raw_dbs_name_template().format(node_name=node.node_name, raw_variant=raw_variant)
                     for raw_variant in CommandBase.RAW_VARIANTS
                 ]
             )
@@ -388,7 +423,9 @@ class CommandBase:
                         )
                         # find the group_config which matches the name,
                         # and check the "shared_access" groups list (else [])
-                        for shared_node in self.get_ns_node_shared_access_by_name(node_name).owner
+                        for shared_node in self.get_ns_nodes_by_sharednode(
+                            self.get_ns_node_shared_access_by_name(node.node_name).owner
+                        )
                         for raw_variant in CommandBase.RAW_VARIANTS
                     ]
                 )
@@ -399,7 +436,9 @@ class CommandBase:
                         )
                         # find the group_config which matches the name,
                         # and check the "shared_access" groups list (else [])
-                        for shared_node in self.get_ns_node_shared_access_by_name(node_name).read
+                        for shared_node in self.get_ns_nodes_by_sharednode(
+                            self.get_ns_node_shared_access_by_name(node.node_name).read
+                        )
                         for raw_variant in CommandBase.RAW_VARIANTS
                     ]
                 )
@@ -427,31 +466,44 @@ class CommandBase:
         # returns clear names grouped by role_type
         return raw_db_names
 
-    def get_spaces_groupedby_role_type(self, role_type, ns_name, node_name: Optional[str] = None):
+    def get_spaces_groupedby_role_type(self, role_type, ns_name, node: Optional[NamespaceNode] = None):
         spaces_by_role_type: dict[RoleType, list[str]] = {RoleType.OWNER: [], RoleType.READ: []}
         # for example fac:001:wasit, uc:002:meg, etc.
-        if node_name:
+        if node:
             spaces_by_role_type[role_type].extend(
                 # the dataset which belongs directly to this node_name
-                [self.get_space_name_template(node_name=node_name)]
+                [
+                    self.get_space_name_template(node_name=node.node_name, space_variant=space_variant)
+                    for space_variant in [""] + node.space_variants  # can be different for each node
+                ]
             )
 
             # for owner groups add "shared_access" datasets too
             if role_type == RoleType.OWNER:
                 spaces_by_role_type[RoleType.OWNER].extend(
                     [
-                        self.get_space_name_template(node_name=shared_node.node_name)
+                        self.get_space_name_template(
+                            node_name=shared_node.node_name, space_variant=shared_space_variant
+                        )
                         # find the group_config which matches the id,
                         # and check the "shared_access" groups list (else [])
-                        for shared_node in self.get_ns_node_shared_access_by_name(node_name).owner
+                        for shared_node in self.get_ns_nodes_by_sharednode(
+                            self.get_ns_node_shared_access_by_name(node.node_name).owner
+                        )
+                        for shared_space_variant in [""] + shared_node.space_variants  # can be different for each node
                     ]
                 )
                 spaces_by_role_type[RoleType.READ].extend(
                     [
-                        self.get_space_name_template(node_name=shared_node.node_name)
+                        self.get_space_name_template(
+                            node_name=shared_node.node_name, space_variant=shared_space_variant
+                        )
                         # find the group_config which matches the id,
                         # and check the "shared_access" groups list (else [])
-                        for shared_node in self.get_ns_node_shared_access_by_name(node_name).read
+                        for shared_node in self.get_ns_nodes_by_sharednode(
+                            self.get_ns_node_shared_access_by_name(node.node_name).read
+                        )
+                        for shared_space_variant in [""] + shared_node.space_variants  # can be different for each node
                     ]
                 )
         # for example src, fac, uc, ca
@@ -472,13 +524,13 @@ class CommandBase:
         # returns clear names
         return spaces_by_role_type
 
-    def get_datasets_groupedby_role_type(self, role_type: RoleType, ns_name: str, node_name: str | None = None):
+    def get_datasets_groupedby_role_type(self, role_type: RoleType, ns_name: str, node: Optional[NamespaceNode] = None):
         dataset_names: dict[RoleType, list[str]] = {RoleType.OWNER: [], RoleType.READ: []}
         # for example fac:001:wasit, uc:002:meg, etc.
-        if node_name:
+        if node:
             dataset_names[role_type].extend(
                 # the dataset which belongs directly to this node_name
-                [self.get_dataset_name_template().format(node_name=node_name)]
+                [self.get_dataset_name_template().format(node_name=node.node_name)]
             )
 
             # for owner groups add "shared_access" datasets too
@@ -488,7 +540,9 @@ class CommandBase:
                         self.get_dataset_name_template().format(node_name=shared_node.node_name)
                         # find the group_config which matches the id,
                         # and check the "shared_access" groups list (else [])
-                        for shared_node in self.get_ns_node_shared_access_by_name(node_name).owner
+                        for shared_node in self.get_ns_nodes_by_sharednode(
+                            self.get_ns_node_shared_access_by_name(node.node_name).owner
+                        )
                     ]
                 )
                 dataset_names[RoleType.READ].extend(
@@ -496,7 +550,9 @@ class CommandBase:
                         self.get_dataset_name_template().format(node_name=shared_node.node_name)
                         # find the group_config which matches the id,
                         # and check the "shared_access" groups list (else [])
-                        for shared_node in self.get_ns_node_shared_access_by_name(node_name).read
+                        for shared_node in self.get_ns_nodes_by_sharednode(
+                            self.get_ns_node_shared_access_by_name(node.node_name).read
+                        )
                     ]
                 )
         # for example src, fac, uc, ca
@@ -532,11 +588,11 @@ class CommandBase:
         ]
 
     def get_scope_ctx_groupedby_role_type(
-        self, role_type: RoleType, ns_name: str, node_name: str | None = None
+        self, role_type: RoleType, ns_name: str, node: Optional[NamespaceNode] = None
     ) -> dict[RoleType, dict[ScopeCtxType, list[str]]]:
-        rawdbs_by_role_type = self.get_raw_dbs_groupedby_role_type(role_type, ns_name, node_name)
-        ds_by_role_type = self.get_datasets_groupedby_role_type(role_type, ns_name, node_name)
-        spaces_by_role_type = self.get_spaces_groupedby_role_type(role_type, ns_name, node_name)
+        rawdbs_by_role_type = self.get_raw_dbs_groupedby_role_type(role_type, ns_name, node)
+        ds_by_role_type = self.get_datasets_groupedby_role_type(role_type, ns_name, node)
+        spaces_by_role_type = self.get_spaces_groupedby_role_type(role_type, ns_name, node)
 
         return {
             role_type: {
@@ -576,12 +632,12 @@ class CommandBase:
         self,
         role_type: RoleType | None = None,
         ns_name: str | None = None,
-        node_name: str | None = None,
+        node: Optional[NamespaceNode] = None,
         root_account: str | None = None,
     ) -> tuple[str, list[dict[str, Any]]]:
         """Create the group-name and its capabilities.
         The function supports following levels expressed by parameter combinations:
-        - core: {role_type} + {ns_name} + {node_name}
+        - core: {role_type} + {ns_name} + {node.node_name}
         - namespace: {role_type} + {ns_name}
         - top-level: {role_type}
         - root: {root_account}
@@ -593,7 +649,8 @@ class CommandBase:
             ns_name (str, optional):
                 Namespace like "src" or "uc".
                 Defaults to None.
-            node_name (str, optional):
+            node (NamespaceNode, optional):
+                NamespaceNode object.
                 Core group like "src:001:sap" or "uc:003:demand".
                 Defaults to None.
             root_account (str, optional):
@@ -609,9 +666,9 @@ class CommandBase:
         acl_types = getAllAclTypes(self.with_undocumented_capabilities)
 
         # detail level like cdf:src:001:public:read
-        if role_type and ns_name and node_name:
+        if role_type and ns_name and node:
             # group for each dedicated group-core id
-            group_name_full_qualified = f"{CommandBase.GROUP_NAME_PREFIX}{node_name}:{role_type}"
+            group_name_full_qualified = f"{CommandBase.GROUP_NAME_PREFIX}{node.node_name}:{role_type}"
 
             [
                 capabilities.append(  # type: ignore
@@ -625,7 +682,7 @@ class CommandBase:
                 )
                 for acl_type in acl_types
                 for shared_role_type, scope_ctx in self.get_scope_ctx_groupedby_role_type(
-                    role_type, ns_name, node_name
+                    role_type, ns_name, node
                 ).items()
                 # don't create empty scopes
                 # enough to check one as they have both same length, but that's more explicit
@@ -773,7 +830,10 @@ class CommandBase:
             Dataops_created=self.get_timestamp(),
             Dataops_source=f"bootstrap-cli v{__version__}",
         )
-        new_group = Group(name=group_name, capabilities=group_capabilities, metadata=metadata)
+        # SDK v7 now requires Capability objects, instead of dict[str, Any]
+        new_group = Group(
+            name=group_name, capabilities=[Capability.load(c) for c in group_capabilities], metadata=metadata
+        )
         # https://docs.cognite.com/api/v1/#tag/Groups/operation/createGroups
         if idp_source_id:
             # inject (both will be pushed through the API call!)
@@ -819,10 +879,10 @@ class CommandBase:
 
     def process_group(
         self,
-        role_type: RoleType | None = None,
-        ns_name: str | None = None,
-        node_name: str | None = None,
-        root_account: str | None = None,
+        role_type: Optional[RoleType] = None,
+        ns_name: Optional[str] = None,
+        node: Optional[NamespaceNode] = None,
+        root_account: Optional[str] = None,
     ) -> Optional[Group]:
         # to avoid complex upsert logic, all groups will be recreated and then the old ones deleted
 
@@ -830,7 +890,7 @@ class CommandBase:
         # print(f"=== START: role_type<{role_type}> | ns_name<{ns_name}> | node_name<{node_name}> ===")
 
         group_name, group_capabilities = self.generate_group_name_and_capabilities(
-            role_type, ns_name, node_name, root_account
+            role_type, ns_name, node, root_account
         )
 
         return self.create_group(group_name, group_capabilities)
@@ -991,9 +1051,10 @@ class CommandBase:
         # list of all targets: autogenerated space names
         target_space_names = set(
             [
-                self.get_space_name_template(node_name=ns_node.node_name)
+                self.get_space_name_template(node_name=ns_node.node_name, space_variant=space_variant)
                 for ns in self.bootstrap_config.namespaces
                 for ns_node in ns.ns_nodes
+                for space_variant in [""] + ns_node.space_variants
             ]
         )
         target_space_names.update(
@@ -1029,7 +1090,7 @@ class CommandBase:
                     logging.info(f"Dry run - Creating space: <{space}>")
             else:
                 created_spaces: Space | SpaceList = self.client.data_modeling.spaces.apply(  # type:ignore
-                    space=spaces_to_be_created
+                    spaces=spaces_to_be_created
                 )
                 self.deployed.spaces.create(resources=created_spaces)
 
@@ -1052,12 +1113,12 @@ class CommandBase:
             for ns in self.bootstrap_config.namespaces:
                 for ns_node in ns.ns_nodes:
                     # group for each dedicated group-type id
-                    groups.append(self.process_group(role_type, ns.ns_name, ns_node.node_name))
+                    groups.append(self.process_group(role_type=role_type, ns_name=ns.ns_name, node=ns_node))
                 # 'all' groups on group-type level
                 # (access to all datasets/ raw-dbs which belong to this group-type)
-                groups.append(self.process_group(role_type, ns.ns_name))
+                groups.append(self.process_group(role_type=role_type, ns_name=ns.ns_name))
             # 'all' groups on role_type level (no limits to datasets or raw-dbs)
-            groups.append(self.process_group(role_type))
+            groups.append(self.process_group(role_type=role_type))
         # creating CDF group for root_account (highest admin-level)
         for root_account in ["root"]:
             groups.append(self.process_group(root_account=root_account))

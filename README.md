@@ -885,6 +885,9 @@ namespaces:
       - node-name: src:001:name
         description: Description about sources related to name
         external_id: src:001:name
+          # optional since 3.5.0:
+          # creates additional variants by adding a suffix separated by '-' to the end (after '-spc'!)
+        space-variants: ["i", "m"]
   - ns-name: in
     - ns-nodes:
       - node-name: in:001:name

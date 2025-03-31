@@ -180,14 +180,15 @@ class SharedNode(Model):
 
 
 class SharedAccess(Model):
-    owner: Optional[list[SharedNode]] = []
-    read: Optional[list[SharedNode]] = []
+    owner: list[SharedNode] = []
+    read: list[SharedNode] = []
 
 
 class NamespaceNode(Model):
     node_name: str
     external_id: Optional[str] = None
     metadata: Optional[dict[str, Any]] = None
+    space_variants: list[str] = []
     description: Optional[str] = ""
     shared_access: Optional[SharedAccess] = SharedAccess(owner=[], read=[])
 
