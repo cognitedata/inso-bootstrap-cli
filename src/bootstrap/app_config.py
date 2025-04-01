@@ -171,7 +171,7 @@ class IdpCdfMapping(Model):
 
 class IdpCdfMappingProjects(Model):
     cdf_project: str
-    create_only_mapped_cdf_groups: Optional[bool] = True
+    create_only_mapped_cdf_groups: bool = True
     mappings: list[IdpCdfMapping]
 
 
@@ -180,15 +180,16 @@ class SharedNode(Model):
 
 
 class SharedAccess(Model):
-    owner: Optional[list[SharedNode]] = []
-    read: Optional[list[SharedNode]] = []
+    owner: list[SharedNode] = []
+    read: list[SharedNode] = []
 
 
 class NamespaceNode(Model):
     node_name: str
     external_id: Optional[str] = None
     metadata: Optional[dict[str, Any]] = None
-    description: Optional[str] = ""
+    space_variants: list[str] = []
+    description: str = ""
     shared_access: Optional[SharedAccess] = SharedAccess(owner=[], read=[])
 
 
@@ -199,15 +200,15 @@ class Namespace(Model):
 
 
 class BootstrapFeatures(Model):
-    with_raw_capability: Optional[bool] = True
-    with_datamodel_capability: Optional[bool] = True
-    with_undocumented_capabilities: Optional[bool] = False
-    group_prefix: Optional[str] = "cdf"
-    aggregated_level_name: Optional[str] = "allprojects"
-    dataset_suffix: Optional[str] = "dataset"
-    space_suffix: Optional[str] = "space"
-    rawdb_suffix: Optional[str] = "rawdb"
-    rawdb_additional_variants: Optional[list[str]] = ["state"]
+    with_raw_capability: bool = True
+    with_datamodel_capability: bool = True
+    with_undocumented_capabilities: bool = False
+    group_prefix: str = "cdf"
+    aggregated_level_name: str = "allprojects"
+    dataset_suffix: str = "dataset"
+    space_suffix: str = "space"
+    rawdb_suffix: str = "rawdb"
+    rawdb_additional_variants: list[str] = ["state"]
 
 
 class BootstrapCoreConfig(Model):
@@ -276,7 +277,7 @@ class BootstrapDeleteConfig(Model):
     Configuration parameters for CDF Project Bootstrap 'delete' command
     """
 
-    datasets: Optional[list] = []
-    groups: Optional[list] = []
-    raw_dbs: Optional[list] = []
-    spaces: Optional[list] = []
+    datasets: list = []
+    groups: list = []
+    raw_dbs: list = []
+    spaces: list = []

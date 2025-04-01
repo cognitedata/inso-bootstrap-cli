@@ -8,7 +8,8 @@ from cognite.client import CogniteClient, utils
 from cognite.client.data_classes import Database, DataSet, Group
 from cognite.client.data_classes._base import CogniteResource, CogniteResourceList
 from cognite.client.data_classes.data_modeling.spaces import Space
-from cognite.client.utils._time import convert_time_attributes_to_datetime
+from cognite.client.utils import _json
+from cognite.client.utils._time import convert_and_isoformat_time_attrs
 
 
 class CogniteResourceCache(UserList):
@@ -41,13 +42,13 @@ class CogniteResourceCache(UserList):
         self.data = [r for r in resources] if isinstance(resources, CogniteResourceList) else [resources]
 
     def __str__(self) -> str:
-        """From CogniteResourceList v6.2.1
+        """From CogniteResourceList v7.73.9
 
         Returns:
             _type_: _description_
         """
-        item = convert_time_attributes_to_datetime(self.dump())
-        return json.dumps(item, default=utils._auxiliary.json_dump_default, indent=4)
+        item = convert_and_isoformat_time_attrs(self.dump(camel_case=False))
+        return _json.dumps(item, indent=4)
 
     def dump(self, camel_case: bool = False) -> list[dict[str, Any]]:
         """Dump the instance into a json serializable Python data type.

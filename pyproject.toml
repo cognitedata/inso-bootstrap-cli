@@ -3,7 +3,7 @@ name = "inso-bootstrap-cli"
 # 230802 pa: switched to keep manually in sync with
 # 1. src/bootstrap/__init__.py => __version__ = "3.0.6"
 # 2. action.yml => image: docker://cognite/bootstrap-cli:v3.0.6
-version = "3.4.1"
+version = "3.5.0"
 description = "A CLI to deploy a CDF Project to bootstrap CDF Groups scoped with Data Sets and RAW DBs"
 authors = [
     "Peter Arwanitis <peter.arwanitis@cognite.com>",
@@ -21,7 +21,7 @@ python-dotenv = "^0.21.1"
 pydantic-settings = "^2"
 dependency-injector = { version = "^4.41.0", extras = ["yaml"] }
 click = "^8.1.6"
-cognite-sdk = { version = "^6.39", extras = ["pandas"] }
+cognite-sdk = { version = "^7", extras = ["pandas"] }
 rich = "^13"
 
 [tool.poetry.dev-dependencies]
