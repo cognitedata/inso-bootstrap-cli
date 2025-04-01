@@ -53,8 +53,6 @@ def test_deploy_config_01_is_valid(example_file: Path, dotenv_path: Path):
     ContainerCls = ContainerSelector[CommandMode.DEPLOY]
     container: DeployCommandContainer = init_container(ContainerCls, example_file, dotenv_path)
 
-    rprint(container.config())
-
     # to see print output run `pytest -s`
     # print(container.bootstrap())
 
