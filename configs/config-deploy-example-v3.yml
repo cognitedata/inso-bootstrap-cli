@@ -137,8 +137,8 @@ bootstrap:
         - node-name: src:002:weather
           description: Sources 002; from Weather.com
           # if omitted 'external-id' will be auto generated in this case.
-          space-variants: ["i", "m"]
           # creates additional variants with adding a suffix separated by '-' to the end (after '-spc'!)
+          space-variants: ["i", "m"]
 
     - ns-name: in
       description: End user data-input provided through deployed CDF driven solutions

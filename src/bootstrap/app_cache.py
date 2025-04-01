@@ -47,8 +47,6 @@ class CogniteResourceCache(UserList):
         Returns:
             _type_: _description_
         """
-        # item = convert_time_attributes_to_datetime(self.dump())
-        # return json.dumps(item, default=utils._auxiliary.json_dump_default, indent=4)
         item = convert_and_isoformat_time_attrs(self.dump(camel_case=False))
         return _json.dumps(item, indent=4)
 
